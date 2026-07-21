@@ -415,6 +415,10 @@ disown
 echo -e "${YELLOW}Starting waybar...${NC}"
 sleep 3
 
+# Set default volume to 65% for clean audio output combined with
+# ~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf
+pactl set-source-volume @DEFAULT_SOURCE@ 65%
+
 systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
