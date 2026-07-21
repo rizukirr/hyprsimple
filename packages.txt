@@ -39,6 +39,7 @@ power-profiles-daemon
 qt5-wayland
 qt6-wayland
 kvantum
+thermald
 
 # networking
 dnsmasq
