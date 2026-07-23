@@ -423,6 +423,7 @@ systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
 muslimtify daemon status || true
+sudo systemctl enable --now thermald || true
 
 echo ""
 echo -e "${GREEN}======================================"
