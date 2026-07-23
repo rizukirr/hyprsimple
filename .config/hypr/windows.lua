@@ -43,6 +43,9 @@ hl.window_rule({
 	tag = "-default-opacity",
 })
 
+-- Hide the "<app> is sharing your screen" notification bar
+hl.window_rule({ match = { title = ".*is sharing.*" }, workspace = "special silent" })
+
 -- Force chromium-based browsers into a tile (chromium --app bug workaround)
 hl.window_rule({ match = { tag = "chromium-based-browser" }, tile = true })
 
