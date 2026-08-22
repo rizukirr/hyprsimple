@@ -540,7 +540,14 @@ systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
 muslimtify daemon status || true
-sudo systemctl enable --now thermald || true
+# thermald is Intel-only and pointless on AMD or on a desktop, so gate it
+if bash "$HOME/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
+  sudo pacman -S --needed --noconfirm thermald >/dev/null 2>&1 || FAILED_PACKAGES+=(thermald)
+  sudo systemctl enable --now thermald || true
+  echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
+else
+  echo -e "${YELLOW}Skipping thermald (not an Intel laptop)${NC}"
+fi
 
 echo ""
 if (( ${#FAILED_PACKAGES[@]} > 0 )); then
