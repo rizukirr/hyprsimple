@@ -4,6 +4,11 @@ set -eEo pipefail
 
 DOTFILES_DIR="$(pwd)"
 
+# Canonical location hyprsimple manages itself from after install. Migrations,
+# hyprsimple-refresh-config.sh and hyprsimple-update.sh all read from here, so
+# updates work no matter where the repo was originally cloned.
+export HYPRSIMPLE_PATH="$HOME/.local/share/hyprsimple"
+
 echo "======================================"
 echo "  Hyprsimple Installation Script"
 echo "======================================"
@@ -14,6 +19,55 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# ======================================
+#  Logging & error reporting
+# ======================================
+# Mirror everything to a log so a failed install can be diagnosed afterwards,
+# and report the failing command instead of dying silently.
+
+INSTALL_LOG="$HOME/.local/state/hyprsimple/install.log"
+mkdir -p "$(dirname "$INSTALL_LOG")"
+: >"$INSTALL_LOG"
+exec > >(tee -a "$INSTALL_LOG") 2>&1
+
+# Packages that could not be installed, reported together at the end rather
+# than scrolling past in the middle of a long install.
+FAILED_PACKAGES=()
+
+debug_command() {
+  if [[ -x "$HOME/.local/bin/hyprsimple-debug.sh" ]]; then
+    echo "$HOME/.local/bin/hyprsimple-debug.sh"
+  else
+    echo "$DOTFILES_DIR/.local/bin/hyprsimple-debug.sh"
+  fi
+}
+
+on_error() {
+  local exit_code=$?
+  local line=$1
+  local failed_command=$BASH_COMMAND
+
+  echo ""
+  echo -e "${RED}======================================"
+  echo "  Installation failed"
+  echo -e "======================================${NC}"
+  echo ""
+  echo -e "${RED}install.sh line $line exited with status $exit_code:${NC}"
+  echo "  $failed_command"
+  echo ""
+  echo "Full log: $INSTALL_LOG"
+  echo ""
+  echo "To report this, run:"
+  echo ""
+  echo "  $(debug_command)"
+  echo ""
+  echo "then attach the link it gives you to a new issue:"
+  echo "https://github.com/rizukirr/hyprsimple/issues"
+  echo ""
+}
+
+trap 'on_error $LINENO' ERR
 
 # Check if running on Arch Linux
 if [ ! -f /etc/arch-release ]; then
@@ -199,11 +253,37 @@ EOF
   echo -e "${GREEN}GPU setup complete ($GPU_VENDOR selected as primary)${NC}"
 }
 
+# Install packages from a list. If the bulk install fails, retry one by one so
+# we can name the packages that are actually broken instead of leaving the user
+# with a half-configured desktop and no idea what went wrong.
+install_package_list() {
+  local list_file="$1"
+  shift
+  local installer=("$@")
+  local packages=()
+
+  mapfile -t packages < <(grep -v '^\s*#' "$list_file" | grep -v '^\s*$')
+  (( ${#packages[@]} == 0 )) && return 0
+
+  if "${installer[@]}" --needed "${packages[@]}"; then
+    return 0
+  fi
+
+  echo -e "${YELLOW}Bulk install failed. Retrying individually to identify the cause...${NC}"
+  local pkg
+  for pkg in "${packages[@]}"; do
+    if ! "${installer[@]}" --needed --noconfirm "$pkg" >/dev/null 2>&1; then
+      echo -e "${RED}Could not install: $pkg${NC}"
+      FAILED_PACKAGES+=("$pkg")
+    fi
+  done
+}
+
 # Install official packages
 echo -e "${YELLOW}Installing official packages...${NC}"
 if [ -f "$DOTFILES_DIR/packages.txt" ]; then
   sudo pacman -Syu
-  sudo pacman -S --needed $(grep -v '^#' "$DOTFILES_DIR/packages.txt" | grep -v '^$') || true
+  install_package_list "$DOTFILES_DIR/packages.txt" sudo pacman -S
 else
   echo -e "${RED}packages.txt not found!${NC}"
   exit 1
@@ -213,7 +293,7 @@ fi
 echo -e "${YELLOW}Installing AUR packages...${NC}"
 if [ -f "$DOTFILES_DIR/aur-packages.txt" ]; then
   $AUR_HELPER -Syu || true
-  $AUR_HELPER -S --needed $(grep -v '^#' "$DOTFILES_DIR/aur-packages.txt" | grep -v '^$') || true
+  install_package_list "$DOTFILES_DIR/aur-packages.txt" "$AUR_HELPER" -S
 else
   echo -e "${YELLOW}aur-packages.txt not found, skipping AUR packages${NC}"
 fi
@@ -281,6 +361,43 @@ setup_firewall || true
 setup_battery || true
 echo -e "${GREEN}Service setup complete${NC}"
 echo ""
+
+# ======================================
+#  Self-install to the canonical path
+# ======================================
+# hyprsimple-update.sh and every migration read from $HYPRSIMPLE_PATH, so mirror
+# this checkout there (including .git, so updates can pull).
+
+install_to_canonical_path() {
+  if [[ $DOTFILES_DIR = "$HYPRSIMPLE_PATH" ]]; then
+    return 0
+  fi
+
+  if [[ -e $HYPRSIMPLE_PATH ]]; then
+    if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]]; then
+      echo -e "${RED}$HYPRSIMPLE_PATH exists but does not look like a hyprsimple checkout.${NC}"
+      echo -e "${RED}Move it aside and re-run this installer.${NC}"
+      return 1
+    fi
+    rm -rf "$HYPRSIMPLE_PATH"
+  fi
+
+  mkdir -p "$(dirname "$HYPRSIMPLE_PATH")"
+  cp -a "$DOTFILES_DIR" "$HYPRSIMPLE_PATH"
+  echo -e "${GREEN}hyprsimple installed to $HYPRSIMPLE_PATH${NC}"
+}
+
+echo ""
+echo -e "${YELLOW}Installing hyprsimple to $HYPRSIMPLE_PATH...${NC}"
+install_to_canonical_path
+
+# A fresh install already ships every fix, so mark all migrations as done and
+# let new users skip the entire history.
+MIGRATION_STATE_DIR="$HOME/.local/state/hyprsimple/migrations"
+mkdir -p "$MIGRATION_STATE_DIR/skipped"
+for migration in "$HYPRSIMPLE_PATH/migrations"/*.sh; do
+  [[ -f $migration ]] && touch "$MIGRATION_STATE_DIR/$(basename "$migration")"
+done
 
 # Copy configuration files
 echo ""
@@ -426,17 +543,33 @@ muslimtify daemon status || true
 sudo systemctl enable --now thermald || true
 
 echo ""
-echo -e "${GREEN}======================================"
-echo "  Installation Complete!"
-echo "======================================${NC}"
+if (( ${#FAILED_PACKAGES[@]} > 0 )); then
+  echo -e "${RED}======================================"
+  echo "  Installed, but ${#FAILED_PACKAGES[@]} package(s) failed"
+  echo -e "======================================${NC}"
+  echo ""
+  printf '  %s\n' "${FAILED_PACKAGES[@]}"
+  echo ""
+  echo "Features depending on these will not work. Try installing them by hand,"
+  echo "then re-run ./install.sh. To report it:"
+  echo ""
+  echo "  $(debug_command)"
+  echo ""
+else
+  echo -e "${GREEN}======================================"
+  echo "  Installation Complete!"
+  echo -e "======================================${NC}"
+fi
 echo ""
 echo "Configuration files have been copied to your home directory."
-echo "To update configs, edit files in ~/.config/ directly."
+echo "Edit files in ~/.config/ directly to customise; updates will not overwrite them."
+echo ""
+echo "Log saved to $INSTALL_LOG"
 echo ""
 echo "Next steps:"
 echo "1. Log out and log back in to Hyprland"
 echo "2. Customize ~/.config/hypr/monitors.conf for your setup"
-echo "3. Done"
+echo "3. Update later with: hyprsimple-update"
 echo ""
 
 read -p "Logout to take effect? (y/n) " logout
