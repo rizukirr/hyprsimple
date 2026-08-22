@@ -4,6 +4,11 @@ set -eEo pipefail
 
 DOTFILES_DIR="$(pwd)"
 
+# Canonical location hyprsimple manages itself from after install. Migrations,
+# hyprsimple-refresh-config.sh and hyprsimple-update.sh all read from here, so
+# updates work no matter where the repo was originally cloned.
+export HYPRSIMPLE_PATH="$HOME/.local/share/hyprsimple"
+
 echo "======================================"
 echo "  Hyprsimple Installation Script"
 echo "======================================"
@@ -281,6 +286,43 @@ setup_firewall || true
 setup_battery || true
 echo -e "${GREEN}Service setup complete${NC}"
 echo ""
+
+# ======================================
+#  Self-install to the canonical path
+# ======================================
+# hyprsimple-update.sh and every migration read from $HYPRSIMPLE_PATH, so mirror
+# this checkout there (including .git, so updates can pull).
+
+install_to_canonical_path() {
+  if [[ $DOTFILES_DIR = "$HYPRSIMPLE_PATH" ]]; then
+    return 0
+  fi
+
+  if [[ -e $HYPRSIMPLE_PATH ]]; then
+    if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]]; then
+      echo -e "${RED}$HYPRSIMPLE_PATH exists but does not look like a hyprsimple checkout.${NC}"
+      echo -e "${RED}Move it aside and re-run this installer.${NC}"
+      return 1
+    fi
+    rm -rf "$HYPRSIMPLE_PATH"
+  fi
+
+  mkdir -p "$(dirname "$HYPRSIMPLE_PATH")"
+  cp -a "$DOTFILES_DIR" "$HYPRSIMPLE_PATH"
+  echo -e "${GREEN}hyprsimple installed to $HYPRSIMPLE_PATH${NC}"
+}
+
+echo ""
+echo -e "${YELLOW}Installing hyprsimple to $HYPRSIMPLE_PATH...${NC}"
+install_to_canonical_path
+
+# A fresh install already ships every fix, so mark all migrations as done and
+# let new users skip the entire history.
+MIGRATION_STATE_DIR="$HOME/.local/state/hyprsimple/migrations"
+mkdir -p "$MIGRATION_STATE_DIR/skipped"
+for migration in "$HYPRSIMPLE_PATH/migrations"/*.sh; do
+  [[ -f $migration ]] && touch "$MIGRATION_STATE_DIR/$(basename "$migration")"
+done
 
 # Copy configuration files
 echo ""

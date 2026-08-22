@@ -48,6 +48,44 @@ cd hyprsimple
 
 If you run into a problem installing hyprsimple, please [open an issue](https://github.com/rizukirr/hyprsimple/issues) — thank you!
 
+## Update
+
+> [!IMPORTANT]
+> If you installed hyprsimple before it could update itself, run this **once** to
+> get on the update system. Unlike `install.sh`, it does not replace your
+> `~/.config`:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/rizukirr/hyprsimple/main/bootstrap.sh | bash
+> ```
+>
+> It installs hyprsimple to `~/.local/share/hyprsimple`, refreshes the helper
+> scripts, and applies every fix you missed as a migration. After that,
+> `hyprsimple-update` is all you need.
+
+```bash
+hyprsimple-update
+```
+
+This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`,
+installs any newly required packages, and runs pending migrations.
+
+**Your files in `~/.config` are never overwritten by an update.** When a default
+config genuinely has to change, a migration makes the specific edit — or calls
+`hyprsimple-refresh-config <path>`, which saves your version as
+`<file>.bak.<timestamp>` and prints the diff before replacing it.
+
+Migrations only run once per machine; state lives in
+`~/.local/state/hyprsimple/migrations`. A fresh install already ships every fix,
+so new users skip the history entirely. If one fails you can skip it and carry
+on. To reset a single config to the shipped default at any time:
+
+```bash
+hyprsimple-refresh-config hypr/hyprlock.conf
+```
+
+Writing a migration is documented in [`migrations/README.md`](migrations/README.md).
+
 ## Network
 
 To see the available network interfaces, run `wifi`. To connect to a network, run `wifi <network name>` for example `wifi "MY NETWORK"`
@@ -215,6 +253,15 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `search.sh` | Fuzzy file finder (ripgrep + fzf) that opens the result in nvim |
 | `search_by_keyword.sh` | Fuzzy content search (ripgrep + fzf) that opens the match in nvim |
 | `show-keybindings.sh` | Show all Hyprland keybindings in a rofi fuzzy-search menu |
+
+### hyprsimple management
+
+| Script | Description |
+|--------|-------------|
+| `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations |
+| `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
+| `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
+| `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
 ### Integrations
 
