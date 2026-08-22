@@ -562,7 +562,7 @@ else
 fi
 echo ""
 echo "Configuration files have been copied to your home directory."
-echo "To update configs, edit files in ~/.config/ directly."
+echo "Edit files in ~/.config/ directly to customise; updates will not overwrite them."
 echo ""
 echo "Log saved to $INSTALL_LOG"
 echo ""

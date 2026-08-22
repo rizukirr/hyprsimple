@@ -3,6 +3,77 @@
 Troubleshooting notes for hyprsimple. Found a problem not covered here? Please
 [open an issue](https://github.com/rizukirr/hyprsimple/issues).
 
+## How do I update hyprsimple, and will it overwrite my config?
+
+```bash
+hyprsimple-update
+```
+
+This pulls the latest hyprsimple, refreshes the helper scripts in
+`~/.local/bin`, installs any packages newly required by those scripts, and runs
+pending migrations.
+
+**It never replaces your `~/.config`.** Customise those files freely. When a
+shipped default genuinely has to change, a migration makes that one specific
+edit — or calls `hyprsimple-refresh-config`, which saves your version as
+`<file>.bak.<timestamp>` and prints the diff before replacing it.
+
+`install.sh` is a **first-time installer only**. It moves every existing
+`~/.config/<dir>` aside to `.backup` and copies fresh defaults, so re-running it
+on a configured machine will cost you your theme choice and any edits you have
+made. Use `hyprsimple-update` instead.
+
+If you installed hyprsimple before it could update itself, run this **once** to
+get onto the update system — unlike `install.sh` it leaves `~/.config` alone:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rizukirr/hyprsimple/main/bootstrap.sh | bash
+```
+
+To reset a single file to the shipped default at any time:
+
+```bash
+hyprsimple-refresh-config hypr/hyprlock.conf
+```
+
+## A migration failed. What now?
+
+Migrations run once per machine, tracked in
+`~/.local/state/hyprsimple/migrations`. When one fails you are asked whether to
+skip it; skipping records it under `.../migrations/skipped/` and continues.
+
+To retry a skipped migration later, delete its marker and re-run:
+
+```bash
+rm ~/.local/state/hyprsimple/migrations/skipped/<timestamp>.sh
+hyprsimple-migrate
+```
+
+Migrations are written to be idempotent, so re-running one whose fix you already
+have is a no-op. `hyprsimple-debug` reports which migrations are applied,
+skipped, and pending.
+
+## How do I report a problem?
+
+Run:
+
+```bash
+hyprsimple-debug
+```
+
+It collects your hyprsimple version and branch, migration state, hardware,
+Hyprland version and monitors, journal warnings, dmesg, the install log
+(`~/.local/state/hyprsimple/install.log`), and your explicitly installed
+packages into a single file, then offers to view, save, or upload it to
+`0x0.st` with a 24-hour expiry.
+
+Attach the link to your [issue](https://github.com/rizukirr/hyprsimple/issues).
+
+> [!NOTE]
+> The report includes your hostname and package list. Review it before uploading
+> — `hyprsimple-debug --print` dumps it to the terminal without uploading, and
+> `--no-sudo` skips the dmesg section so you are not prompted for a password.
+
 ## Boot hangs with `[FAILED] Failed to start Load Kernel Modules`, then freezes after login (NVIDIA hybrid laptops)
 
 On NVIDIA Optimus laptops (Intel/AMD iGPU + NVIDIA dGPU) running a bleeding-edge

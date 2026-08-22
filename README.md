@@ -32,6 +32,9 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **Audio output switching** with one key
 - **Prayer times** on waybar via muslimtify
 - **Firewall** (UFW) configured out of the box
+- **In-place updates** via `hyprsimple-update`, which never overwrites your `~/.config`
+- **Migrations** that deliver fixes to machines already installed, once each and idempotently
+- **One-command diagnostics** with `hyprsimple-debug` for issue reports
 
 ## Install
 
