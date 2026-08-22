@@ -47,6 +47,10 @@ cd hyprsimple
 > (KDE, GNOME, etc.) is untested and may require manual cleanup.
 
 If you run into a problem installing hyprsimple, please [open an issue](https://github.com/rizukirr/hyprsimple/issues) — thank you!
+Run `hyprsimple-debug` first and attach the link it gives you: it bundles your
+hardware, journal warnings, migration state, and the install log
+(`~/.local/state/hyprsimple/install.log`) into a single paste that expires in 24
+hours. Review it before uploading — it includes your hostname and package list.
 
 ## Update
 
@@ -261,6 +265,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
+| `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
 ### Integrations

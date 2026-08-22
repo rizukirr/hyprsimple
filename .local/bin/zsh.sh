@@ -54,6 +54,7 @@ alias cpu='~/.local/bin/toggle_cpu_mode.sh'
 alias hyprsimple-update='~/.local/bin/hyprsimple-update.sh'
 alias hyprsimple-migrate='~/.local/bin/hyprsimple-migrate.sh'
 alias hyprsimple-refresh-config='~/.local/bin/hyprsimple-refresh-config.sh'
+alias hyprsimple-debug='~/.local/bin/hyprsimple-debug.sh'
 
 # muslimtify add/remove
 alias muslimtify-add='~/.local/bin/hyprsimple-muslimtify.sh add'

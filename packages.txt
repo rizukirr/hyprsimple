@@ -70,6 +70,7 @@ zoxide
 yazi
 starship
 fastfetch
+inxi
 lsd
 git
 jq
