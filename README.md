@@ -20,7 +20,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **17 themes** with one-key switching, all apps update at once (waybar, rofi, ghostty, hyprlock, dunst, btop)
 - **Per-theme wallpapers** with picker and cycle support
 - **Per-theme backgrounds** for app launcher and power menu
-- **Hardware auto-detection** at install (NVIDIA, Vulkan, Intel iGPU, WiFi, battery, thermald)
+- **Hardware auto-detection** at install (NVIDIA, Vulkan, Intel iGPU, WiFi, battery)
 - **Wayland-native** session via uwsm, no X11 dependencies
 - **Modular Hyprland config** split into focused files
 - **GTK/QT theming** with auto light/dark mode per theme
