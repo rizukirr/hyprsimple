@@ -31,15 +31,15 @@ The spec's Approach section specifies one pull request with three commits. This 
 - Delete: `.config/hypr/themes/catppuccin/wallpaper.jpg`
 - Delete: `.config/hypr/themes/rosepine/wallpaper.jpg`
 
-- [ ] Step 1: Record the starting size. Run `du -sh --exclude=.git --exclude=external .` and keep the value for the commit message.
-- [ ] Step 2: Confirm nothing reads the rofi trees. Run `grep -rn "themes/.*rofi" .local/bin .config` and require a non-zero exit.
-- [ ] Step 3: Confirm nothing reads the shared wallpapers. Run `grep -rn "share/wallpapers" .local .config install.sh bootstrap.sh migrations` and require a non-zero exit. The search is scoped to code on purpose: `docs/` holds the spec and plan for this deletion, and both name the path by design, so a repo-wide search can never pass.
-- [ ] Step 4: Confirm every theme has a `backgrounds/` directory, which is what makes the `wallpaper.jpg` fallback at `theme-switcher.sh:110` unreachable. Run:
+- [x] Step 1: Record the starting size. Run `du -sh --exclude=.git --exclude=external .` and keep the value for the commit message.
+- [x] Step 2: Confirm nothing reads the rofi trees. Run `grep -rn "themes/.*rofi" .local/bin .config` and require a non-zero exit.
+- [x] Step 3: Confirm nothing reads the shared wallpapers. Run `grep -rn "share/wallpapers" .local .config install.sh bootstrap.sh migrations` and require a non-zero exit. The search is scoped to code on purpose: `docs/` holds the spec and plan for this deletion, and both name the path by design, so a repo-wide search can never pass.
+- [x] Step 4: Confirm every theme has a `backgrounds/` directory, which is what makes the `wallpaper.jpg` fallback at `theme-switcher.sh:110` unreachable. Run:
       `for t in .config/hypr/themes/*/; do n=$(basename "$t"); [[ $n == templates ]] && continue; [[ -d "$t/backgrounds" ]] || echo "MISSING $n"; done`
       and require no output.
-- [ ] Step 5: `git rm -r --quiet .config/hypr/themes/*/rofi .local/share/wallpapers .config/hypr/themes/catppuccin/wallpaper.jpg .config/hypr/themes/rosepine/wallpaper.jpg`
-- [ ] Step 6: Record the ending size with the same command as Step 1.
-- [ ] Step 7: Commit, with both sizes from Steps 1 and 6 in the message.
+- [x] Step 5: `git rm -r --quiet .config/hypr/themes/*/rofi .local/share/wallpapers .config/hypr/themes/catppuccin/wallpaper.jpg .config/hypr/themes/rosepine/wallpaper.jpg`
+- [x] Step 6: Record the ending size with the same command as Step 1.
+- [x] Step 7: Commit, with both sizes from Steps 1 and 6 in the message.
 
 ---
 
