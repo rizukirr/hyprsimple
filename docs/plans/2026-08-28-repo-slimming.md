@@ -256,7 +256,7 @@ This is the repository's first workflow. `.github/` currently holds only `FUNDIN
 **Files:**
 - Create: `.github/workflows/images.yml`
 
-- [ ] Step 1: Create the file with this content:
+- [x] Step 1: Create the file with this content:
 
 ```yaml
 name: Images
@@ -285,9 +285,9 @@ jobs:
         run: bin/hyprsimple-dev-optimize-images --check
 ```
 
-- [ ] Step 2: Validate the YAML parses. Run `python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/images.yml'))"`.
-- [ ] Step 3: Confirm the script's ImageMagick detection covers what the runner installs. Ubuntu ships ImageMagick 6, which provides `convert` and `identify` but not `magick`, and Task 4's script handles both. Verify locally by running `env -i PATH=/usr/bin:/bin bash -c 'command -v convert identify magick'` to see which names exist, and read the workflow's job log on the pull request to confirm the check step ran rather than exiting on the dependency guard.
-- [ ] Step 4: Commit.
+- [x] Step 2: Validate the YAML parses. Run `python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/images.yml'))"`.
+- [x] Step 3: Confirm the script's ImageMagick detection covers what the runner installs. Ubuntu ships ImageMagick 6, which provides `convert` and `identify` but not `magick`, and Task 4's script handles both. Verify locally by running `env -i PATH=/usr/bin:/bin bash -c 'command -v convert identify magick'` to see which names exist, and read the workflow's job log on the pull request to confirm the check step ran rather than exiting on the dependency guard.
+- [x] Step 4: Commit.
 
 ---
 
