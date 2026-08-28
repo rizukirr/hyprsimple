@@ -50,10 +50,10 @@ The spec's Approach section specifies one pull request with three commits. This 
 
 `.gitignore:35` already ignores `.config/hypr/themes/*/generated/`. The rule has no effect because the files were tracked before it was added, and gitignore does not apply to tracked files.
 
-- [ ] Step 1: Observe which are tracked. Run `git ls-files | grep "generated/"`.
-- [ ] Step 2: `git rm --cached --quiet .config/hypr/themes/*/generated/*`
-- [ ] Step 3: Confirm the working files survived, since `theme-apply-templates.sh` regenerates them but a live machine should not need a theme switch to get them back. Run `ls .config/hypr/themes/catppuccin/generated/hyprland-colors.lua`.
-- [ ] Step 4: Commit.
+- [x] Step 1: Observe which are tracked. Run `git ls-files | grep "generated/"`.
+- [x] Step 2: `git rm --cached --quiet .config/hypr/themes/*/generated/*`
+- [x] Step 3: Confirm the working files survived, since `theme-apply-templates.sh` regenerates them but a live machine should not need a theme switch to get them back. Run `ls .config/hypr/themes/catppuccin/generated/hyprland-colors.lua`.
+- [x] Step 4: Commit.
 
 ---
 
