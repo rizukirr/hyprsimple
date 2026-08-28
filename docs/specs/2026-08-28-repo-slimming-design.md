@@ -1,7 +1,7 @@
 ---
 title: Repo slimming and image policy
 date: 2026-08-28
-status: draft
+status: approved
 ---
 
 # Repo slimming and image policy: Design
