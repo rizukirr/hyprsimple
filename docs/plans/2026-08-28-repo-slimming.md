@@ -209,9 +209,9 @@ Two references break when file extensions change, and both are fixed here rather
 - Modify: `.local/bin/theme-switcher.sh:137-143`
 - Modify: `README.md:8`, `README.md:12`, `README.md:16`
 
-- [ ] Step 1: Record the starting size. Run `du -sh --exclude=.git --exclude=external .`.
-- [ ] Step 2: Run `bin/hyprsimple-dev-optimize-images`.
-- [ ] Step 3: Replace the lockscreen block at `.local/bin/theme-switcher.sh:137-143`. The lookup is hardcoded to `lockscreen.png` and the file is now `lockscreen.jpg`. The cache filename stays `current_lockscreen.png` because `.config/hypr/hyprlock.conf:13` points at it, and hyprlock reads content rather than extension. Replace:
+- [x] Step 1: Record the starting size. Run `du -sh --exclude=.git --exclude=external .`.
+- [x] Step 2: Run `bin/hyprsimple-dev-optimize-images`.
+- [x] Step 3: Replace the lockscreen block at `.local/bin/theme-switcher.sh:137-143`. The lookup is hardcoded to `lockscreen.png` and the file is now `lockscreen.jpg`. The cache filename stays `current_lockscreen.png` because `.config/hypr/hyprlock.conf:13` points at it, and hyprlock reads content rather than extension. Replace:
 
 ```bash
 # Lockscreen
@@ -238,14 +238,14 @@ elif [[ -n "$WALLPAPER" ]]; then
 fi
 ```
 
-- [ ] Step 4: Update the three `README.md` image links from `.png` to `.jpg`. Run:
+- [x] Step 4: Update the three `README.md` image links from `.png` to `.jpg`. Run:
       `sed -i -E 's#\(assets/(image[0-9]+)\.png\)#(assets/\1.jpg)#g' README.md`
       The trailing `g` matters: `README.md:12` and `README.md:16` are table rows holding two image refs each, and without it one pass rewrites only the first on those lines.
-- [ ] Step 5: Confirm no reference to a now-missing asset survives. Run `grep -n "assets/" README.md`, then for each path listed require the file to exist.
-- [ ] Step 6: Run `bin/hyprsimple-dev-optimize-images --check` and require exit 0.
-- [ ] Step 7: Prove idempotence. Run `bin/hyprsimple-dev-optimize-images` a second time, then `git status --porcelain`, and require no output beyond what Steps 2 to 4 already staged.
-- [ ] Step 8: Record the ending size with the same command as Step 1.
-- [ ] Step 9: Commit, with both sizes in the message.
+- [x] Step 5: Confirm no reference to a now-missing asset survives. Run `grep -n "assets/" README.md`, then for each path listed require the file to exist.
+- [x] Step 6: Run `bin/hyprsimple-dev-optimize-images --check` and require exit 0.
+- [x] Step 7: Prove idempotence. Run `bin/hyprsimple-dev-optimize-images` a second time, then `git status --porcelain`, and require no output beyond what Steps 2 to 4 already staged.
+- [x] Step 8: Record the ending size with the same command as Step 1.
+- [x] Step 9: Commit, with both sizes in the message.
 
 ---
 
