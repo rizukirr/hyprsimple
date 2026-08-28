@@ -30,6 +30,7 @@ GEMINI.md
 external/
 docs/*
 !docs/specs/
+!docs/plans/
 
 # Generated theme configs (auto-created by theme-apply-templates.sh)
 .config/hypr/themes/*/generated/
