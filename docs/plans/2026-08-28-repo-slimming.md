@@ -33,7 +33,7 @@ The spec's Approach section specifies one pull request with three commits. This 
 
 - [ ] Step 1: Record the starting size. Run `du -sh --exclude=.git --exclude=external .` and keep the value for the commit message.
 - [ ] Step 2: Confirm nothing reads the rofi trees. Run `grep -rn "themes/.*rofi" .local/bin .config` and require a non-zero exit.
-- [ ] Step 3: Confirm nothing reads the shared wallpapers. Run `grep -rn "share/wallpapers" . --exclude-dir=.git --exclude-dir=external` and require a non-zero exit.
+- [ ] Step 3: Confirm nothing reads the shared wallpapers. Run `grep -rn "share/wallpapers" .local .config install.sh bootstrap.sh migrations` and require a non-zero exit. The search is scoped to code on purpose: `docs/` holds the spec and plan for this deletion, and both name the path by design, so a repo-wide search can never pass.
 - [ ] Step 4: Confirm every theme has a `backgrounds/` directory, which is what makes the `wallpaper.jpg` fallback at `theme-switcher.sh:110` unreachable. Run:
       `for t in .config/hypr/themes/*/; do n=$(basename "$t"); [[ $n == templates ]] && continue; [[ -d "$t/backgrounds" ]] || echo "MISSING $n"; done`
       and require no output.
