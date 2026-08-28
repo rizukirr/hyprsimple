@@ -28,7 +28,8 @@ GEMINI.md
 .local/bin/uvx
 /.local/bin/claude
 external/
-docs/
+docs/*
+!docs/specs/
 
 # Generated theme configs (auto-created by theme-apply-templates.sh)
 .config/hypr/themes/*/generated/
