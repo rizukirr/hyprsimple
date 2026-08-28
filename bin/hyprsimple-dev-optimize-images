@@ -1,0 +1,102 @@
+#!/bin/bash
+# Enforce the repo image policy: long edge <= MAX_EDGE, JPEG at QUALITY, no metadata.
+#
+#   hyprsimple-dev-optimize-images           rewrite offending images in place
+#   hyprsimple-dev-optimize-images --check   report offenders, write nothing, exit 1 if any
+#
+# CI runs --check. Contributors run the bare form to fix what it reports.
+
+set -euo pipefail
+
+MAX_EDGE=2560
+QUALITY=82
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+
+check_only=false
+case "${1:-}" in
+  --check) check_only=true ;;
+  "") ;;
+  *)
+    echo "Usage: $(basename "$0") [--check]" >&2
+    exit 2
+    ;;
+esac
+
+# ImageMagick 7 exposes `magick`. ImageMagick 6, which is what Ubuntu still
+# ships and therefore what GitHub's runners install, exposes `convert` and
+# `identify` instead. Support both rather than pinning CI to one of them.
+if command -v magick &>/dev/null; then
+  im_identify() { magick identify "$@"; }
+  im_convert() { magick "$@"; }
+elif command -v identify &>/dev/null && command -v convert &>/dev/null; then
+  im_identify() { identify "$@"; }
+  im_convert() { convert "$@"; }
+else
+  echo "ImageMagick is required: pacman -S imagemagick" >&2
+  exit 2
+fi
+
+# Paths the policy covers. .local/share/assets/wlogout is deliberately absent:
+# those are UI icons with alpha, referenced by .config/wlogout/style.css.
+mapfile -t targets < <(
+  find .config/hypr/themes/*/backgrounds .config/hypr/themes/*/lockscreen.* assets \
+    -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+    2>/dev/null | sort
+)
+
+# Counters are incremented by assignment, not ((n++)). Post-increment returns
+# the OLD value, so the first ((n++)) on a zero counter has a false exit status
+# and `set -e` kills the script after one iteration.
+violations=0
+converted=0
+
+for f in "${targets[@]}"; do
+  # The trailing \n matters: `identify -format` emits no delimiter of its own, and
+  # bash `read` returns 1 on a stream that ends without one even after populating
+  # its variables. Without it, `|| continue` fires on every file and the script
+  # silently becomes a no-op in both modes.
+  read -r w h < <(im_identify -format '%w %h\n' "$f[0]" 2>/dev/null) || continue
+
+  long=$w
+  ((h > w)) && long=$h
+
+  # A file is compliant only if it is already a .jpg within the size limit.
+  if [[ $f == *.jpg ]] && ((long <= MAX_EDGE)); then
+    continue
+  fi
+
+  if $check_only; then
+    printf '%s (%sx%s)\n' "$f" "$w" "$h"
+    violations=$((violations + 1))
+    continue
+  fi
+
+  out="${f%.*}.jpg"
+  tmp="$(mktemp --suffix=.jpg)"
+  im_convert "$f[0]" -resize "${MAX_EDGE}x${MAX_EDGE}>" -quality "$QUALITY" -strip "$tmp"
+
+  # Never trade a small file for a bigger one. Same-name case included: if the
+  # rewrite of an existing .jpg gains bytes, keep what is already committed.
+  if [[ $out == "$f" ]] && (($(stat -c%s "$tmp") >= $(stat -c%s "$f"))); then
+    rm -f "$tmp"
+    continue
+  fi
+
+  mv -f "$tmp" "$out"
+  chmod 0644 "$out"
+  [[ $out != "$f" ]] && rm -f "$f"
+  printf 'optimized %s -> %s\n' "$f" "$out"
+  converted=$((converted + 1))
+done
+
+if $check_only; then
+  if ((violations > 0)); then
+    echo "$violations image(s) violate the policy. Run bin/$(basename "$0") to fix." >&2
+    exit 1
+  fi
+  echo "All images comply."
+fi
+
+exit 0
