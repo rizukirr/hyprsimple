@@ -301,7 +301,7 @@ The migration filename is the unix timestamp of the last commit on `main` at pla
 - Create: `migrations/1787930450.sh`
 - Create: `AGENTS.md`
 
-- [ ] Step 1: Create `migrations/1787930450.sh` with this content:
+- [x] Step 1: Create `migrations/1787930450.sh` with this content:
 
 ```bash
 echo "Remove the unused ~/.local/share/wallpapers directory"
@@ -332,13 +332,13 @@ else
 fi
 ```
 
-- [ ] Step 2: `chmod 0644 migrations/1787930450.sh`
-- [ ] Step 3: Run `bash -n migrations/1787930450.sh` and require exit 0.
-- [ ] Step 4: Test the protective branch. Build a fixture with the three shipped names plus one extra file, point `HOME` at its parent, run the migration, and require the directory to still exist.
-- [ ] Step 5: Test the removal branch. Build a fixture with exactly the three shipped names, run the migration the same way, and require the directory to be gone.
-- [ ] Step 6: Test idempotence, which `migrations/README.md:17` requires. Run the migration again against the now-removed fixture and require exit 0.
-- [ ] Step 7: Create `AGENTS.md` covering two things: the script prefix taxonomy (`hw-` for hardware predicates returning exit codes, `toggle-`, `theme-`, `hyprsimple-` for management commands, `hyprsimple-dev-` for contributor tooling), and an image policy section that names `bin/hyprsimple-dev-optimize-images` as the authority rather than restating the numeric limits, so the two cannot drift apart.
-- [ ] Step 8: Commit.
+- [x] Step 2: `chmod 0644 migrations/1787930450.sh`
+- [x] Step 3: Run `bash -n migrations/1787930450.sh` and require exit 0.
+- [x] Step 4: Test the protective branch. Build a fixture with the three shipped names plus one extra file, point `HOME` at its parent, run the migration, and require the directory to still exist.
+- [x] Step 5: Test the removal branch. Build a fixture with exactly the three shipped names, run the migration the same way, and require the directory to be gone.
+- [x] Step 6: Test idempotence, which `migrations/README.md:17` requires. Run the migration again against the now-removed fixture and require exit 0.
+- [x] Step 7: Create `AGENTS.md` covering two things: the script prefix taxonomy (`hw-` for hardware predicates returning exit codes, `toggle-`, `theme-`, `hyprsimple-` for management commands, `hyprsimple-dev-` for contributor tooling), and an image policy section that names `bin/hyprsimple-dev-optimize-images` as the authority rather than restating the numeric limits, so the two cannot drift apart.
+- [x] Step 8: Commit.
 
 ---
 
