@@ -134,10 +134,13 @@ else
   write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
 fi
 
-# Lockscreen
+# Lockscreen. The cache filename keeps its .png suffix because hyprlock.conf
+# points at it by name. Hyprlock sniffs content, so a JPEG behind that name is
+# fine, and the fallback below has always written one.
 rm -f "$CACHE_DIR/current_lockscreen.png"
-if [[ -f "$THEME_PATH/lockscreen.png" ]]; then
-  cp "$THEME_PATH/lockscreen.png" "$CACHE_DIR/current_lockscreen.png"
+THEME_LOCKSCREEN=$(find "$THEME_PATH" -maxdepth 1 -type f -name 'lockscreen.*' | sort | head -1)
+if [[ -n "$THEME_LOCKSCREEN" ]]; then
+  cp "$THEME_LOCKSCREEN" "$CACHE_DIR/current_lockscreen.png"
 elif [[ -n "$WALLPAPER" ]]; then
   cp "$WALLPAPER" "$CACHE_DIR/current_lockscreen.png"
 fi
