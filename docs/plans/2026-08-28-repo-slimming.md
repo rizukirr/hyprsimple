@@ -85,7 +85,7 @@ The repo has no top-level `bin/` today. This directory is created here, and hold
 **Files:**
 - Create: `bin/hyprsimple-dev-optimize-images`
 
-- [ ] Step 1: Create the directory and the file with this content:
+- [x] Step 1: Create the directory and the file with this content:
 
 ```bash
 #!/bin/bash
@@ -192,11 +192,11 @@ fi
 exit 0
 ```
 
-- [ ] Step 2: `chmod +x bin/hyprsimple-dev-optimize-images`
-- [ ] Step 3: Run `bash -n bin/hyprsimple-dev-optimize-images` and require exit 0.
-- [ ] Step 4: Run `bin/hyprsimple-dev-optimize-images --check` and require a non-zero exit, because the tree has not been converted yet. This is the negative case for the guard.
-- [ ] Step 5: Confirm `install.sh` copies only `.local/bin` and `.local/share`, so the new `bin/` reaches no user. Run `grep -n "DOTFILES_DIR/.local" install.sh`.
-- [ ] Step 6: Commit.
+- [x] Step 2: `chmod +x bin/hyprsimple-dev-optimize-images`
+- [x] Step 3: Run `bash -n bin/hyprsimple-dev-optimize-images` and require exit 0.
+- [x] Step 4: Run `bin/hyprsimple-dev-optimize-images --check` and require a non-zero exit, because the tree has not been converted yet. This is the negative case for the guard.
+- [x] Step 5: Confirm `install.sh` copies only `.local/bin` and `.local/share`, so the new `bin/` reaches no user. Run `grep -n "DOTFILES_DIR/.local" install.sh`.
+- [x] Step 6: Commit.
 
 ---
 
