@@ -65,7 +65,7 @@ One script owns the image policy. CI calls it in check mode, contributors call i
 
 ### Components
 
-**`bin/hyprsimple-dev-optimize-images`**
+**`bin/hyprsimple-dev-optimize-images`** in a new top-level `bin/` directory. The repo has no `bin/` today and every other script lives in `.local/bin/`, but `install.sh` copies all of `.local/bin/` into the user's home, and this script is a contributor tool with an ImageMagick dependency that no user needs.
 
 - Default mode rewrites offending images in place.
 - `--check` writes nothing, lists violations, exits 1 if any.
@@ -83,6 +83,7 @@ One script owns the image policy. CI calls it in check mode, contributors call i
 
 - `.config/hypr/themes/*/rofi/`, 167 files, 8.5 MB. Verified unreferenced: every rofi consumer reads `~/.config/rofi/`, and `theme-switcher.sh:51` reads the generated `rofi-colors.rasi`.
 - `.local/share/wallpapers/`, 3 files, 20 MB. Verified unreferenced. All wallpaper browsing happens inside `themes/*/backgrounds/`.
+- `themes/{catppuccin,rosepine}/wallpaper.jpg`, 2 files, 16 MB. `theme-switcher.sh:110` reads `wallpaper.jpg` only as an `elif` fallback for a theme with no `backgrounds/` directory. Every theme in the repo has one, so the branch is unreachable, and both files are byte-identical to `tokyo-night/backgrounds/0-tokyo-lady.jpg`. The dead `elif` itself is left in place, because a user's custom theme could still lack a `backgrounds/` directory.
 - `themes/*/generated/*` removed from the git index with `git rm --cached`. The ignore rule already exists and starts working once they are untracked.
 
 ### Deduplication
