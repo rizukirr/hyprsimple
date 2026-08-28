@@ -239,7 +239,8 @@ fi
 ```
 
 - [ ] Step 4: Update the three `README.md` image links from `.png` to `.jpg`. Run:
-      `sed -i -E 's#\(assets/(image[0-9]+)\.png\)#(assets/\1.jpg)#' README.md`
+      `sed -i -E 's#\(assets/(image[0-9]+)\.png\)#(assets/\1.jpg)#g' README.md`
+      The trailing `g` matters: `README.md:12` and `README.md:16` are table rows holding two image refs each, and without it one pass rewrites only the first on those lines.
 - [ ] Step 5: Confirm no reference to a now-missing asset survives. Run `grep -n "assets/" README.md`, then for each path listed require the file to exist.
 - [ ] Step 6: Run `bin/hyprsimple-dev-optimize-images --check` and require exit 0.
 - [ ] Step 7: Prove idempotence. Run `bin/hyprsimple-dev-optimize-images` a second time, then `git status --porcelain`, and require no output beyond what Steps 2 to 4 already staged.
