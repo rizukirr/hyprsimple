@@ -1,0 +1,24 @@
+name: Images
+
+on:
+  pull_request:
+    paths:
+      - '.config/hypr/themes/**'
+      - 'assets/**'
+      - 'bin/hyprsimple-dev-optimize-images'
+  push:
+    branches: [main]
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Check image policy
+        run: bin/hyprsimple-dev-optimize-images --check
