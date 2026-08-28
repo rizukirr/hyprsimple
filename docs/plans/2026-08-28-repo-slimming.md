@@ -344,9 +344,9 @@ fi
 
 ## Final verification, after all seven tasks
 
-- [ ] `du -sh --exclude=.git --exclude=external .` is under 30 MB (spec Goal 1).
-- [ ] `bin/hyprsimple-dev-optimize-images --check` exits 0 (spec Goal 2, positive case). Task 4 Step 4 covers the negative case.
-- [ ] `git status --porcelain` produces no output after a second optimizer run (spec Goal 3).
-- [ ] The Images workflow runs on the pull request and the job succeeds (spec Goal 4).
-- [ ] On the live machine, switch to catppuccin, ethereal, rosepine and deep-sea. Wallpaper and lockscreen render in each, and `deep-sea/backgrounds/2-deep-sea.jpg` (converted from `.webp` by Task 5, and therefore visible to the `*.jpg` filter in `wallpaper-switcher.sh:24` for the first time) appears in the wallpaper picker (spec Goal 5).
-- [ ] `git log --oneline` on the branch shows the deletion, the untracking, the dedup, the tool, the conversion, the workflow and the migration as separate commits.
+- [x] `du -sh --exclude=.git --exclude=external .` is under 30 MB (spec Goal 1).
+- [x] `bin/hyprsimple-dev-optimize-images --check` exits 0 (spec Goal 2, positive case). Task 4 Step 4 covers the negative case.
+- [x] `git status --porcelain` produces no output after a second optimizer run (spec Goal 3).
+- [ ] The Images workflow runs on the pull request and the job succeeds (spec Goal 4).  **UNPROVEN: requires a push / your machine**
+- [ ] On the live machine, switch to catppuccin, ethereal, rosepine and deep-sea. Wallpaper and lockscreen render in each, and `deep-sea/backgrounds/2-deep-sea.jpg` (converted from `.webp` by Task 5, and therefore visible to the `*.jpg` filter in `wallpaper-switcher.sh:24` for the first time) appears in the wallpaper picker (spec Goal 5).  **UNPROVEN: requires a push / your machine**
+- [x] `git log --oneline` on the branch shows the deletion, the untracking, the dedup, the tool, the conversion, the workflow and the migration as separate commits.
