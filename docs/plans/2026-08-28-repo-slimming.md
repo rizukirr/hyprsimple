@@ -57,7 +57,7 @@ The spec's Approach section specifies one pull request with three commits. This 
 
 ---
 
-### Task 3: Remove duplicate backgrounds within a theme → verify: no two files inside any single `backgrounds/` directory share an md5, checked by the command in Step 3, which exits 0
+### Task 3: Remove duplicate backgrounds within a theme → verify: the command in Step 3 exits 0, meaning no two files inside any single `backgrounds/` directory share an md5
 
 Each of these is byte-identical to a lower-numbered file in the same theme, so the live wallpaper cycler shows the same photograph twice in succession. This is a display bug, not a size measure.
 
@@ -71,8 +71,8 @@ Each of these is byte-identical to a lower-numbered file in the same theme, so t
       and require the pairs to match.
 - [ ] Step 2: `git rm --quiet .config/hypr/themes/ethereal/backgrounds/1-morning-angel.jpg .config/hypr/themes/ethereal/backgrounds/2-sunset-beach.jpg .config/hypr/themes/catppuccin/backgrounds/4-home-fantasy.jpg`
 - [ ] Step 3: Confirm no intra-theme duplicates remain. Run:
-      `for d in .config/hypr/themes/*/backgrounds; do md5sum "$d"/* 2>/dev/null | awk '{print $1}' | sort | uniq -d | grep -q . && echo "DUP in $d"; done`
-      and require no output.
+      `! (for d in .config/hypr/themes/*/backgrounds; do md5sum "$d"/* 2>/dev/null | awk '{print $1}' | sort | uniq -d; done | grep -q .)`
+      and require exit 0. The leading `!` makes the clean case the zero exit, so the clause works as a gate. Without it the loop's status comes from the final `grep -q`, which is 1 when nothing is wrong.
 - [ ] Step 4: Confirm both themes still number contiguously from 0, so the theme default is unchanged. Run `ls .config/hypr/themes/ethereal/backgrounds .config/hypr/themes/catppuccin/backgrounds`.
 - [ ] Step 5: Commit.
 
