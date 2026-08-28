@@ -78,7 +78,7 @@ Each of these is byte-identical to a lower-numbered file in the same theme, so t
 
 ---
 
-### Task 4: Add the image optimizer → verify: `bash -n bin/hyprsimple-dev-optimize-images` exits 0, and `bin/hyprsimple-dev-optimize-images --check` exits non-zero while the tree is still unoptimized
+### Task 4: Add the image optimizer → verify: `bash -n bin/hyprsimple-dev-optimize-images` exits 0, and `bin/hyprsimple-dev-optimize-images --check` exits non-zero while the tree is still unoptimized AND lists at least 10 offending files, which a script that aborts on its first finding cannot do
 
 The repo has no top-level `bin/` today. This directory is created here, and holds contributor tooling that `install.sh` must not copy into a user's home.
 
@@ -136,11 +136,18 @@ mapfile -t targets < <(
     2>/dev/null | sort
 )
 
+# Counters are incremented by assignment, not ((n++)). Post-increment returns
+# the OLD value, so the first ((n++)) on a zero counter has a false exit status
+# and `set -e` kills the script after one iteration.
 violations=0
 converted=0
 
 for f in "${targets[@]}"; do
-  read -r w h < <(im_identify -format '%w %h' "$f[0]" 2>/dev/null) || continue
+  # The trailing \n matters: `identify -format` emits no delimiter of its own, and
+  # bash `read` returns 1 on a stream that ends without one even after populating
+  # its variables. Without it, `|| continue` fires on every file and the script
+  # silently becomes a no-op in both modes.
+  read -r w h < <(im_identify -format '%w %h\n' "$f[0]" 2>/dev/null) || continue
 
   long=$w
   ((h > w)) && long=$h
@@ -152,7 +159,7 @@ for f in "${targets[@]}"; do
 
   if $check_only; then
     printf '%s (%sx%s)\n' "$f" "$w" "$h"
-    ((violations++))
+    violations=$((violations + 1))
     continue
   fi
 
@@ -171,7 +178,7 @@ for f in "${targets[@]}"; do
   chmod 0644 "$out"
   [[ $out != "$f" ]] && rm -f "$f"
   printf 'optimized %s -> %s\n' "$f" "$out"
-  ((converted++))
+  converted=$((converted + 1))
 done
 
 if $check_only; then
@@ -193,7 +200,7 @@ exit 0
 
 ---
 
-### Task 5: Convert every image and fix the references the conversion forces → verify: `bin/hyprsimple-dev-optimize-images --check` exits 0, and a second consecutive run of the bare command leaves `git status --porcelain` with no output
+### Task 5: Convert every image and fix the references the conversion forces → verify: `bin/hyprsimple-dev-optimize-images --check` exits 0, a second consecutive run of the bare command leaves `git status --porcelain` with no output, and `du -sh --exclude=.git --exclude=external .` reports under 30 MB, which a script that converted nothing cannot satisfy
 
 Two references break when file extensions change, and both are fixed here rather than in a later task, because between the conversion and the fix the theme switcher is broken.
 
