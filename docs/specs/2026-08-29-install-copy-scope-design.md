@@ -1,7 +1,7 @@
 ---
 title: Installers copy only tracked content
 date: 2026-08-29
-status: draft
+status: approved
 ---
 
 # Installers copy only tracked content: Design
