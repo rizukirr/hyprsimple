@@ -126,6 +126,29 @@ printf 'tracked\n' >"$SOURCE_DIR/.config/kept.conf"
 copy_source_to_canonical_path >/dev/null
 check "bootstrap: non-repo source still installs" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
 
+# ---- a repository with no commits does not abort the install -------------
+
+DOTFILES_DIR="$TMP/nocommit"
+HYPRSIMPLE_PATH="$TMP/nocommit-install"
+mkdir -p "$DOTFILES_DIR/.config"
+git -C "$DOTFILES_DIR" init -q
+printf 'tracked\n' >"$DOTFILES_DIR/.config/kept.conf"
+install_to_canonical_path >/dev/null
+check "empty repo still installs" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
+
+# ---- the prompt is skipped when stdin is not a terminal ------------------
+
+DOTFILES_DIR="$TMP/notty"
+HYPRSIMPLE_PATH="$TMP/notty-install"
+build_fixture "$DOTFILES_DIR"
+printf 'uncommitted\n' >>"$DOTFILES_DIR/.config/kept.conf"
+if install_to_canonical_path </dev/null >/dev/null 2>&1; then
+  pass "dirty source does not prompt when stdin is not a terminal"
+else
+  fail "dirty source does not prompt when stdin is not a terminal"
+fi
+check "non-terminal dirty install still happened" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
+
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
