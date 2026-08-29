@@ -149,6 +149,30 @@ else
 fi
 check "non-terminal dirty install still happened" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
 
+# ---- bootstrap: shallow clone, archive, then unshallow -------------------
+
+origin_repo="$TMP/origin"
+mkdir -p "$origin_repo/.config"
+git -C "$origin_repo" init -q
+git -C "$origin_repo" config user.email test@example.com
+git -C "$origin_repo" config user.name test
+printf 'one\n' >"$origin_repo/.config/kept.conf"
+printf 'x\n' >"$origin_repo/install.sh"
+git -C "$origin_repo" add -A
+git -C "$origin_repo" commit -qm one
+printf 'two\n' >>"$origin_repo/.config/kept.conf"
+git -C "$origin_repo" commit -qam two
+
+SOURCE_DIR="$TMP/shallow"
+HYPRSIMPLE_PATH="$TMP/shallow-install"
+git clone -q --depth 1 "file://$origin_repo" "$SOURCE_DIR"
+check "clone under test is actually shallow" "$([[ -f $SOURCE_DIR/.git/shallow ]] && echo yes || echo no)" yes
+copy_source_to_canonical_path >/dev/null
+check "shallow source installs tracked content" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
+check "shallow install tree is clean" "$(git -C "$HYPRSIMPLE_PATH" status --porcelain)" ""
+git -C "$HYPRSIMPLE_PATH" fetch --unshallow origin >/dev/null 2>&1
+check "unshallow leaves a full clone" "$([[ -f $HYPRSIMPLE_PATH/.git/shallow ]] && echo shallow || echo full)" full
+
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
