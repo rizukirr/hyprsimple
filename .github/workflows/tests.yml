@@ -34,3 +34,6 @@ jobs:
 
       - name: shallow-install-test
         run: bash test/shallow-install-test.sh
+
+      - name: theme-refresh-test
+        run: bash test/theme-refresh-test.sh
