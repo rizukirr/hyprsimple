@@ -82,10 +82,14 @@ hyprsimple-update
 This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`,
 installs any newly required packages, and runs pending migrations.
 
-**Your files in `~/.config` are never overwritten by an update.** When a default
-config genuinely has to change, a migration makes the specific edit — or calls
-`hyprsimple-refresh-config <path>`, which saves your version as
-`<file>.bak.<timestamp>` and prints the diff before replacing it.
+**An update never edits your `~/.config` files on its own.** Only a migration
+does, and only when a default genuinely has to change. Every migration says what
+it touched.
+
+A migration either makes one specific edit, or saves your version aside first.
+`hyprsimple-refresh-config <path>` writes `<file>.bak.<timestamp>` and prints the
+diff before replacing. A larger change may move your file to
+`<file>.pre-split.<timestamp>` and tell you where it went. Nothing is deleted.
 
 Migrations only run once per machine; state lives in
 `~/.local/state/hyprsimple/migrations`. A fresh install already ships every fix,
