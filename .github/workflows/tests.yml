@@ -31,3 +31,6 @@ jobs:
 
       - name: config-realworld-test
         run: bash test/config-realworld-test.sh
+
+      - name: shallow-install-test
+        run: bash test/shallow-install-test.sh

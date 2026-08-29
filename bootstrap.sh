@@ -115,10 +115,11 @@ copy_source_to_canonical_path() {
 echo -e "\n${YELLOW}Installing hyprsimple to $HYPRSIMPLE_PATH...${NC}"
 copy_source_to_canonical_path
 
-# A shallow clone can't be pulled from later, so give it real history
-if [[ -d "$HYPRSIMPLE_PATH/.git" ]]; then
-  git -C "$HYPRSIMPLE_PATH" fetch --unshallow origin "$REPO_REF" >/dev/null 2>&1 || true
-else
+# The clone above is shallow and stays that way. A shallow clone pulls fine:
+# git fast-forwards it and leaves it shallow, which is all hyprsimple-update
+# needs. Unshallowing here used to pull the repository's full history, which is
+# 192 MB against 27 MB for a shallow clone.
+if [[ ! -d "$HYPRSIMPLE_PATH/.git" ]]; then
   echo -e "${YELLOW}Source was not a git checkout, so hyprsimple-update will not be able to pull.${NC}"
 fi
 echo -e "${GREEN}Done${NC}"
