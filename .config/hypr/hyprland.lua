@@ -2,7 +2,12 @@
 -- See https://wiki.hypr.land/Configuring/Start/
 
 local home = os.getenv("HOME") or ""
-package.path = home .. "/.config/?.lua;" .. package.path
+local hyprsimple = os.getenv("HYPRSIMPLE_PATH") or (home .. "/.local/share/hyprsimple")
+
+-- Defaults come from the install and user overrides from ~/.config. ~/.config is
+-- first so a user file of the same name wins, and the requires below load the
+-- defaults before the user's, so user settings override on shared keys.
+package.path = home .. "/.config/?.lua;" .. hyprsimple .. "/?.lua;" .. package.path
 
 require("hypr.vars")
 require("hypr.monitors")
