@@ -15,11 +15,11 @@ fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
 
 command -v lua >/dev/null || { echo "lua is required" >&2; exit 2; }
 
-# The pre-split reference, pinned to a commit rather than to main. main is by
-# definition what the config becomes after the split, so a fixture named
-# "pre-split" cannot track it. 30291d9 is the last commit before PR #22.
-# Overridable so the abort path below can be tested.
-PRESPLIT="${PRESPLIT:-30291d9}"
+# The pre-split config, vendored under test/fixtures/presplit. A fixture is a
+# static artifact, not a query against history: reading it from a commit forced
+# a full 192 MB clone in CI, because GitHub refuses to serve a bare SHA to a
+# shallow fetch. Overridable so the abort path below can be tested.
+PRESPLIT="${PRESPLIT:-$REPO/test/fixtures/presplit}"
 
 # The install, and a user config exactly as it was before the split.
 mkdir -p "$TMP/install" "$TMP/home/.config"
@@ -29,10 +29,7 @@ for rel in hyprland.lua vars.lua monitors.lua input.lua looknfeel.lua windows.lu
            autostart.lua bindings.lua bindings/applications.lua bindings/media.lua \
            bindings/recording.lua bindings/screenshot.lua bindings/system.lua \
            bindings/window-management.lua bindings/workspaces.lua; do
-  # Redirection creates the file whether or not git succeeds, so the failure
-  # has to be caught here. Without this the suite ran against empty files and
-  # reported every check as passing.
-  git -C "$REPO" show "$PRESPLIT:.config/hypr/$rel" >"$TMP/home/.config/hypr/$rel" || {
+  cp "$PRESPLIT/$rel" "$TMP/home/.config/hypr/$rel" || {
     echo "fixture: cannot read $rel from $PRESPLIT" >&2
     exit 2
   }

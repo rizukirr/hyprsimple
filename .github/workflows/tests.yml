@@ -9,11 +9,8 @@ jobs:
   suites:
     runs-on: ubuntu-latest
     steps:
+      # The default shallow checkout is enough: no suite reads git history.
       - uses: actions/checkout@v4
-        with:
-          # config-realworld-test builds its fixture from a historical commit,
-          # which a shallow checkout would not contain.
-          fetch-depth: 0
 
       - name: Install Lua
         run: |
