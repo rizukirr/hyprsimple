@@ -11,6 +11,14 @@ set -euo pipefail
 MAX_EDGE=2560
 QUALITY=82
 
+# Kilobytes per megapixel, the density ceiling. Measured across this repo's
+# images: the median is 145 and the 75th percentile is 183, then there is an
+# empty band up to 559. 400 sits in that gap, so well-encoded files are left
+# alone and wasteful ones are caught. Re-encoding at QUALITY lands a file
+# between 107 and 248, comfortably below the ceiling, so one pass is enough
+# and a second changes nothing.
+MAX_KB_PER_MP=400
+
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 
@@ -62,13 +70,20 @@ for f in "${targets[@]}"; do
   long=$w
   ((h > w)) && long=$h
 
-  # A file is compliant only if it is already a .jpg within the size limit.
-  if [[ $f == *.jpg ]] && ((long <= MAX_EDGE)); then
+  # A file is compliant only if it is already a .jpg, within the size limit, and
+  # not wastefully encoded. Dimensions alone are not enough: a 1920x1080 jpeg
+  # saved at maximum quality is 2 MB and passes every check that only looks at
+  # width and height, which is how a 3.8 MB image once sat in this repo while
+  # --check reported that everything complied.
+  bytes=$(stat -c%s "$f")
+  kb_per_mp=$((bytes / 1024 * 1000000 / (w * h)))
+
+  if [[ $f == *.jpg ]] && ((long <= MAX_EDGE)) && ((kb_per_mp <= MAX_KB_PER_MP)); then
     continue
   fi
 
   if $check_only; then
-    printf '%s (%sx%s)\n' "$f" "$w" "$h"
+    printf '%s (%sx%s, %s KB/MP)\n' "$f" "$w" "$h" "$kb_per_mp"
     violations=$((violations + 1))
     continue
   fi
