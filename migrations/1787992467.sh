@@ -13,6 +13,7 @@ CONF="$HOME/.config/hypr"
 
 # path:md5 of every default hyprsimple has shipped for these files
 SHIPPED=(
+  "hyprland.lua:75f67c42753b28e5a9189b8a65009e27"
   "looknfeel.lua:3aeae1b3e36d5f13dee3ecc71b8fe810"
   "windows.lua:e2a14c4c54c95852c3b7f0cf2f5ce427"
   "input.lua:02d9967977f6257077b2fd85a86a5d19"
@@ -62,6 +63,27 @@ for entry in "${SHIPPED[@]}"; do
     echo "  Now provided by the install, removed: $rel"
   fi
 done
+
+# Any user file that still imports hypr.vars would now get only the overrides
+# table, so a key it reads comes back nil. Repoint it at the defaults module,
+# which merges the user's overrides over the shipped values. bindings/
+# applications.lua is the file hyprsimple ships, and the loop covers a user's
+# own files too. The .pre-split archives are left exactly as saved.
+repointed=()
+while IFS= read -r -d '' f; do
+  case "$f" in
+  *.pre-split.*) continue ;;
+  "$CONF/vars.lua") continue ;;
+  esac
+  if grep -q 'require("hypr\.vars")' "$f"; then
+    sed -i 's|require("hypr\.vars")|require("default.hypr.vars")|g' "$f"
+    repointed+=("${f#$CONF/}")
+  fi
+done < <(find "$CONF" -name '*.lua' -type f -print0)
+
+if ((${#repointed[@]} > 0)); then
+  echo "  Repointed to the defaults module: ${repointed[*]}"
+fi
 
 if ((${#kept[@]} > 0)); then
   echo ""
