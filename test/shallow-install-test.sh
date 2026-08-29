@@ -27,7 +27,11 @@ make_install() {
   local name="$1"
   local origin="$TMP/$name-origin"
   local inst="$TMP/$name"
+  # Name the branch explicitly. `git init` takes it from init.defaultBranch,
+  # which is main on some machines and master on others, and a mismatch leaves
+  # the bare repo's HEAD pointing at a branch this fixture never creates.
   git init -q --bare "$origin"
+  git -C "$origin" symbolic-ref HEAD refs/heads/main
   git clone -q "$origin" "$TMP/$name-work" 2>/dev/null
   git -C "$TMP/$name-work" config user.email test@example.com
   git -C "$TMP/$name-work" config user.name test
@@ -43,7 +47,11 @@ make_install() {
   git -C "$TMP/$name-work" tag -a v1 -m v1
   git -C "$TMP/$name-work" push -q origin v1
   git clone -q "$origin" "$inst"
-  git -C "$inst" checkout -q main 2>/dev/null || true
+  # The install clone commits too, in the unmerged-branch case. A GitHub runner
+  # has no global git identity, so it needs its own.
+  git -C "$inst" config user.email test@example.com
+  git -C "$inst" config user.name test
+  git -C "$inst" checkout -q main
   echo "$inst"
 }
 
