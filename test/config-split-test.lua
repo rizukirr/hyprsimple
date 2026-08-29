@@ -18,8 +18,18 @@ local function stub_hl()
   local noop = function() end
   hl = {
     animation = noop, bind = noop, config = noop, curve = noop, device = noop,
-    dsp = noop, env = noop, exec_cmd = noop, gesture = noop, layer_rule = noop,
+    env = noop, exec_cmd = noop, gesture = noop, layer_rule = noop,
     monitor = noop, on = noop, window_rule = noop,
+
+    -- dsp is a namespace, not a function. Indexing a function raises, so every
+    -- path the config actually calls has to exist here. Derived with
+    -- `grep -rhoE 'hl(\.[a-z_]+)+'` over .config/hypr, which reads full paths
+    -- rather than stopping at the first segment.
+    dsp = {
+      exec_cmd = noop, focus = noop, layout = noop,
+      window = { close = noop, drag = noop, float = noop, move = noop, resize = noop },
+      workspace = { move = noop },
+    },
   }
 end
 
@@ -59,6 +69,29 @@ local ok3, v3 = pcall(require, "default.hypr.vars")
 check("broken user vars does not raise", ok3, true)
 check("broken user vars yields defaults", ok3 and v3.terminal, "ghostty")
 package.preload["hypr.vars"] = nil
+
+-- ---- every default module loads under a stubbed hl ----------------------
+
+local modules = {
+  "default.hypr.env", "default.hypr.input", "default.hypr.looknfeel",
+  "default.hypr.windows", "default.hypr.bindings", "default.hypr.autostart",
+  "default.hypr.bindings.media", "default.hypr.bindings.recording",
+  "default.hypr.bindings.screenshot", "default.hypr.bindings.system",
+  "default.hypr.bindings.window-management", "default.hypr.bindings.workspaces",
+}
+for _, name in ipairs(modules) do
+  stub_hl()
+  package.loaded[name] = nil
+  local loaded = pcall(require, name)
+  check("loads: " .. name, loaded, true)
+end
+
+-- A default module must never depend on a user file.
+local f = assert(io.open(repo .. "/default/hypr/bindings.lua"))
+local body = f:read("a")
+f:close()
+check("default bindings does not require a user module",
+  body:match('require%("hypr%.') == nil, true)
 
 if failures > 0 then
   io.stderr:write(("\n%d check(s) failed\n"):format(failures))

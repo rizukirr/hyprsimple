@@ -9,12 +9,15 @@ local hyprsimple = os.getenv("HYPRSIMPLE_PATH") or (home .. "/.local/share/hyprs
 -- defaults before the user's, so user settings override on shared keys.
 package.path = home .. "/.config/?.lua;" .. hyprsimple .. "/?.lua;" .. package.path
 
-require("hypr.vars")
+-- hyprsimple defaults, from the install.
+require("default.hypr.hyprsimple")
+
+-- Your overrides, from ~/.config. Loaded after the defaults so they win.
 require("hypr.monitors")
-require("hypr.input")
+require("hypr.bindings.applications")
 require("hypr.looknfeel")
+require("hypr.input")
 require("hypr.windows")
-require("hypr.bindings")
 require("hypr.autostart")
 
 -- Theme overlay loaded last so it wins on shared keys (col.active_border, etc).
