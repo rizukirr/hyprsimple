@@ -1,4 +1,4 @@
-local vars = require("hypr.vars")
+local vars = require("default.hypr.vars")
 local home = os.getenv("HOME")
 
 hl.bind("SUPER + SHIFT + T", hl.dsp.exec_cmd(home .. "/.local/bin/theme-switcher.sh"),                 { description = "Theme Switcher" })

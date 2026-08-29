@@ -1,4 +1,4 @@
-local vars = require("hypr.vars")
+local vars = require("default.hypr.vars")
 
 hl.on("hyprland.start", function()
   hl.exec_cmd("uwsm app -- dunst")
