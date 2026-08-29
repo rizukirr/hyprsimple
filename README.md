@@ -5,6 +5,11 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 > [!Note]
 > This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package, daemon, waybar module, and CSS). Run `muslimtify-add` to re-enable it later. Both commands are idempotent and back up your waybar config to `.bak` before editing.
 
+> [!Warning]
+> Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
+> Unless you're familiar with Hyprland configuration and don't mind dealing with potential issues, I recommend using a tagged release. But ultimately, it's up to you.
+
+
 ![Home Screen](assets/image1.jpg)
 
 | Power Menu | Terminal|
