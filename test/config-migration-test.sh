@@ -25,8 +25,10 @@ before_edited=$(md5sum "$home/.config/hypr/windows.lua" | cut -d' ' -f1)
 HOME="$home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >"$TMP/out1" 2>&1
 check "migration exits 0" "$?" "0"
 
-after_edited=$(md5sum "$home/.config/hypr/windows.lua" | cut -d' ' -f1)
-check "an edited file is untouched" "$after_edited" "$before_edited"
+saved=$(find "$home/.config/hypr" -name 'windows.lua.pre-split.*' | head -1)
+check "an edited file is saved aside" "$([[ -n $saved ]] && echo yes || echo no)" yes
+check "the saved copy keeps the original content"   "$([[ -n $saved ]] && md5sum "$saved" | cut -d' ' -f1)" "$before_edited"
+check "the live file is no longer the edited one"   "$([[ $(md5sum "$home/.config/hypr/windows.lua" | cut -d' ' -f1) != "$before_edited" ]] && echo yes || echo no)" yes
 
 if grep -q "windows.lua" "$TMP/out1"; then pass "an edited file is named in the output"
 else printf 'not ok - an edited file is named in the output\n' >&2; failures=$((failures + 1)); fi

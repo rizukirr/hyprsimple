@@ -36,28 +36,42 @@ for entry in "${SHIPPED[@]}"; do
 
   [[ -f $file ]] || continue
 
+  placeholder="$HYPRSIMPLE_PATH/.config/hypr/$rel"
   got=$(md5sum "$file" | cut -d' ' -f1)
-  if [[ $got != "$want" ]]; then
-    kept+=("$rel")
+
+  # Already migrated: the file is byte-identical to the placeholder we ship.
+  # This is what makes a second run a no-op.
+  if [[ -f $placeholder ]] && cmp -s "$file" "$placeholder"; then
     continue
   fi
 
-  # Never edited, so replacing it loses nothing.
-  if [[ -f "$HYPRSIMPLE_PATH/.config/hypr/$rel" ]]; then
-    cp -f "$HYPRSIMPLE_PATH/.config/hypr/$rel" "$file"
-    echo "  Reset to the new placeholder: $rel"
+  if [[ $got != "$want" ]]; then
+    # Customised. Move it aside rather than leaving it loaded: window rules,
+    # animations, curves, layer rules and binds are additive, so keeping this
+    # file alongside the new default would register everything twice.
+    saved="$file.pre-split.$(date +%s)"
+    mv "$file" "$saved"
+    kept+=("$rel -> $saved")
+  fi
+
+  if [[ -f $placeholder ]]; then
+    cp -f "$placeholder" "$file"
+    echo "  Now provided by the install, placeholder written: $rel"
   else
     rm -f "$file"
-    echo "  Removed, now provided by the install: $rel"
+    echo "  Now provided by the install, removed: $rel"
   fi
 done
 
 if ((${#kept[@]} > 0)); then
   echo ""
-  echo "  Left your edited files alone. They still load and still override:"
-  for rel in "${kept[@]}"; do
-    echo "    ~/.config/hypr/$rel"
+  echo "  You had edited these. Your versions are saved, not deleted:"
+  for entry in "${kept[@]}"; do
+    echo "    ${entry}"
   done
-  echo "  To adopt the new defaults for one of them, empty it out and keep only"
-  echo "  the settings you actually changed."
+  echo ""
+  echo "  hyprsimple's defaults now apply. To restore one of your settings, copy"
+  echo "  just that setting from the saved file into the placeholder beside it."
+  echo "  Do not restore the whole file: it would duplicate every window rule and"
+  echo "  animation the defaults already provide."
 fi
