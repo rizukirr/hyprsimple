@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    steps:
+      # The default shallow checkout is enough: no suite reads git history.
+      - uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+          # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
+          # plain name exist rather than relying on the package to register it.
+          sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua
+
+      - name: install-copy-test
+        run: bash test/install-copy-test.sh
+
+      - name: config-split-test
+        run: lua test/config-split-test.lua
+
+      - name: config-migration-test
+        run: bash test/config-migration-test.sh
+
+      - name: config-realworld-test
+        run: bash test/config-realworld-test.sh

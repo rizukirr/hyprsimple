@@ -15,7 +15,13 @@ fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
 
 command -v lua >/dev/null || { echo "lua is required" >&2; exit 2; }
 
-# The install, and a user config exactly as main shipped it.
+# The pre-split config, vendored under test/fixtures/presplit. A fixture is a
+# static artifact, not a query against history: reading it from a commit forced
+# a full 192 MB clone in CI, because GitHub refuses to serve a bare SHA to a
+# shallow fetch. Overridable so the abort path below can be tested.
+PRESPLIT="${PRESPLIT:-$REPO/test/fixtures/presplit}"
+
+# The install, and a user config exactly as it was before the split.
 mkdir -p "$TMP/install" "$TMP/home/.config"
 git -C "$REPO" archive HEAD | tar -x -C "$TMP/install"
 mkdir -p "$TMP/home/.config/hypr/bindings"
@@ -23,8 +29,18 @@ for rel in hyprland.lua vars.lua monitors.lua input.lua looknfeel.lua windows.lu
            autostart.lua bindings.lua bindings/applications.lua bindings/media.lua \
            bindings/recording.lua bindings/screenshot.lua bindings/system.lua \
            bindings/window-management.lua bindings/workspaces.lua; do
-  git -C "$REPO" show "main:.config/hypr/$rel" >"$TMP/home/.config/hypr/$rel"
+  cp "$PRESPLIT/$rel" "$TMP/home/.config/hypr/$rel" || {
+    echo "fixture: cannot read $rel from $PRESPLIT" >&2
+    exit 2
+  }
 done
+
+# A placeholder has no live settings, so this proves the fixture is a real
+# pre-split config rather than something the split already rewrote.
+if (($(grep -vcE '^[[:space:]]*(--.*)?$' "$TMP/home/.config/hypr/looknfeel.lua") < 40)); then
+  echo "fixture: looknfeel.lua from $PRESPLIT is not a pre-split config" >&2
+  exit 2
+fi
 
 cat >"$TMP/load.lua" <<'LUA'
 local counts = {}

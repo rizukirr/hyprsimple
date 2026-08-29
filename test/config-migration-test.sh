@@ -18,7 +18,10 @@ check() {
 # An untouched file, byte-identical to what shipped, must be replaced.
 home="$TMP/untouched"
 mkdir -p "$home/.config/hypr/bindings"
-cp "$REPO/.config/hypr/monitors.lua" "$home/.config/hypr/monitors.lua"
+cp "$REPO/.config/hypr/monitors.lua" "$home/.config/hypr/monitors.lua" || {
+  echo "fixture: cannot copy monitors.lua from the repo" >&2
+  exit 2
+}
 printf 'edited by the user\n' >"$home/.config/hypr/windows.lua"
 before_edited=$(md5sum "$home/.config/hypr/windows.lua" | cut -d' ' -f1)
 
