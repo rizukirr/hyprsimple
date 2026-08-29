@@ -19,6 +19,7 @@ check() { if [[ $2 == "$3" ]]; then pass "$1"; else printf 'not ok - %s (want %s
 # The function depends on these globals and nothing else.
 RED='' GREEN='' YELLOW='' NC=''
 eval "$(sed -n '/^install_to_canonical_path() {/,/^}/p' "$REPO/install.sh")"
+eval "$(sed -n '/^copy_source_to_canonical_path() {/,/^}/p' "$REPO/bootstrap.sh")"
 
 # ---- fixture: a checkout carrying ignored paths -------------------------
 
@@ -104,6 +105,26 @@ if grep -q "will not be installed" <<<"$output"; then
 else
   pass "clean source produces no warning"
 fi
+
+# ---- bootstrap.sh does the same thing ------------------------------------
+
+SOURCE_DIR="$TMP/bsrc"
+HYPRSIMPLE_PATH="$TMP/bsrc-install"
+build_fixture "$SOURCE_DIR"
+copy_source_to_canonical_path >/dev/null
+
+check "bootstrap: ignored directory is not installed" "$([[ -e $HYPRSIMPLE_PATH/ignored-dir ]] && echo present || echo absent)" absent
+check "bootstrap: nested git repo is not installed"   "$([[ -e $HYPRSIMPLE_PATH/ignored-dir/vendored ]] && echo present || echo absent)" absent
+check "bootstrap: tracked config is installed"        "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
+check "bootstrap: git directory survives"             "$([[ -d $HYPRSIMPLE_PATH/.git ]] && echo yes || echo no)" yes
+check "bootstrap: install tree is clean"              "$(git -C "$HYPRSIMPLE_PATH" status --porcelain)" ""
+
+SOURCE_DIR="$TMP/bplain"
+HYPRSIMPLE_PATH="$TMP/bplain-install"
+mkdir -p "$SOURCE_DIR/.config"
+printf 'tracked\n' >"$SOURCE_DIR/.config/kept.conf"
+copy_source_to_canonical_path >/dev/null
+check "bootstrap: non-repo source still installs" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
 
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2

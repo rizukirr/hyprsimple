@@ -79,15 +79,34 @@ if [[ -e $HYPRSIMPLE_PATH ]]; then
   rm -rf "$HYPRSIMPLE_PATH"
 fi
 
+copy_source_to_canonical_path() {
+  mkdir -p "$HYPRSIMPLE_PATH"
+
+  # Copy only what git tracks. A bare `cp -a` of the source directory also
+  # takes whatever .gitignore excludes: vendored checkouts, build output,
+  # scratch files. git archive is an exact, self-maintaining list of tracked
+  # content and preserves file modes and symlinks. .git is copied separately
+  # because hyprsimple-update needs it to pull.
+  if git -C "$SOURCE_DIR" rev-parse --git-dir &>/dev/null; then
+    if [[ -n $(git -C "$SOURCE_DIR" status --porcelain) ]]; then
+      echo -e "${YELLOW}Uncommitted changes in $SOURCE_DIR will not be installed. Installing HEAD.${NC}"
+    fi
+    git -C "$SOURCE_DIR" archive HEAD | tar -x -C "$HYPRSIMPLE_PATH"
+    cp -a "$SOURCE_DIR/.git" "$HYPRSIMPLE_PATH/.git"
+  else
+    # No index to consult, for example a downloaded tarball. Copy everything.
+    cp -a "$SOURCE_DIR/." "$HYPRSIMPLE_PATH/"
+  fi
+}
+
 echo -e "\n${YELLOW}Installing hyprsimple to $HYPRSIMPLE_PATH...${NC}"
-mkdir -p "$(dirname "$HYPRSIMPLE_PATH")"
-cp -a "$SOURCE_DIR" "$HYPRSIMPLE_PATH"
+copy_source_to_canonical_path
 
 # A shallow clone can't be pulled from later, so give it real history
 if [[ -d "$HYPRSIMPLE_PATH/.git" ]]; then
   git -C "$HYPRSIMPLE_PATH" fetch --unshallow origin "$REPO_REF" >/dev/null 2>&1 || true
 else
-  echo -e "${YELLOW}Source was not a git checkout — hyprsimple-update will not be able to pull.${NC}"
+  echo -e "${YELLOW}Source was not a git checkout, so hyprsimple-update will not be able to pull.${NC}"
 fi
 echo -e "${GREEN}Done${NC}"
 
