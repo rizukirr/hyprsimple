@@ -382,8 +382,37 @@ install_to_canonical_path() {
     rm -rf "$HYPRSIMPLE_PATH"
   fi
 
-  mkdir -p "$(dirname "$HYPRSIMPLE_PATH")"
-  cp -a "$DOTFILES_DIR" "$HYPRSIMPLE_PATH"
+  mkdir -p "$HYPRSIMPLE_PATH"
+
+  # Copy only what git tracks. A bare `cp -a` of the source directory also
+  # takes whatever .gitignore excludes: vendored checkouts, build output,
+  # scratch files. git archive is an exact, self-maintaining list of tracked
+  # content and preserves file modes and symlinks. .git is copied separately
+  # because hyprsimple-update needs it to pull.
+  # rev-parse HEAD rather than --git-dir: an initialised repository with no
+  # commits passes --git-dir but makes `git archive HEAD` exit 128, which would
+  # abort the installer under set -e. Testing HEAD covers both "not a repo" and
+  # "no commits", and both divert to the plain copy below.
+  if git -C "$DOTFILES_DIR" rev-parse HEAD &>/dev/null; then
+    if [[ -n $(git -C "$DOTFILES_DIR" status --porcelain) ]]; then
+      echo -e "${YELLOW}Uncommitted changes in $DOTFILES_DIR will not be installed. Installing HEAD.${NC}"
+      # Only ask when someone is there to answer. Under curl-pipe, stdin is the
+      # script itself, so reading from it would consume the installer.
+      if [[ -t 0 ]]; then
+        read -rp "Continue and install HEAD? (y/N) " reply
+        if [[ ! $reply =~ ^[Yy]$ ]]; then
+          echo -e "${RED}Aborted. Commit or stash your changes, then run this again.${NC}"
+          return 1
+        fi
+      fi
+    fi
+    git -C "$DOTFILES_DIR" archive HEAD | tar -x -C "$HYPRSIMPLE_PATH"
+    cp -a "$DOTFILES_DIR/.git" "$HYPRSIMPLE_PATH/.git"
+  else
+    # No index to consult, for example a downloaded tarball. Copy everything.
+    cp -a "$DOTFILES_DIR/." "$HYPRSIMPLE_PATH/"
+  fi
+
   echo -e "${GREEN}hyprsimple installed to $HYPRSIMPLE_PATH${NC}"
 }
 
