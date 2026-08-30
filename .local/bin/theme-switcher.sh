@@ -177,9 +177,7 @@ if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
 
   systemctl --user restart hyprpaper.service
 
-  if pgrep -x waybar > /dev/null; then
-    pkill waybar; sleep 0.1; uwsm app -- waybar &
-  fi
+  "$HOME/.local/bin/hyprsimple-restart-waybar.sh"
 
   if pgrep -x dunst > /dev/null; then
     pkill dunst; uwsm app -- dunst &

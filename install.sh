@@ -562,12 +562,7 @@ echo -e "${YELLOW}Configuring shell integration...${NC}"
 bash "$HOME/.local/bin/terminal.sh" || true
 
 hyprctl reload || true
-if pgrep -x waybar > /dev/null; then
-  pkill waybar
-  sleep 1
-fi
-nohup waybar > /dev/null 2>&1 &
-disown
+bash "$HOME/.local/bin/hyprsimple-restart-waybar.sh"
 echo -e "${YELLOW}Starting waybar...${NC}"
 sleep 3
 
