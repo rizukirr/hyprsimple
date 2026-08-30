@@ -18,10 +18,14 @@ THUMB_SIZE=220
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
+# background, foreground, accent, color1. Not the ANSI spread: accent and
+# color4 are the same value in 12 of the 16 shipped themes, so a swatch was
+# wasted on most of them. These four are also what the interface itself uses,
+# which the wallpaper does not tell you.
 swatches_for() {
   local colors="$1" key hex out=""
   [[ -f $colors ]] || return
-  for key in accent color1 color2 color4; do
+  for key in background foreground accent color1; do
     hex=$(sed -n "s/^${key}[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$colors" | head -n 1)
     [[ -n $hex ]] && out+="<span background='$hex'>    </span>"
   done

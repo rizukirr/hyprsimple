@@ -255,5 +255,24 @@ idem_after=$(find "$home_pristine" -type f -exec md5sum {} \; | sort | md5sum | 
 
 check "a second migration run changes no file in the fixture home" "$idem_after" "$idem_before"
 
+# ---- the swatch keys produce distinct colours on every shipped theme -----
+# accent and color4 are the same value in most themes, so an earlier key set
+# wasted one of the four swatches. The key list is read out of the picker
+# rather than repeated here, so changing it re-runs this check against it.
+
+keys=$(sed -n 's/^[[:space:]]*for key in \(.*\); do$/\1/p' "$REPO/.local/bin/hyprsimple-theme-picker.sh" | head -n 1)
+dup_themes=0
+for colors in "$REPO"/.config/hypr/themes/*/colors.toml; do
+  vals=""
+  for k in $keys; do
+    vals+="$(sed -n "s/^${k}[[:space:]]*=[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$colors" | head -n 1)"$'\n'
+  done
+  distinct=$(printf '%s' "$vals" | grep -c .)
+  unique=$(printf '%s' "$vals" | sort -u | grep -c .)
+  [[ $unique -lt $distinct ]] && dup_themes=$((dup_themes + 1))
+done
+
+check "the picker's swatch keys are distinct on every shipped theme" "$dup_themes" "0"
+
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
