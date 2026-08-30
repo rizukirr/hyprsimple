@@ -397,5 +397,113 @@ else
   fail "the vendored fixture matches a checksum the migration recognises"
 fi
 
+# ---- migration 3: refreshes the dunst-colors.tpl [global] section --------
+
+MIGRATION3="$REPO/migrations/1788069834.sh"
+
+tplfix_inst="$TMP/install-tplfix"
+mkdir -p "$tplfix_inst/.config/hypr/themes/templates"
+cp "$REPO/.config/hypr/themes/templates/dunst-colors.tpl" \
+  "$tplfix_inst/.config/hypr/themes/templates/dunst-colors.tpl"
+
+tplfix_home="$TMP/home-tplfix"
+must_be_fixture "$tplfix_home"
+mkdir -p "$tplfix_home/.local/bin" "$tplfix_home/.config/hypr/themes/templates" "$tplfix_home/.cache"
+cp "$REPO/.local/bin/theme-apply-templates.sh" "$tplfix_home/.local/bin/theme-apply-templates.sh"
+cp "$REPO/.local/bin/hyprsimple-refresh-config.sh" "$tplfix_home/.local/bin/hyprsimple-refresh-config.sh"
+
+cat >"$tplfix_home/.config/hypr/themes/templates/dunst-colors.tpl" <<'EOF'
+[urgency_low]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+
+[urgency_normal]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+    frame_color = "{{ accent }}"
+
+[urgency_critical]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+    frame_color = "{{ color1 }}"
+EOF
+
+tplfix_theme="$tplfix_home/.config/hypr/themes/currenttheme"
+mkdir -p "$tplfix_theme/backgrounds"
+: >"$tplfix_theme/backgrounds/wall.jpg"
+cat >"$tplfix_theme/colors.toml" <<'EOF'
+accent = "#89b4fa"
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+color1 = "#f38ba8"
+color7 = "#bac2de"
+EOF
+echo "$tplfix_theme/backgrounds/wall.jpg" >"$tplfix_home/.cache/current_wallpaper_path"
+
+HOME="$tplfix_home" HYPRSIMPLE_PATH="$tplfix_inst" bash "$MIGRATION3" >"$TMP/mig3_out" 2>&1
+check "migration 3 exits 0" "$?" "0"
+
+if grep -q '^\[global\]' "$tplfix_home/.config/hypr/themes/templates/dunst-colors.tpl" \
+  && cmp -s "$tplfix_home/.config/hypr/themes/templates/dunst-colors.tpl" \
+    "$tplfix_inst/.config/hypr/themes/templates/dunst-colors.tpl"; then
+  pass "a live template lacking [global] has it after the migration, byte-identical to the install's copy"
+else
+  fail "a live template lacking [global] has it after the migration, byte-identical to the install's copy"
+fi
+
+if grep -q '^\[global\]' "$tplfix_home/.config/dunst/dunstrc.d/90-theme.conf" 2>/dev/null; then
+  pass "dunstrc.d/90-theme.conf contains a [global] section after the migration"
+else
+  fail "dunstrc.d/90-theme.conf contains a [global] section after the migration"
+fi
+
+# ---- migration 3 is idempotent -------------------------------------------
+
+tplfix_snap=$(find "$tplfix_home" -type f -exec md5sum {} + | sort)
+HOME="$tplfix_home" HYPRSIMPLE_PATH="$tplfix_inst" bash "$MIGRATION3" >/dev/null 2>&1
+check "migration 3 is idempotent" "$(find "$tplfix_home" -type f -exec md5sum {} + | sort)" "$tplfix_snap"
+
+check "a second run of migration 3 writes no second backup" \
+  "$(find "$tplfix_home/.config/hypr/themes/templates" -maxdepth 1 -name 'dunst-colors.tpl.bak.*' | wc -l)" "1"
+
+# ---- migration 3 with no current_wallpaper_path still refreshes the template
+
+nowp_inst="$TMP/install-tplfix-nowp"
+mkdir -p "$nowp_inst/.config/hypr/themes/templates"
+cp "$REPO/.config/hypr/themes/templates/dunst-colors.tpl" \
+  "$nowp_inst/.config/hypr/themes/templates/dunst-colors.tpl"
+
+nowp_home="$TMP/home-tplfix-nowp"
+must_be_fixture "$nowp_home"
+mkdir -p "$nowp_home/.local/bin" "$nowp_home/.config/hypr/themes/templates"
+cp "$REPO/.local/bin/theme-apply-templates.sh" "$nowp_home/.local/bin/theme-apply-templates.sh"
+cp "$REPO/.local/bin/hyprsimple-refresh-config.sh" "$nowp_home/.local/bin/hyprsimple-refresh-config.sh"
+cat >"$nowp_home/.config/hypr/themes/templates/dunst-colors.tpl" <<'EOF'
+[urgency_low]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+
+[urgency_normal]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+    frame_color = "{{ accent }}"
+
+[urgency_critical]
+    background = "{{ background }}"
+    foreground = "{{ foreground }}"
+    frame_color = "{{ color1 }}"
+EOF
+
+HOME="$nowp_home" HYPRSIMPLE_PATH="$nowp_inst" bash "$MIGRATION3" >/dev/null 2>&1
+check "migration 3 exits 0 with no current_wallpaper_path" "$?" "0"
+
+if grep -q '^\[global\]' "$nowp_home/.config/hypr/themes/templates/dunst-colors.tpl" \
+  && cmp -s "$nowp_home/.config/hypr/themes/templates/dunst-colors.tpl" \
+    "$nowp_inst/.config/hypr/themes/templates/dunst-colors.tpl"; then
+  pass "the template is still refreshed with no current_wallpaper_path"
+else
+  fail "the template is still refreshed with no current_wallpaper_path"
+fi
+
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
