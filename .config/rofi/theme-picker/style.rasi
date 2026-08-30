@@ -64,15 +64,25 @@ listview {
 }
 
 /*****----- Elements -----*****/
+/* A transparent border of the same width as the selected one, so selecting a
+   tile does not shift the grid. */
 element {
     orientation:                 vertical;
     padding:                     6px;
+    border:                      3px;
     border-radius:               12px;
+    border-color:                transparent;
     background-color:            transparent;
     text-color:                  @foreground;
 }
 
+/* The selection is marked with @selected, the theme accent, not with
+   @background-alt. background-alt is generated from color0, which sits under
+   1.5:1 against the panel in 13 of the 16 shipped themes and is exactly equal
+   to it in four, so a fill alone is invisible. Every theme's accent is at
+   least 3.86:1. */
 element selected {
+    border-color:                @selected;
     background-color:            @background-alt;
     text-color:                  @foreground;
 }
