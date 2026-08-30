@@ -47,14 +47,12 @@ elif [[ $MODE == "next" ]]; then
   done
   SELECTED="${WALLPAPERS[$NEXT]}"
 elif [[ $MODE == "pick" ]]; then
-  # Show rofi picker with filenames
-  NAMES=()
-  for wp in "${WALLPAPERS[@]}"; do
-    NAMES+=("$(basename "$wp")")
-  done
-  CHOICE=$(printf '%s\n' "${NAMES[@]}" | rofi -dmenu -p "Wallpaper")
-  [[ -z $CHOICE ]] && exit 0
-  SELECTED="$BG_DIR/$CHOICE"
+  # Two columns, not three: a theme ships at most four wallpapers, so three
+  # columns would render three and then a lone one.
+  SELECTED=$("$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" |
+    "$HOME/.local/bin/hyprsimple-image-picker.sh" \
+      --prompt "Wallpaper" --columns 2 --selected "$CURRENT")
+  [[ -z $SELECTED ]] && exit 0
 fi
 
 if [[ ! -f $SELECTED ]]; then
