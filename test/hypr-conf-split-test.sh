@@ -38,14 +38,24 @@ must_be_fixture() {
   fi
 }
 
-# The three files as they stood at the commit before this branch. a48c596 is
-# on main and survives a squash merge; a branch commit would not.
-PRESPLIT_HYPRIDLE="$TMP/presplit-hypridle.conf"
-PRESPLIT_HYPRLOCK="$TMP/presplit-hyprlock.conf"
-PRESPLIT_XDPH="$TMP/presplit-xdph.conf"
-git -C "$REPO" show a48c596:.config/hypr/hypridle.conf >"$PRESPLIT_HYPRIDLE"
-git -C "$REPO" show a48c596:.config/hypr/hyprlock.conf >"$PRESPLIT_HYPRLOCK"
-git -C "$REPO" show a48c596:.config/hypr/xdph.conf >"$PRESPLIT_XDPH"
+# The three files as they stood at the commit before this branch, vendored
+# under test/fixtures/hypr so the suite never reads git history.
+PRESPLIT_HYPRIDLE="$REPO/test/fixtures/hypr/hypridle.presplit.conf"
+PRESPLIT_HYPRLOCK="$REPO/test/fixtures/hypr/hyprlock.presplit.conf"
+PRESPLIT_XDPH="$REPO/test/fixtures/hypr/xdph.presplit.conf"
+
+# ---- vendored fixtures match the checksums the migration recognises -----
+
+for pair in "hypridle.conf:hypridle" "xdph.conf:xdph" "hyprlock.conf:hyprlock"; do
+  name=${pair%%:*}
+  stem=${pair##*:}
+  sum=$(md5sum "$REPO/test/fixtures/hypr/$stem.presplit.conf" | cut -d' ' -f1)
+  if grep -q "$name:$sum" "$MIGRATION"; then
+    pass "the vendored $name fixture matches the checksum the migration recognises"
+  else
+    fail "the vendored $name fixture matches the checksum the migration recognises"
+  fi
+done
 
 # ---- the hypridle fragments concatenate back to the pre-split file ------
 
