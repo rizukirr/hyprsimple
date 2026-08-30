@@ -37,3 +37,6 @@ jobs:
 
       - name: theme-refresh-test
         run: bash test/theme-refresh-test.sh
+
+      - name: dunst-split-test
+        run: bash test/dunst-split-test.sh

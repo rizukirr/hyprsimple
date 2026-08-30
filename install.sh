@@ -527,6 +527,12 @@ mkdir -p "$CACHE_DIR"
 mkdir -p "$HOME/.config/btop/themes"
 mkdir -p "$HOME/.config/rofi"
 
+# dunst reads drop-ins from dunstrc.d/ beside the base config. Symlinking the
+# default rather than copying it is what lets hyprsimple-update deliver changes
+# without a migration, the same guarantee package.path gives the lua config.
+mkdir -p "$HOME/.config/dunst/dunstrc.d"
+ln -sfn "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf"
+
 # One-time setup: symlink rofi launcher/powermenu dirs to the default theme
 ln -sfn "$THEME_DIR/rofi/launcher" "$HOME/.config/rofi/launcher"
 ln -sfn "$THEME_DIR/rofi/powermenu" "$HOME/.config/rofi/powermenu"
