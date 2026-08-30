@@ -68,6 +68,7 @@ configuration {
     display-run:                "";
     display-filebrowser:        "";
     display-window:             "";
+    display-themes:             "󰏘";
     display-wallpaper:          "󰸉";
 
 	/*---------- Misc setting ----------*/
