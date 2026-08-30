@@ -23,6 +23,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 ## Features
 
 - **16 themes** with one-key switching, all apps update at once (waybar, rofi, ghostty, hyprlock, dunst, btop)
+- **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers** with picker and cycle support
 - **Per-theme backgrounds** for app launcher and power menu
 - **Hardware auto-detection** at install (NVIDIA, Vulkan, Intel iGPU, WiFi, battery)
@@ -149,9 +150,10 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `SUPER + SHIFT + T` | Switch theme |
-| `SUPER + SHIFT + W` | Pick wallpaper from current theme |
+| `SUPER + SHIFT + T` | Switch theme, from a grid of wallpapers and colour swatches |
+| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same grid |
 | `SUPER + ALT + W` | Cycle to next wallpaper |
+| `SUPER + CTRL + W` | Toggle live wallpaper, cycling backgrounds every 30s |
 
 ### Screenshot
 
@@ -221,9 +223,12 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `brightness-notify.sh` | Show the current screen brightness via a dunst notification |
 | `keyboard-brightness.sh` | Control the keyboard backlight (`up` / `down` / `cycle`) |
 | `toggle-nightlight.sh` | Toggle a warm screen temperature via hyprsunset |
-| `theme-switcher.sh` | Switch theme via rofi picker, or apply one directly by name |
+| `theme-switcher.sh` | Switch theme via the visual picker, or apply one directly by name |
 | `theme-apply-templates.sh` | Generate themed app configs from a theme's `colors.toml` |
 | `wallpaper-switcher.sh` | Switch or cycle wallpaper within the current theme |
+| `hyprsimple-image-picker.sh` | Render a list of images as a rofi grid and print the key of the one chosen |
+| `hyprsimple-theme-picker.sh` | Feed the image picker one tile per theme, with its wallpaper and colour swatches |
+| `hyprsimple-wallpaper-picker.sh` | Feed the image picker one tile per wallpaper in the current theme |
 | `live-wallpaper-toggle.sh` | Toggle live wallpaper (cycle backgrounds vs. static) |
 | `monitor-mirror-toggle.sh` | Toggle extend vs. mirror mode for an external monitor |
 | `virtual-mirror-toggle.sh` | Mirror a monitor into a window (via wl-mirror) for screen sharing |
@@ -278,6 +283,9 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
+| `hyprsimple-refresh-waybar.sh` | Reset waybar's config and style, keeping your bar position |
+| `hyprsimple-restart-waybar.sh` | Restart waybar. `--if-running` reloads a running bar and does nothing otherwise |
+| `hyprsimple-restart-dunst.sh` | Restart dunst, same shape as the waybar one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
@@ -287,6 +295,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 |--------|-------------|
 | `hyprsimple-muslimtify.sh` | Add or remove the [muslimtify](https://github.com/rizukirr/muslimtify) prayer-times integration |
 | `waybar-muslimtify.sh` | Provide the waybar module output (next prayer + tooltip) for muslimtify |
+| `waybar-screenrecording.sh` | Provide the waybar recording indicator. Redrawn on `SIGRTMIN+8`, which `screen-record.sh` sends |
 
 ### Shell init & internal helpers
 
