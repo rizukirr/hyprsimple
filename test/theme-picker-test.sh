@@ -30,7 +30,13 @@ must_be_fixture() {
   fi
 }
 
-make_wallpaper() { magick -size 400x300 xc:gray "$1"; }
+# Same ImageMagick 6 and 7 shim the picker and the image optimizer carry.
+if command -v magick >/dev/null 2>&1; then
+  im_fixture() { magick "$@"; }
+else
+  im_fixture() { convert "$@"; }
+fi
+make_wallpaper() { im_fixture -size 400x300 xc:gray "$1"; }
 
 # ---- a fixture with three themes emits three lines ------------------------
 
@@ -176,7 +182,11 @@ check "with no magick on PATH the feed still emits a line" \
 
 nomagick_icon=$(python3 -c "
 data = open('$nomagick_out', 'rb').read()
-print(data.split(b'\x00icon\x1f', 1)[1].decode().strip())
+# A line with no separator is a legitimate case: a theme with no wallpaper is
+# listed without an icon. Print nothing rather than crashing, so the check that
+# follows reports a mismatch instead of the suite dying on a traceback.
+parts = data.split(b'\x00icon\x1f', 1)
+print(parts[1].decode().strip() if len(parts) > 1 else '')
 ")
 
 check "with no magick on PATH the icon path is the source wallpaper" \

@@ -18,6 +18,17 @@
 # with no wallpaper is listed without one, and with no ImageMagick the
 # full-size image is used instead of a thumbnail.
 
+# ImageMagick 7 exposes `magick`. ImageMagick 6, which Ubuntu still ships,
+# exposes `convert`. Support both, and degrade to full size images when neither
+# is present rather than failing: this is bound to a key.
+if command -v magick >/dev/null 2>&1; then
+  im() { magick "$@"; }
+elif command -v convert >/dev/null 2>&1; then
+  im() { convert "$@"; }
+else
+  im() { return 1; }
+fi
+
 THEMES_DIR="${THEMES_DIR:-$HOME/.config/hypr/themes}"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/hyprsimple/theme-previews"
 THUMB_SIZE=370
@@ -46,11 +57,10 @@ thumbnail_for() {
     return
   fi
 
-  if command -v magick >/dev/null 2>&1 &&
-    magick "$src" -resize "${THUMB_SIZE}x${THUMB_SIZE}^" -gravity center \
-      -extent "${THUMB_SIZE}x${THUMB_SIZE}" -blur 0x18 \
-      \( "$src" -resize "${THUMB_SIZE}x" \) -gravity center -composite \
-      "$thumb" 2>/dev/null; then
+  if im "$src" -resize "${THUMB_SIZE}x${THUMB_SIZE}^" -gravity center \
+    -extent "${THUMB_SIZE}x${THUMB_SIZE}" -blur 0x18 \
+    \( "$src" -resize "${THUMB_SIZE}x" \) -gravity center -composite \
+    "$thumb" 2>/dev/null; then
     printf '%s' "$thumb"
   else
     # No ImageMagick, or it failed. rofi scales the original itself, slower but
