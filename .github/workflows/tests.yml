@@ -46,3 +46,6 @@ jobs:
 
       - name: waybar-refresh-test
         run: bash test/waybar-refresh-test.sh
+
+      - name: theme-picker-test
+        run: bash test/theme-picker-test.sh

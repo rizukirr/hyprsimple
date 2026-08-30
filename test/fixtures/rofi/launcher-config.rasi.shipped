@@ -1,0 +1,14 @@
+configuration {
+	modi:                       "drun,filebrowser,window,themes:~/.config/rofi/scripts/theme-selector.sh,wallpaper:~/.config/rofi/scripts/wallpaper-selector.sh";
+    show-icons:                 true;
+    display-drun:               "";
+    display-run:                "";
+    display-filebrowser:        "";
+    display-window:             "";
+    display-themes:             "󰏘";
+    display-wallpaper:          "󰸉";
+	drun-display-format:        "{name}";
+	window-format:              "{w} · {c} · {t}";
+}
+
+
