@@ -52,6 +52,12 @@ if [[ -f $DUNSTRC ]] && ! cmp -s "$DUNSTRC" "$BASE"; then
       diff "$DEFAULT" "$kept" | sed -n 's/^> /#     /p'
     } >>"$user"
 
+    # The earlier migration already saved this file as it was before anything
+    # touched it, which is a more complete record than the copy just made.
+    # Promote it into this name so the user is left with one file, not two.
+    bak=$(ls -1 "$DUNSTRC".bak.* 2>/dev/null | tail -1)
+    [[ -n $bak ]] && mv -f "$bak" "$kept"
+
     echo "Kept your dunstrc at $kept"
     echo "Its differences are listed, commented out, in $user"
   fi

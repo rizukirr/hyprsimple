@@ -348,6 +348,34 @@ else
   fail "99-user.conf written by an earlier run is not overwritten"
 fi
 
+# ---- migration 1 then migration 2 over an edited dunstrc: one saved copy -
+# A real user runs both migrations over the same home. Migration 1 leaves
+# dunstrc.bak.<timestamp>, the file exactly as the user had it. Migration 2
+# then leaves dunstrc.pre-split.<timestamp>, the same file but with migration
+# 1's colour reset already applied, so it is redundant, and the bak, being
+# the more complete record, should be promoted in its place.
+
+chain_home="$TMP/home-chain"
+must_be_fixture "$chain_home"
+mkdir -p "$chain_home/.config/dunst"
+cat "$PRESPLIT" \
+  | sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
+  >"$chain_home/.config/dunst/dunstrc"
+cp "$chain_home/.config/dunst/dunstrc" "$TMP/chain_original"
+
+HOME="$chain_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >/dev/null 2>&1
+HOME="$chain_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >/dev/null 2>&1
+
+check "running both migrations over an edited dunstrc leaves exactly one saved copy" \
+  "$(find "$chain_home/.config/dunst" -maxdepth 1 \( -name 'dunstrc.bak.*' -o -name 'dunstrc.pre-split.*' \) | wc -l)" "1"
+
+survivor="$(find "$chain_home/.config/dunst" -maxdepth 1 \( -name 'dunstrc.bak.*' -o -name 'dunstrc.pre-split.*' \))"
+if [[ -n $survivor ]] && cmp -s "$survivor" "$TMP/chain_original"; then
+  pass "the surviving copy is byte-identical to the original dunstrc"
+else
+  fail "the surviving copy is byte-identical to the original dunstrc"
+fi
+
 # ---- a missing dunstrc is a no-op ----------------------------------------
 
 HOME="$TMP/nothing" HYPRSIMPLE_PATH="$inst" bash "$MIGRATION" >/dev/null 2>&1
