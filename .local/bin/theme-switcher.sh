@@ -14,10 +14,7 @@ if [[ -n "$1" ]]; then
   THEME="$1"
 else
   THEME=$("$HOME/.local/bin/hyprsimple-theme-picker.sh" |
-    rofi -dmenu -show-icons -markup-rows -p "Theme" \
-      -theme "$HOME/.config/rofi/theme-picker/style.rasi" |
-    sed 's/<[^>]*>//g; s/^[[:space:]]*//; s/[[:space:]]*$//' |
-    tr '[:upper:] ' '[:lower:]-')
+    "$HOME/.local/bin/hyprsimple-image-picker.sh" --prompt "Theme" --columns 3)
 fi
 [[ -z "$THEME" ]] && exit 0
 
