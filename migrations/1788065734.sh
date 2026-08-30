@@ -12,10 +12,8 @@ echo "Move dunst theme colours out of dunstrc and into a drop-in"
 
 DUNST_DIR="$HOME/.config/dunst"
 DUNSTRC="$DUNST_DIR/dunstrc"
-SHIPPED="$HYPRSIMPLE_PATH/.config/dunst/dunstrc"
 
 [[ -f $DUNSTRC ]] || exit 0
-[[ -f $SHIPPED ]] || exit 0
 
 mkdir -p "$DUNST_DIR/dunstrc.d"
 
@@ -38,28 +36,44 @@ if [[ ! -e "$DUNST_DIR/dunstrc.d/90-theme.conf" ]]; then
   echo "Wrote $DUNST_DIR/dunstrc.d/90-theme.conf from the colours already in dunstrc"
 fi
 
-# Put the three colour keys back to what hyprsimple ships. Only these keys, and
-# only when the shipped file actually defines them at that line.
+# Put the colour keys back to what hyprsimple shipped, so a dunstrc nobody
+# edited is once again byte-identical to the default and the next migration can
+# recognise it.
 restored=$(mktemp)
 awk '
-  NR == FNR { shipped[FNR] = $0; next }
-  {
-    line = $0
-    # Same line number and the same key name on both sides. Matching on the key
-    # rather than just "this is a colour line" means an added or removed line
-    # upstream can only skip a reset, never write a background over a foreground.
-    key = ""
-    if (match($0, /^[[:space:]]*(background|foreground|frame_color)[[:space:]]*=/))
-      key = $1
-    skey = ""
-    if (FNR in shipped && match(shipped[FNR], /^[[:space:]]*(background|foreground|frame_color)[[:space:]]*=/)) {
-      split(shipped[FNR], f, /[[:space:]]+/)
-      skey = (f[1] == "" ? f[2] : f[1])
-    }
-    if (key != "" && key == skey) line = shipped[FNR]
-    print line
+  BEGIN {
+    # The colours hyprsimple shipped in dunstrc before the drop-in split, keyed
+    # by section and key. Literals, not a file read: a migration is a fixed
+    # point in history, so it must not depend on a path a later commit is free
+    # to repurpose, which is exactly what happened to .config/dunst/dunstrc.
+    d["global",          "frame_color"] = "#a6adc8"
+    d["urgency_low",     "background"]  = "#1e1e2e"
+    d["urgency_low",     "foreground"]  = "#CDD6F4"
+    d["urgency_normal",  "background"]  = "#1e1e2e"
+    d["urgency_normal",  "foreground"]  = "#CDD6F4"
+    d["urgency_critical","background"]  = "#1e1e2e"
+    d["urgency_critical","foreground"]  = "#CDD6F4"
+    d["urgency_critical","frame_color"] = "#FAB387"
   }
-' "$SHIPPED" "$DUNSTRC" >"$restored"
+  /^[[:space:]]*\[/ {
+    section = $0
+    gsub(/^[[:space:]]*\[|\][[:space:]]*$/, "", section)
+    print; next
+  }
+  {
+    # Only a key this table names is reset. A colour key the user added
+    # somewhere hyprsimple never shipped one is theirs, and is left alone.
+    if (match($0, /^([[:space:]]*)(background|foreground|frame_color)[[:space:]]*=/)) {
+      indent = $0; sub(/[^[:space:]].*$/, "", indent)
+      key = $1
+      if ((section SUBSEP key) in d) {
+        printf "%s%s = \"%s\"\n", indent, key, d[section, key]
+        next
+      }
+    }
+    print
+  }
+' "$DUNSTRC" >"$restored"
 
 if cmp -s "$restored" "$DUNSTRC"; then
   rm -f "$restored"

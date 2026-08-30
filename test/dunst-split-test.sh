@@ -31,13 +31,16 @@ must_be_fixture() {
 
 # Builds a dunstrc with the given colour values in each section, plus one
 # fixed, non-colour line ("timeout = $5") so a caller can check that edit
-# survives the migration untouched.
+# survives the migration untouched. $6 is the urgency_critical frame_color,
+# which hyprsimple ships distinct from the [global] one; it defaults to $2 so
+# fixtures that only care about drift can keep passing five args.
 build_dunstrc() {
   local path="$1"
   local frame="$2"
   local bg="$3"
   local fg="$4"
   local timeout="$5"
+  local critframe="${6:-$frame}"
   cat >"$path" <<EOF
 [global]
     follow = mouse
@@ -55,13 +58,14 @@ build_dunstrc() {
 [urgency_critical]
     background = "$bg"
     foreground = "$fg"
-    frame_color = "$frame"
+    frame_color = "$critframe"
 EOF
 }
 
 SHIPPED_FRAME='#a6adc8'
 SHIPPED_BG='#1e1e2e'
-SHIPPED_FG='#cdd6f4'
+SHIPPED_FG='#CDD6F4'
+SHIPPED_CRIT_FRAME='#FAB387'
 SHIPPED_TIMEOUT=5
 
 # ---- theme-switcher.sh contains no sed against DUNST_CONFIG --------------
@@ -158,7 +162,7 @@ inst="$TMP/install-plain"
 mig_home="$TMP/home-plain"
 must_be_fixture "$mig_home"
 mkdir -p "$inst/.config/dunst" "$mig_home/.config/dunst"
-build_dunstrc "$inst/.config/dunst/dunstrc" "$SHIPPED_FRAME" "$SHIPPED_BG" "$SHIPPED_FG" "$SHIPPED_TIMEOUT"
+build_dunstrc "$inst/.config/dunst/dunstrc" "$SHIPPED_FRAME" "$SHIPPED_BG" "$SHIPPED_FG" "$SHIPPED_TIMEOUT" "$SHIPPED_CRIT_FRAME"
 build_dunstrc "$mig_home/.config/dunst/dunstrc" '#ffcc00' '#111111' '#eeeeee' "$SHIPPED_TIMEOUT"
 
 HOME="$mig_home" HYPRSIMPLE_PATH="$inst" bash "$MIGRATION" >"$TMP/mig_out" 2>&1
@@ -188,7 +192,7 @@ edit_inst="$TMP/install-edit"
 edit_home="$TMP/home-edit"
 must_be_fixture "$edit_home"
 mkdir -p "$edit_inst/.config/dunst" "$edit_home/.config/dunst"
-build_dunstrc "$edit_inst/.config/dunst/dunstrc" "$SHIPPED_FRAME" "$SHIPPED_BG" "$SHIPPED_FG" "$SHIPPED_TIMEOUT"
+build_dunstrc "$edit_inst/.config/dunst/dunstrc" "$SHIPPED_FRAME" "$SHIPPED_BG" "$SHIPPED_FG" "$SHIPPED_TIMEOUT" "$SHIPPED_CRIT_FRAME"
 build_dunstrc "$edit_home/.config/dunst/dunstrc" '#ffcc00' '#111111' '#eeeeee' 45
 
 HOME="$edit_home" HYPRSIMPLE_PATH="$edit_inst" bash "$MIGRATION" >/dev/null 2>&1
@@ -196,6 +200,62 @@ if grep -q 'timeout = 45' "$edit_home/.config/dunst/dunstrc"; then
   pass "a non-colour edit survives the migration"
 else
   fail "a non-colour edit survives the migration"
+fi
+
+# ---- colours reset even when the shipped install's dunstrc is comment-only,
+# the state Task 3 ships. A migration is a fixed point in history and must not
+# depend on a path a later commit is free to repurpose. --------------------
+
+comment_inst="$TMP/install-comment"
+comment_home="$TMP/home-comment"
+must_be_fixture "$comment_home"
+mkdir -p "$comment_inst/.config/dunst" "$comment_home/.config/dunst"
+cat >"$comment_inst/.config/dunst/dunstrc" <<'EOF'
+# See dunstrc.d/ for hyprsimple's dunst colours.
+EOF
+build_dunstrc "$comment_home/.config/dunst/dunstrc" '#ffcc00' '#111111' '#eeeeee' "$SHIPPED_TIMEOUT" '#ffcc00'
+
+HOME="$comment_home" HYPRSIMPLE_PATH="$comment_inst" bash "$MIGRATION" >/dev/null 2>&1
+if grep -q "frame_color = \"$SHIPPED_FRAME\"" "$comment_home/.config/dunst/dunstrc" \
+  && grep -q "foreground = \"$SHIPPED_FG\"" "$comment_home/.config/dunst/dunstrc"; then
+  pass "colours reset even when the shipped install's dunstrc is comment-only"
+else
+  fail "colours reset even when the shipped install's dunstrc is comment-only"
+fi
+
+# ---- a colour key in a section hyprsimple shipped none for is left alone --
+
+extra_inst="$TMP/install-extra"
+extra_home="$TMP/home-extra"
+must_be_fixture "$extra_home"
+mkdir -p "$extra_inst/.config/dunst" "$extra_home/.config/dunst"
+build_dunstrc "$extra_inst/.config/dunst/dunstrc" "$SHIPPED_FRAME" "$SHIPPED_BG" "$SHIPPED_FG" "$SHIPPED_TIMEOUT" "$SHIPPED_CRIT_FRAME"
+cat >"$extra_home/.config/dunst/dunstrc" <<EOF
+[global]
+    follow = mouse
+    frame_color = "#ffcc00"
+    timeout = $SHIPPED_TIMEOUT
+
+[urgency_low]
+    background = "#111111"
+    foreground = "#eeeeee"
+    frame_color = "#89b4fa"
+
+[urgency_normal]
+    background = "#111111"
+    foreground = "#eeeeee"
+
+[urgency_critical]
+    background = "#111111"
+    foreground = "#eeeeee"
+    frame_color = "#ffcc00"
+EOF
+
+HOME="$extra_home" HYPRSIMPLE_PATH="$extra_inst" bash "$MIGRATION" >/dev/null 2>&1
+if grep -q 'frame_color = "#89b4fa"' "$extra_home/.config/dunst/dunstrc"; then
+  pass "a colour key in a section hyprsimple shipped none for survives the migration"
+else
+  fail "a colour key in a section hyprsimple shipped none for survives the migration"
 fi
 
 # ---- a missing dunstrc is a no-op ----------------------------------------
