@@ -69,8 +69,12 @@ thumbnail_for() {
   fi
 }
 
+# The feed goes to a file, not a variable. rofi's icon protocol needs a literal
+# NUL between the label and the path, and bash cannot hold a NUL in a variable
+# at all: command substitution silently drops it and every icon disappears.
 keys=()
-feed=""
+feed_file=$(mktemp) || exit 1
+trap 'rm -f "$feed_file"' EXIT
 row=0
 selected_row=""
 
@@ -80,11 +84,11 @@ while IFS=$'\t' read -r key label image; do
   [[ $key == "$selected_key" ]] && selected_row=$row
 
   if [[ -n $image && -f $image ]]; then
-    feed+=$(printf '%s\0icon\x1f%s' "$label" "$(thumbnail_for "$image")")$'\n'
+    printf '%s\0icon\x1f%s\n' "$label" "$(thumbnail_for "$image")" >>"$feed_file"
   else
     # Listed without an icon rather than dropped. A row whose image is missing
     # is still selectable.
-    feed+="$label"$'\n'
+    printf '%s\n' "$label" >>"$feed_file"
   fi
   row=$((row + 1))
 done
@@ -95,6 +99,6 @@ args=(-dmenu -show-icons -markup-rows -format i -p "$prompt" -theme "$RASI"
       -theme-str "listview { columns: $columns; }")
 [[ -n $selected_row ]] && args+=(-selected-row "$selected_row")
 
-index=$(printf '%s' "$feed" | rofi "${args[@]}")
+index=$(rofi "${args[@]}" <"$feed_file")
 [[ -n $index ]] || exit 0
 printf '%s\n' "${keys[$index]}"
