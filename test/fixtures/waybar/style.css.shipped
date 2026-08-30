@@ -1,0 +1,188 @@
+@import "theme-active.css";
+
+* {
+  font-family: JetbrainsMono Nerd Font;
+  font-size: 12px;
+  min-height: 0;
+}
+
+#waybar {
+  background: transparent;
+  color: @fg;
+}
+
+#workspaces {
+  border-radius: 1rem;
+  background-color: @bg-widget;
+  margin: 5px 0 0 1rem;
+}
+
+#workspaces button {
+  color: @secondary;
+  border-radius: 1rem;
+}
+
+#workspaces button.active {
+  color: @accent-bright;
+  border-radius: 1rem;
+}
+
+#workspaces button:hover {
+  color: @accent-dim;
+  border-radius: 1rem;
+}
+
+tooltip {
+    background-color: @bg-deep;
+    border: 1.5px solid alpha(@warning, 0.4);
+    border-radius: 0.8rem;
+    padding: 0.6rem;
+    color: @fg;
+}
+
+tooltip label {
+    color: @fg;
+    font-size: 13px;
+}
+
+#network,
+#bluetooth {
+    background-color: @bg-widget;
+    padding: 0.5rem 0.5rem;
+    margin: 5px 0 0 0;
+}
+
+
+#cpu,
+#memory {
+    background-color: @bg-widget;
+    padding: 0.5rem 0.5rem;
+    margin: 5px 0 0 0;
+}
+
+#tray,
+#backlight,
+#clock,
+#battery,
+#pulseaudio.microphone,
+#pulseaudio,
+#custom-lock,
+#custom-power {
+  background-color: @bg-widget;
+  padding: 0.5rem 0.5rem;
+  margin: 5px 0 0 0;
+}
+
+#clock {
+  color: @accent;
+  border-radius: 0px 1rem 1rem 0px;
+  margin-right: 1rem;
+  padding-right: 1rem;
+}
+
+#bluetooth {
+  color: @accent;
+  border-radius: 0px 1rem 1rem 0px;
+  padding-right: 1rem;
+}
+
+#network {
+  color: @success;
+  border-radius: 1rem 0px 0px 1rem;
+  padding-left: 1rem;
+
+}
+
+#battery {
+  color: @success;
+}
+
+#cpu {
+  color: @secondary;
+  border-radius: 1rem 0px 0px 1rem;
+  padding-left: 1rem;
+  margin-left: 1rem;
+}
+
+#memory {
+  color: @info;
+  border-radius: 0px 1rem 1rem 0px;
+  padding-right: 1rem;
+  margin-right: 1rem;
+}
+
+#battery.charging {
+  color: @success;
+}
+
+#battery.warning:not(.charging) {
+  color: @danger;
+}
+
+#backlight {
+  color: @warning;
+}
+
+#pulseaudio.microphone {
+  color: @muted;
+}
+
+#backlight, #battery, #pulseaudio.microphone {
+    border-radius: 0;
+}
+
+#pulseaudio {
+  color: @muted;
+  border-radius: 1rem 0px 0px 1rem;
+  margin-left: 1rem;
+  padding-left: 1rem;
+}
+
+#custom-lock {
+    border-radius: 1rem 0px 0px 1rem;
+    color: @secondary;
+    padding-left: 1rem;
+}
+
+#custom-power {
+    margin-right: 1rem;
+    padding-right: 1rem;
+    border-radius: 0px 1rem 1rem 0px;
+    color: @danger;
+}
+
+#tray {
+  margin-right: 1rem;
+  border-radius: 1rem;
+}
+
+
+#custom-muslimtify {
+    background-color: @bg-widget;
+    color: @warning;
+    border: 1.5px solid alpha(@warning, 0.35);
+    border-radius: 1.5rem 1.5rem 0.3rem 0.3rem;
+    padding: 0.4rem 1.2rem;
+    margin: 5px 0 0 1rem;
+    text-shadow: 0 0 4px alpha(@warning, 0.25);
+    box-shadow: inset 0 1px 0 alpha(@warning, 0.08), 0 1px 3px alpha(@bg-deep, 0.6);
+    transition: all 300ms ease;
+}
+
+#custom-muslimtify:hover {
+    background-color: alpha(@warning, 0.15);
+    border-color: @warning;
+    text-shadow: 0 0 10px alpha(@warning, 0.6);
+    box-shadow: inset 0 1px 0 alpha(@warning, 0.15), 0 2px 8px alpha(@warning, 0.2);
+}
+
+#custom-screenrecording {
+    min-width: 12px;
+    margin: 0 7.5px;
+    padding: 0;
+}
+
+#custom-screenrecording.active {
+    color: @danger;
+    text-shadow: 0 0 8px alpha(@danger, 0.5);
+}

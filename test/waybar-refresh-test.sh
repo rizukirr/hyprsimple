@@ -11,6 +11,8 @@ REFRESH_CONFIG="$REPO/.local/bin/hyprsimple-refresh-config.sh"
 RESTART="$REPO/.local/bin/hyprsimple-restart-waybar.sh"
 SCREEN_RECORD="$REPO/.local/bin/screen-record.sh"
 SHIPPED_CONFIG="$REPO/test/fixtures/waybar/config.jsonc.shipped"
+SHIPPED_STYLE="$REPO/test/fixtures/waybar/style.css.shipped"
+MIGRATION="$REPO/migrations/1788087069.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -163,6 +165,111 @@ check "the refresh command exits 0" "$refresh_status" "0"
 check "the non-default position survives the refresh" \
   "$(grep -oE '"position": "[a-z]+"' "$fixture_home/.config/waybar/config.jsonc")" \
   '"position": "bottom"'
+
+# ---- the migration: pristine, edited and idempotent installs -------------
+
+migrate_install_root="$TMP/install-migrate"
+must_be_fixture "$migrate_install_root"
+mkdir -p "$migrate_install_root/.config/waybar"
+cp "$SHIPPED_CONFIG" "$migrate_install_root/.config/waybar/config.jsonc"
+cp "$SHIPPED_STYLE" "$migrate_install_root/.config/waybar/style.css"
+
+# an old-but-pristine install: config.jsonc predates the indicator (derived
+# here from the shipped fixture, not from git history) but was never hand
+# edited, so its checksum is one of CONFIG_SUMS's entries and the migration's
+# match-and-copy branch is the one that must bring it up to date.
+old_pristine_home="$TMP/home-migrate-old-pristine"
+must_be_fixture "$old_pristine_home"
+mkdir -p "$old_pristine_home/.local/bin" "$old_pristine_home/.config/waybar"
+cp "$RESTART" "$old_pristine_home/.local/bin/hyprsimple-restart-waybar.sh"
+chmod +x "$old_pristine_home/.local/bin/"*.sh
+sed -e 's/"battery", "custom\/screenrecording", "clock"/"battery", "clock"/' \
+    -e '/^    "custom\/screenrecording": {$/,/^    },$/d' \
+    "$SHIPPED_CONFIG" >"$old_pristine_home/.config/waybar/config.jsonc"
+cp "$SHIPPED_STYLE" "$old_pristine_home/.config/waybar/style.css"
+
+old_sum=$(md5sum "$old_pristine_home/.config/waybar/config.jsonc" | cut -d' ' -f1)
+config_sums_block_check=$(sed -n '/^CONFIG_SUMS=(/,/^)/p' "$MIGRATION")
+check "the reconstructed old config.jsonc's checksum is one CONFIG_SUMS lists" \
+  "$(grep -c "$old_sum" <<<"$config_sums_block_check")" "1"
+
+HOME="$old_pristine_home" HYPRSIMPLE_PATH="$migrate_install_root" bash "$MIGRATION" \
+  >"$TMP/migrate_old_pristine_out" 2>&1
+
+check "an old pristine config.jsonc is replaced by the install's version after the migration" \
+  "$(cmp -s "$old_pristine_home/.config/waybar/config.jsonc" "$migrate_install_root/.config/waybar/config.jsonc" && echo same || echo different)" \
+  "same"
+
+# a pristine install: the user's files already match what ships
+pristine_home="$TMP/home-migrate-pristine"
+must_be_fixture "$pristine_home"
+mkdir -p "$pristine_home/.local/bin" "$pristine_home/.config/waybar"
+cp "$RESTART" "$pristine_home/.local/bin/hyprsimple-restart-waybar.sh"
+chmod +x "$pristine_home/.local/bin/"*.sh
+cp "$SHIPPED_CONFIG" "$pristine_home/.config/waybar/config.jsonc"
+cp "$SHIPPED_STYLE" "$pristine_home/.config/waybar/style.css"
+
+HOME="$pristine_home" HYPRSIMPLE_PATH="$migrate_install_root" bash "$MIGRATION" \
+  >"$TMP/migrate_pristine_out" 2>&1
+
+check "a config.jsonc identical to the shipped fixture matches the install's version after the migration" \
+  "$(cmp -s "$pristine_home/.config/waybar/config.jsonc" "$migrate_install_root/.config/waybar/config.jsonc" && echo same || echo different)" \
+  "same"
+
+# an edited install: config.jsonc carries a line hyprsimple never shipped
+edited_home="$TMP/home-migrate-edited"
+must_be_fixture "$edited_home"
+mkdir -p "$edited_home/.local/bin" "$edited_home/.config/waybar"
+cp "$RESTART" "$edited_home/.local/bin/hyprsimple-restart-waybar.sh"
+chmod +x "$edited_home/.local/bin/"*.sh
+{ cat "$SHIPPED_CONFIG"; echo "// a user's own comment"; } >"$edited_home/.config/waybar/config.jsonc"
+cp "$SHIPPED_STYLE" "$edited_home/.config/waybar/style.css"
+
+edited_before=$(md5sum "$edited_home/.config/waybar/config.jsonc" | cut -d' ' -f1)
+HOME="$edited_home" HYPRSIMPLE_PATH="$migrate_install_root" bash "$MIGRATION" \
+  >"$TMP/migrate_edited_out" 2>&1
+edited_after=$(md5sum "$edited_home/.config/waybar/config.jsonc" | cut -d' ' -f1)
+
+check "a config.jsonc with an added line is byte-unchanged by the migration" "$edited_after" "$edited_before"
+
+check "the migration points an edited install at hyprsimple-refresh-waybar.sh" \
+  "$(grep -c 'hyprsimple-refresh-waybar\.sh' "$TMP/migrate_edited_out")" "1"
+
+# the migration must end by restarting waybar so config changes take effect
+restart_home="$TMP/home-migrate-restart-check"
+must_be_fixture "$restart_home"
+mkdir -p "$restart_home/.local/bin" "$restart_home/.config/waybar"
+restart_marker="$TMP/restart-called"
+rm -f "$restart_marker"
+printf '#!/bin/sh\ntouch "%s"\n' "$restart_marker" >"$restart_home/.local/bin/hyprsimple-restart-waybar.sh"
+chmod +x "$restart_home/.local/bin/hyprsimple-restart-waybar.sh"
+cp "$SHIPPED_CONFIG" "$restart_home/.config/waybar/config.jsonc"
+cp "$SHIPPED_STYLE" "$restart_home/.config/waybar/style.css"
+
+HOME="$restart_home" HYPRSIMPLE_PATH="$migrate_install_root" bash "$MIGRATION" >/dev/null 2>&1
+
+check "the migration restarts waybar so config changes take effect" \
+  "$([[ -f $restart_marker ]] && echo called || echo not-called)" "called"
+
+# a second run of the migration against an already-migrated home changes nothing
+idem_before=$(find "$pristine_home" -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+HOME="$pristine_home" HYPRSIMPLE_PATH="$migrate_install_root" bash "$MIGRATION" >/dev/null 2>&1
+idem_after=$(find "$pristine_home" -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+
+check "a second migration run changes no file in the fixture home" "$idem_after" "$idem_before"
+
+# each vendored fixture's checksum must be listed in the migration's matching
+# array, so a fixture that drifts out of step with the migration reports itself
+config_shipped_sum=$(md5sum "$SHIPPED_CONFIG" | cut -d' ' -f1)
+style_shipped_sum=$(md5sum "$SHIPPED_STYLE" | cut -d' ' -f1)
+config_sums_block=$(sed -n '/^CONFIG_SUMS=(/,/^)/p' "$MIGRATION")
+style_sums_block=$(sed -n '/^STYLE_SUMS=(/,/^)/p' "$MIGRATION")
+
+check "the shipped config.jsonc fixture's checksum is listed in the migration's CONFIG_SUMS" \
+  "$(grep -c "$config_shipped_sum" <<<"$config_sums_block")" "1"
+
+check "the shipped style.css fixture's checksum is listed in the migration's STYLE_SUMS" \
+  "$(grep -c "$style_shipped_sum" <<<"$style_sums_block")" "1"
 
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
