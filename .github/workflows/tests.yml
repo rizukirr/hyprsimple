@@ -40,3 +40,6 @@ jobs:
 
       - name: dunst-split-test
         run: bash test/dunst-split-test.sh
+
+      - name: hypr-conf-split-test
+        run: bash test/hypr-conf-split-test.sh
