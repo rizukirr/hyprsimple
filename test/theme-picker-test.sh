@@ -274,5 +274,30 @@ done
 
 check "the picker's swatch keys are distinct on every shipped theme" "$dup_themes" "0"
 
+# ---- the picker's labels survive theme-switcher's reverse transform ------
+# theme-switcher.sh strips the pango markup back to a directory name. When the
+# label gained leading swatches, that transform turned the swatch spaces into
+# ten leading hyphens and every selection resolved to nothing, while this suite
+# stayed green. The transform is read out of theme-switcher.sh rather than
+# repeated here, so changing either side re-runs this against the other.
+
+transform=$(sed -n "/hyprsimple-theme-picker.sh\" |/,/tr '\[:upper:\]/p" \
+  "$REPO/.local/bin/theme-switcher.sh" | grep -E "^[[:space:]]*(sed|tr) " |
+  sed "s/[[:space:]]*|[[:space:]]*$//; s/)$//")
+
+roundtrip_bad=0
+roundtrip_ran=0
+while IFS= read -r line; do
+  label=${line%%$'\0'*}
+  name=$(printf '%s\n' "$label" | eval "$(printf '%s' "$transform" | paste -sd'|' -)")
+  roundtrip_ran=$((roundtrip_ran + 1))
+  [[ -d "$REPO/.config/hypr/themes/$name" ]] || roundtrip_bad=$((roundtrip_bad + 1))
+done < <(THEMES_DIR="$REPO/.config/hypr/themes" XDG_CACHE_HOME="$TMP/rt-cache" \
+  bash "$REPO/.local/bin/hyprsimple-theme-picker.sh")
+
+check "the reverse transform was actually extracted and run" \
+  "$((roundtrip_ran > 0 ? 1 : 0))" "1"
+check "every picker label resolves back to a real theme directory" "$roundtrip_bad" "0"
+
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'

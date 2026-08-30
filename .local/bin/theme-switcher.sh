@@ -16,7 +16,7 @@ else
   THEME=$("$HOME/.local/bin/hyprsimple-theme-picker.sh" |
     rofi -dmenu -show-icons -markup-rows -p "Theme" \
       -theme "$HOME/.config/rofi/theme-picker/style.rasi" |
-    sed 's/<[^>]*>//g; s/[[:space:]]*$//' |
+    sed 's/<[^>]*>//g; s/^[[:space:]]*//; s/[[:space:]]*$//' |
     tr '[:upper:] ' '[:lower:]-')
 fi
 [[ -z "$THEME" ]] && exit 0
