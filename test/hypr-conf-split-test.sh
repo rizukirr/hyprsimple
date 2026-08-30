@@ -150,6 +150,44 @@ check "a second run is idempotent" "$(find "$edited_home" -type f -exec md5sum {
 check "a second run writes no second .pre-split for hyprlock.conf" \
   "$(find "$edited_home/.config/hypr" -maxdepth 1 -name 'hyprlock.conf.pre-split.*' | wc -l)" "1"
 
+# ---- migration: a strict-subset hyprlock.conf prints no empty header ----
+# This is the maintainer's real case: their hyprlock.conf is missing settings
+# the default carries, so diff produces no "> " lines and, unpatched, the
+# invitation to uncomment lines that are not there stands alone.
+
+subset_home="$TMP/home-subset"
+must_be_fixture "$subset_home"
+mkdir -p "$subset_home/.config/hypr"
+sed '4d' "$REPO/default/hypr/hyprlock.conf" >"$subset_home/.config/hypr/hyprlock.conf"
+
+HOME="$subset_home" HYPRSIMPLE_PATH="$inst" bash "$MIGRATION" >/dev/null 2>&1
+subset_result="$subset_home/.config/hypr/hyprlock.conf"
+subset_has_saved=$(grep -q '^# Your previous hyprlock.conf is saved at ' "$subset_result" && echo yes || echo no)
+subset_has_header=$(grep -q 'Uncomment any you want to keep' "$subset_result" && echo yes || echo no)
+
+check "a strict-subset hyprlock.conf gets the saved-at line but no empty uncomment header" \
+  "$subset_has_saved:$subset_has_header" "yes:no"
+
+# ---- migration: a hyprlock.conf with an extra line gets the full header -
+# The counterpart to the subset check above: with an actual difference to
+# report, both lines must appear, and the extra line among the comments.
+
+extra_home="$TMP/home-extra"
+must_be_fixture "$extra_home"
+mkdir -p "$extra_home/.config/hypr"
+EXTRA_LINE="# a line the shipped default does not contain"
+cp "$REPO/default/hypr/hyprlock.conf" "$extra_home/.config/hypr/hyprlock.conf"
+echo "$EXTRA_LINE" >>"$extra_home/.config/hypr/hyprlock.conf"
+
+HOME="$extra_home" HYPRSIMPLE_PATH="$inst" bash "$MIGRATION" >/dev/null 2>&1
+extra_result="$extra_home/.config/hypr/hyprlock.conf"
+extra_has_saved=$(grep -q '^# Your previous hyprlock.conf is saved at ' "$extra_result" && echo yes || echo no)
+extra_has_header=$(grep -q 'Uncomment any you want to keep' "$extra_result" && echo yes || echo no)
+extra_has_line=$(grep -qF "#     $EXTRA_LINE" "$extra_result" && echo yes || echo no)
+
+check "a hyprlock.conf with an extra line gets both header lines and the extra line as a comment" \
+  "$extra_has_saved:$extra_has_header:$extra_has_line" "yes:yes:yes"
+
 # ---- $DEFAULTS that does not resolve to real defaults: exits non-zero,
 # nothing changes. $DEFAULTS itself is present (an install always ships
 # default/hypr) but empty, the shape a broken or partial install takes; the

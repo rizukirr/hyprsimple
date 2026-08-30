@@ -71,13 +71,16 @@ for name in hyprlock.conf hypridle.conf xdph.conf; do
 
     # Differences go in as comments. Inert text cannot land a setting in a
     # category that ignores it, which pasting them in as config could.
+    diffs=$(diff "$DEFAULTS/$name" "$kept" 2>/dev/null | sed -n 's/^> /#     /p')
     {
       echo ""
       echo "# Your previous $name is saved at $kept"
-      echo "# These lines differed from the default hyprsimple shipped."
-      echo "# Uncomment any you want to keep:"
-      echo "#"
-      diff "$DEFAULTS/$name" "$kept" 2>/dev/null | sed -n 's/^> /#     /p'
+      if [[ -n $diffs ]]; then
+        echo "# These lines differed from the default hyprsimple shipped."
+        echo "# Uncomment any you want to keep:"
+        echo "#"
+        printf '%s\n' "$diffs"
+      fi
     } >>"$user"
 
     echo "Kept your $name at $kept"
