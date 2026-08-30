@@ -1,0 +1,72 @@
+/*****----- Global Properties -----*****/
+@import                          "rofi-colors.rasi"
+
+/*****----- Main Window -----*****/
+window {
+    transparency:                "real";
+    location:                    center;
+    anchor:                      center;
+    width:                       1100px;
+    padding:                     20px;
+    border-radius:               16px;
+    background-color:            @background;
+}
+
+/*****----- Inputbar -----*****/
+inputbar {
+    padding:                     10px;
+    margin:                      0px 0px 16px 0px;
+    background-color:            @background-alt;
+    text-color:                  @foreground;
+    border-radius:               10px;
+    children:                    [ "prompt", "entry" ];
+}
+
+prompt {
+    padding:                     0px 10px 0px 0px;
+    background-color:            inherit;
+    text-color:                  @selected;
+}
+
+entry {
+    placeholder:                 "Search themes";
+    background-color:            inherit;
+    text-color:                  inherit;
+}
+
+/*****----- Listview -----*****/
+listview {
+    columns:                     4;
+    lines:                       2;
+    spacing:                     14px;
+    cycle:                       true;
+    scrollbar:                   false;
+    background-color:            transparent;
+}
+
+/*****----- Elements -----*****/
+element {
+    orientation:                 vertical;
+    padding:                     8px;
+    border-radius:               12px;
+    background-color:            transparent;
+    text-color:                  @foreground;
+}
+
+element selected {
+    background-color:            @selected;
+    text-color:                  @background;
+}
+
+element-icon {
+    size:                        220px;
+    border-radius:               8px;
+    background-color:            transparent;
+}
+
+element-text {
+    horizontal-align:            0.5;
+    padding:                     8px 0px 0px 0px;
+    background-color:            transparent;
+    text-color:                  inherit;
+}
