@@ -9,8 +9,33 @@ PICKER="$REPO/.local/bin/hyprsimple-theme-picker.sh"
 MIGRATION="$REPO/migrations/1788100840.sh"
 SHIPPED_LAUNCHER="$REPO/test/fixtures/rofi/launcher-config.rasi.shipped"
 SHIPPED_ROOT="$REPO/test/fixtures/rofi/config.rasi.shipped"
+IMAGE_PICKER="$REPO/.local/bin/hyprsimple-image-picker.sh"
+WALLPAPER_PICKER="$REPO/.local/bin/hyprsimple-wallpaper-picker.sh"
+WALLPAPER_SWITCHER="$REPO/.local/bin/wallpaper-switcher.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+# A stub rofi on PATH. hyprsimple-image-picker.sh invokes rofi by name, so this
+# suite must put a real executable ahead of the real rofi on PATH rather than
+# ever run it: the real one would open a window on the maintainer's screen.
+# It reports the selection via $ROFI_STUB_INDEX and, when $ROFI_STUB_CAPTURE
+# is set, saves what it was fed byte for byte. That capture is the only way to
+# see the NUL icon separator: it cannot survive a shell variable or command
+# substitution, which is what let a picker that sent zero separators still
+# pass every other check.
+bin_rofi="$TMP/bin-rofi"
+mkdir -p "$bin_rofi"
+cat >"$bin_rofi/rofi" <<'STUB'
+#!/bin/bash
+if [[ -n ${ROFI_STUB_CAPTURE:-} ]]; then
+  cat >"$ROFI_STUB_CAPTURE"
+else
+  cat >/dev/null
+fi
+printf '%s\n' "${ROFI_STUB_INDEX:-0}"
+STUB
+chmod +x "$bin_rofi/rofi"
+export PATH="$bin_rofi:$PATH"
 
 failures=0
 pass() { printf 'ok - %s\n' "$1"; }
@@ -53,15 +78,27 @@ THEMES_DIR="$three_themes" XDG_CACHE_HOME="$three_cache" bash "$PICKER" >"$out_t
 
 check "a fixture with three themes emits three lines" "$(wc -l <"$out_three")" "3"
 
-# ---- every emitted line carries the icon separator and a real path --------
-# NUL bytes cannot be given as shell arguments, so this is checked in
-# python3, which can express the separator and split records on the real
-# newline byte.
+# ---- every row rofi receives for an existing image carries the icon
+# separator and a path that exists (the theme picker itself does no
+# thumbnailing any more; this now lives in hyprsimple-image-picker.sh and is
+# only observable by capturing rofi's stdin) -------------------------------
 
-b_result=$(python3 - "$out_three" <<'PY'
+rows_three=$(python3 -c "
+import sys
+lines = open(sys.argv[1]).read().splitlines()
+for l in lines:
+    key, label, image = l.split('\t')
+    print(f'{key}\t{label}\t{image}')
+" "$out_three")
+
+rt1_cache="$TMP/cache-rt1"
+rt1_capture="$TMP/capture-rt1"
+ROFI_STUB_INDEX=0 ROFI_STUB_CAPTURE="$rt1_capture" \
+  XDG_CACHE_HOME="$rt1_cache" bash "$IMAGE_PICKER" <<<"$rows_three" >/dev/null
+
+rt1_result=$(python3 - "$rt1_capture" <<'PY'
 import sys, os
-path = sys.argv[1]
-data = open(path, 'rb').read()
+data = open(sys.argv[1], 'rb').read()
 lines = [l for l in data.split(b'\n') if l]
 ok = True
 for l in lines:
@@ -75,7 +112,7 @@ for l in lines:
 print('yes' if ok else 'no')
 PY
 )
-check "every emitted line carries the icon separator and a path that exists" "$b_result" "yes"
+check "every emitted line carries the icon separator and a path that exists" "$rt1_result" "yes"
 
 # ---- swatches carry the theme's accent, and change when it changes --------
 
@@ -118,24 +155,29 @@ check "a theme with an empty backgrounds dir carries no icon separator" \
   "$(printf '%s' "$emptybg_line" | python3 -c "import sys; print(sys.stdin.buffer.read().count(b'\x00icon\x1f'))")" "0"
 
 # ---- caching: a second run touches no thumbnail, a changed source does ----
+# Thumbnailing moved from the theme picker to the image picker, so this now
+# drives hyprsimple-image-picker.sh with rows the test constructs.
 
-cache_themes="$TMP/themes-cache"
-must_be_fixture "$cache_themes"
-mkdir -p "$cache_themes/one/backgrounds" "$cache_themes/two/backgrounds"
-make_wallpaper "$cache_themes/one/backgrounds/wall.jpg"
-make_wallpaper "$cache_themes/two/backgrounds/wall.jpg"
+cache_src_dir="$TMP/cache-src"
+must_be_fixture "$cache_src_dir"
+mkdir -p "$cache_src_dir"
+make_wallpaper "$cache_src_dir/one.jpg"
+make_wallpaper "$cache_src_dir/two.jpg"
 
 cache_dir_base="$TMP/cache-mtime"
 must_be_fixture "$cache_dir_base"
-thumb_one="$cache_dir_base/hyprsimple/theme-previews/one.jpg"
-thumb_two="$cache_dir_base/hyprsimple/theme-previews/two.jpg"
+hash_one=$(printf '%s' "$cache_src_dir/one.jpg" | md5sum | cut -d' ' -f1)
+hash_two=$(printf '%s' "$cache_src_dir/two.jpg" | md5sum | cut -d' ' -f1)
+thumb_one="$cache_dir_base/hyprsimple/image-previews/$hash_one.jpg"
+thumb_two="$cache_dir_base/hyprsimple/image-previews/$hash_two.jpg"
+cache_rows=$(printf 'one\tOne\t%s\ntwo\tTwo\t%s\n' "$cache_src_dir/one.jpg" "$cache_src_dir/two.jpg")
 
-THEMES_DIR="$cache_themes" XDG_CACHE_HOME="$cache_dir_base" bash "$PICKER" >/dev/null
+ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$cache_dir_base" bash "$IMAGE_PICKER" <<<"$cache_rows" >/dev/null
 
 mtime_one_1=$(stat -c %Y "$thumb_one")
 mtime_two_1=$(stat -c %Y "$thumb_two")
 
-THEMES_DIR="$cache_themes" XDG_CACHE_HOME="$cache_dir_base" bash "$PICKER" >/dev/null
+ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$cache_dir_base" bash "$IMAGE_PICKER" <<<"$cache_rows" >/dev/null
 
 mtime_one_2=$(stat -c %Y "$thumb_one")
 mtime_two_2=$(stat -c %Y "$thumb_two")
@@ -147,9 +189,9 @@ check "a second run leaves thumbnail two's mtime unchanged" "$mtime_two_2" "$mti
 # The sleep guarantees the regenerated thumbnail lands in a different second
 # than the one being compared against; mtime has only second resolution here.
 sleep 1
-touch -d '+1 hour' "$cache_themes/one/backgrounds/wall.jpg"
+touch -d '+1 hour' "$cache_src_dir/one.jpg"
 
-THEMES_DIR="$cache_themes" XDG_CACHE_HOME="$cache_dir_base" bash "$PICKER" >/dev/null
+ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$cache_dir_base" bash "$IMAGE_PICKER" <<<"$cache_rows" >/dev/null
 
 mtime_one_3=$(stat -c %Y "$thumb_one")
 mtime_two_3=$(stat -c %Y "$thumb_two")
@@ -169,7 +211,7 @@ nomagick_cache="$TMP/cache-nomagick"
 
 bin_no_magick="$TMP/bin-no-magick"
 mkdir -p "$bin_no_magick"
-for u in mkdir sed cut head find sort basename; do
+for u in mkdir sed cut head find sort basename mktemp md5sum rm cat stat; do
   ln -s "$(command -v "$u")" "$bin_no_magick/$u"
 done
 
@@ -180,11 +222,18 @@ env -i "PATH=$bin_no_magick" "THEMES_DIR=$nomagick_themes" \
 check "with no magick on PATH the feed still emits a line" \
   "$([[ -s $nomagick_out ]] && echo nonempty || echo empty)" "nonempty"
 
+# Thumbnailing, and its ImageMagick fallback, moved to the image picker. Drive
+# it directly with a bare PATH (no magick, no convert) plus just the rofi stub
+# and the utilities it needs, and read the icon path back out of rofi's
+# captured stdin.
+im_nomagick_out="$TMP/im-nomagick-out"
+im_nomagick_rows=$(printf 'solo\tSolo\t%s\n' "$nomagick_themes/solo/backgrounds/wall.jpg")
+env -i "PATH=$bin_no_magick:$bin_rofi" "XDG_CACHE_HOME=$nomagick_cache" \
+  ROFI_STUB_INDEX=0 ROFI_STUB_CAPTURE="$im_nomagick_out" \
+  /usr/bin/bash "$IMAGE_PICKER" <<<"$im_nomagick_rows" >/dev/null
+
 nomagick_icon=$(python3 -c "
-data = open('$nomagick_out', 'rb').read()
-# A line with no separator is a legitimate case: a theme with no wallpaper is
-# listed without an icon. Print nothing rather than crashing, so the check that
-# follows reports a mismatch instead of the suite dying on a traceback.
+data = open('$im_nomagick_out', 'rb').read()
 parts = data.split(b'\x00icon\x1f', 1)
 print(parts[1].decode().strip() if len(parts) > 1 else '')
 ")
@@ -284,30 +333,168 @@ done
 
 check "the picker's swatch keys are distinct on every shipped theme" "$dup_themes" "0"
 
-# ---- the picker's labels survive theme-switcher's reverse transform ------
-# theme-switcher.sh strips the pango markup back to a directory name. When the
-# label gained leading swatches, that transform turned the swatch spaces into
-# ten leading hyphens and every selection resolved to nothing, while this suite
-# stayed green. The transform is read out of theme-switcher.sh rather than
-# repeated here, so changing either side re-runs this against the other.
+# ---- a key with an uppercase letter and a space round-trips byte-identical
 
-transform=$(sed -n "/hyprsimple-theme-picker.sh\" |/,/tr '\[:upper:\]/p" \
-  "$REPO/.local/bin/theme-switcher.sh" | grep -E "^[[:space:]]*(sed|tr) " |
-  sed "s/[[:space:]]*|[[:space:]]*$//; s/)$//")
+rt_rows=$(printf 'alpha\tAlpha\t\nMy Theme\tMy Theme\t\ngamma\tGamma\t\n')
 
-roundtrip_bad=0
-roundtrip_ran=0
-while IFS= read -r line; do
-  label=${line%%$'\0'*}
-  name=$(printf '%s\n' "$label" | eval "$(printf '%s' "$transform" | paste -sd'|' -)")
-  roundtrip_ran=$((roundtrip_ran + 1))
-  [[ -d "$REPO/.config/hypr/themes/$name" ]] || roundtrip_bad=$((roundtrip_bad + 1))
-done < <(THEMES_DIR="$REPO/.config/hypr/themes" XDG_CACHE_HOME="$TMP/rt-cache" \
-  bash "$REPO/.local/bin/hyprsimple-theme-picker.sh")
+rt_key=$(ROFI_STUB_INDEX=1 XDG_CACHE_HOME="$TMP/cache-rt-key" bash "$IMAGE_PICKER" <<<"$rt_rows")
+check "a key containing an uppercase letter and a space is returned byte-identical, with rofi stubbed to select a known index" \
+  "$rt_key" "My Theme"
 
-check "the reverse transform was actually extracted and run" \
-  "$((roundtrip_ran > 0 ? 1 : 0))" "1"
-check "every picker label resolves back to a real theme directory" "$roundtrip_bad" "0"
+# ---- selecting index 0, then a later index, prints that row's key both times
+
+rt_key_0=$(ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$TMP/cache-rt-multi" bash "$IMAGE_PICKER" <<<"$rt_rows")
+rt_key_2=$(ROFI_STUB_INDEX=2 XDG_CACHE_HOME="$TMP/cache-rt-multi" bash "$IMAGE_PICKER" <<<"$rt_rows")
+check "with rofi stubbed to select index 0 and then a later index, the printed key is that row's key both times" \
+  "$rt_key_0|$rt_key_2" "alpha|gamma"
+
+# ---- every key from the theme producer names a directory in the fixture --
+
+tp_dirs_ok=yes
+while IFS=$'\t' read -r tp_key _ _; do
+  [[ -d "$three_themes/$tp_key" ]] || tp_dirs_ok=no
+done <"$out_three"
+check "every key from the theme producer names a directory in the fixture themes directory" "$tp_dirs_ok" "yes"
+
+# ---- the theme producer emits one row per theme directory, excluding templates
+
+tmpl_themes="$TMP/themes-templates"
+must_be_fixture "$tmpl_themes"
+mkdir -p "$tmpl_themes/one" "$tmpl_themes/two" "$tmpl_themes/three" "$tmpl_themes/templates"
+tmpl_out="$TMP/out-templates"
+THEMES_DIR="$tmpl_themes" XDG_CACHE_HOME="$TMP/cache-templates" bash "$PICKER" >"$tmpl_out"
+check "the theme producer emits one row per theme directory, excluding templates" "$(wc -l <"$tmpl_out")" "3"
+
+# ---- the wallpaper producer's keys, and its label shape --------------------
+
+wp_theme="$TMP/wp-theme"
+must_be_fixture "$wp_theme"
+mkdir -p "$wp_theme/backgrounds"
+make_wallpaper "$wp_theme/backgrounds/0-morning-breeze.jpg"
+make_wallpaper "$wp_theme/backgrounds/1-evening-glow.jpg"
+
+wp_cache="$TMP/cache-wp"
+must_be_fixture "$wp_cache"
+mkdir -p "$wp_cache"
+printf '%s\n' "$wp_theme/backgrounds/0-morning-breeze.jpg" >"$wp_cache/current_wallpaper_path"
+
+wp_out="$TMP/out-wp"
+XDG_CACHE_HOME="$wp_cache" bash "$WALLPAPER_PICKER" >"$wp_out"
+
+wp_keys_ok=yes
+while IFS=$'\t' read -r wp_key _ _; do
+  [[ -f $wp_key ]] || wp_keys_ok=no
+done <"$wp_out"
+check "every key from the wallpaper producer is a file in the fixture backgrounds directory" "$wp_keys_ok" "yes"
+
+wp_label=$(cut -f2 "$wp_out" | head -n 1)
+check "the wallpaper producer's label has no extension and no leading sort prefix" "$wp_label" "morning breeze"
+
+# ---- two producers naming the same image share one cache entry ------------
+
+dup_img="$TMP/dup-img/pic.jpg"
+mkdir -p "$TMP/dup-img"
+make_wallpaper "$dup_img"
+dup_cache="$TMP/cache-dup"
+dup_rows=$(printf 'from-theme\tFrom Theme\t%s\nfrom-wallpaper\tFrom Wallpaper\t%s\n' "$dup_img" "$dup_img")
+ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$dup_cache" bash "$IMAGE_PICKER" <<<"$dup_rows" >/dev/null
+dup_count=$(find "$dup_cache/hyprsimple/image-previews" -type f | wc -l)
+check "two producers naming the same image cause one cache entry to exist, not two" "$dup_count" "1"
+
+# ---- theme-switcher.sh no longer transforms the picker's output -----------
+
+check "grep finds no sed or tr applied to the picker output in theme-switcher.sh" \
+  "$(grep -A2 'hyprsimple-theme-picker.sh"' "$REPO/.local/bin/theme-switcher.sh" | grep -cE '^[[:space:]]*(sed|tr) ')" "0"
+
+# ---- the image picker itself degrades without ImageMagick -----------------
+
+nomagick2_dir="$TMP/nomagick2"
+mkdir -p "$nomagick2_dir"
+make_wallpaper "$nomagick2_dir/pic.jpg"
+nomagick2_rows=$(printf 'solo\tSolo\t%s\n' "$nomagick2_dir/pic.jpg")
+nomagick2_out=$(env -i "PATH=$bin_no_magick:$bin_rofi" "XDG_CACHE_HOME=$TMP/cache-nomagick2" \
+  ROFI_STUB_INDEX=0 /usr/bin/bash "$IMAGE_PICKER" <<<"$nomagick2_rows")
+check "with no ImageMagick on PATH, the picker still prints a key" "$nomagick2_out" "solo"
+
+# ---- a row whose image is missing is still selectable ----------------------
+
+missing_rows=$(printf 'exists\tExists\t%s\nmissing\tMissing\t/no/such/path.jpg\n' "$dup_img")
+missing_out=$(ROFI_STUB_INDEX=1 XDG_CACHE_HOME="$TMP/cache-missing" bash "$IMAGE_PICKER" <<<"$missing_rows")
+check "a row whose image path does not exist is still selectable, checked by stubbing rofi to select it" \
+  "$missing_out" "missing"
+
+# ---- what actually reaches rofi carries the NUL separator ------------------
+# An exit status cannot see this: a picker that silently dropped every
+# separator would still return the correct key on selection. Only capturing
+# rofi's stdin catches it.
+
+sep_img1="$TMP/sep/one.jpg"
+sep_img2="$TMP/sep/two.jpg"
+mkdir -p "$TMP/sep"
+make_wallpaper "$sep_img1"
+make_wallpaper "$sep_img2"
+sep_rows=$(printf 'one\tOne\t%s\ntwo\tTwo\t%s\n' "$sep_img1" "$sep_img2")
+sep_capture="$TMP/capture-sep"
+ROFI_STUB_INDEX=0 ROFI_STUB_CAPTURE="$sep_capture" XDG_CACHE_HOME="$TMP/cache-sep" \
+  bash "$IMAGE_PICKER" <<<"$sep_rows" >/dev/null
+
+sep_result=$(python3 -c "
+import os
+data = open('$sep_capture', 'rb').read()
+lines = [l for l in data.split(b'\n') if l]
+count = data.count(b'\x00icon\x1f')
+ok = count == 2 and all(
+    os.path.exists(l.split(b'\x00icon\x1f', 1)[1])
+    for l in lines if b'\x00icon\x1f' in l
+)
+print('yes' if ok else 'no')
+")
+check "every row rofi receives for an existing image carries the NUL icon separator and a path that exists" \
+  "$sep_result" "yes"
+
+# ---- an unwritable cache directory still yields a usable picker -----------
+
+unwritable_dir="$TMP/cache-unwritable"
+mkdir -p "$unwritable_dir"
+chmod 000 "$unwritable_dir"
+uw_rows=$(printf 'solo\tSolo\t%s\n' "$dup_img")
+uw_out=$(ROFI_STUB_INDEX=0 XDG_CACHE_HOME="$unwritable_dir" bash "$IMAGE_PICKER" <<<"$uw_rows")
+chmod 755 "$unwritable_dir"
+check "with the cache directory made unwritable, the picker still prints a key" "$uw_out" "solo"
+
+# ---- a theme with exactly one wallpaper skips the picker entirely ---------
+# Four shipped themes have exactly one wallpaper, so wallpaper-switcher.sh's
+# early exit is reached in practice, not just in this fixture.
+
+ws_home="$TMP/ws-home"
+must_be_fixture "$ws_home"
+mkdir -p "$ws_home/.local/bin" "$ws_home/.cache"
+cp "$REPO/.local/bin/hypr-helpers.sh" "$ws_home/.local/bin/hypr-helpers.sh"
+
+ws_marker="$TMP/picker-invoked-marker"
+cat >"$ws_home/.local/bin/hyprsimple-image-picker.sh" <<STUB2
+#!/bin/bash
+touch "$ws_marker"
+STUB2
+chmod +x "$ws_home/.local/bin/hyprsimple-image-picker.sh"
+
+ws_theme_bg="$TMP/ws-theme/backgrounds"
+must_be_fixture "$TMP/ws-theme"
+mkdir -p "$ws_theme_bg"
+make_wallpaper "$ws_theme_bg/only.jpg"
+printf '%s\n' "$ws_theme_bg/only.jpg" >"$ws_home/.cache/current_wallpaper_path"
+
+ws_notify_bin="$TMP/ws-notify-bin"
+mkdir -p "$ws_notify_bin"
+printf '#!/bin/sh\nexit 0\n' >"$ws_notify_bin/notify-send"
+chmod +x "$ws_notify_bin/notify-send"
+
+PATH="$ws_notify_bin:$PATH" HOME="$ws_home" bash "$WALLPAPER_SWITCHER" pick >/dev/null 2>&1
+ws_exit=$?
+
+check "a fixture theme holding exactly one wallpaper makes wallpaper-switcher.sh pick exit 0" "$ws_exit" "0"
+check "a fixture theme holding exactly one wallpaper makes wallpaper-switcher.sh pick skip invoking the picker" \
+  "$([[ -e $ws_marker ]] && echo invoked || echo not-invoked)" "not-invoked"
 
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
