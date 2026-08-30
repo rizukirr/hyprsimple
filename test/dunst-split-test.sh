@@ -12,6 +12,18 @@ TEMPLATER="$REPO/.local/bin/theme-apply-templates.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# The migrations and theme-switcher.sh end by restarting dunst, and pgrep and
+# pkill do not consult HOME. Without these stubs the suite kills the real
+# notification daemon on any machine running one, once per migration invocation.
+# pgrep exits 1, so the restart block is skipped rather than half executed.
+STUB_BIN="$TMP/stub-bin"
+mkdir -p "$STUB_BIN"
+for stub in pgrep pkill uwsm; do
+  printf '#!/bin/sh\nexit 1\n' >"$STUB_BIN/$stub"
+  chmod +x "$STUB_BIN/$stub"
+done
+export PATH="$STUB_BIN:$PATH"
+
 failures=0
 pass() { printf 'ok - %s\n' "$1"; }
 fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
