@@ -6,6 +6,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATION="$REPO/migrations/1788065734.sh"
+MIGRATION2="$REPO/migrations/1788066582.sh"
 SWITCHER="$REPO/.local/bin/theme-switcher.sh"
 TEMPLATER="$REPO/.local/bin/theme-apply-templates.sh"
 TMP="$(mktemp -d)"
@@ -256,6 +257,82 @@ if grep -q 'frame_color = "#89b4fa"' "$extra_home/.config/dunst/dunstrc"; then
   pass "a colour key in a section hyprsimple shipped none for survives the migration"
 else
   fail "a colour key in a section hyprsimple shipped none for survives the migration"
+fi
+
+# ---- migration 2: an unedited dunstrc is replaced by the base -----------
+# HYPRSIMPLE_PATH points at the repo itself: the migration only reads from it,
+# and this is what proves the checks hold against what hyprsimple actually
+# ships, not a stand-in.
+
+unedited_home="$TMP/home-move-unedited"
+must_be_fixture "$unedited_home"
+mkdir -p "$unedited_home/.config/dunst"
+git -C "$REPO" show 12d5e47:.config/dunst/dunstrc >"$unedited_home/.config/dunst/dunstrc"
+
+HOME="$unedited_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >"$TMP/mig2_out" 2>&1
+check "migration 2 exits 0 for an unedited dunstrc" "$?" "0"
+
+if cmp -s "$unedited_home/.config/dunst/dunstrc" "$REPO/.config/dunst/dunstrc"; then
+  pass "an unedited dunstrc is replaced by the base"
+else
+  fail "an unedited dunstrc is replaced by the base"
+fi
+
+check "no .pre-split file exists for an unedited dunstrc" \
+  "$(find "$unedited_home/.config/dunst" -maxdepth 1 -name 'dunstrc.pre-split.*' | wc -l)" "0"
+
+hyprsimple_link="$unedited_home/.config/dunst/dunstrc.d/10-hyprsimple.conf"
+readlink -e "$hyprsimple_link" >"$TMP/link_target"
+check "readlink -e on dunstrc.d/10-hyprsimple.conf exits 0" "$?" "0"
+check "dunstrc.d/10-hyprsimple.conf names the file under the install fixture" \
+  "$(cat "$TMP/link_target")" "$REPO/default/dunst/10-hyprsimple.conf"
+
+check "99-user.conf exists after the run" \
+  "$([[ -f $unedited_home/.config/dunst/dunstrc.d/99-user.conf ]] && echo yes || echo no)" "yes"
+
+# ---- migration 2: an edited dunstrc is kept, its differences copied out --
+
+edited_home="$TMP/home-move-edited"
+must_be_fixture "$edited_home"
+mkdir -p "$edited_home/.config/dunst"
+git -C "$REPO" show 12d5e47:.config/dunst/dunstrc \
+  | sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
+  >"$edited_home/.config/dunst/dunstrc"
+cp "$edited_home/.config/dunst/dunstrc" "$TMP/edited_original"
+
+HOME="$edited_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >/dev/null 2>&1
+check "migration 2 exits 0 for an edited dunstrc" "$?" "0"
+
+kept="$(find "$edited_home/.config/dunst" -maxdepth 1 -name 'dunstrc.pre-split.*')"
+if [[ -n $kept ]] && cmp -s "$kept" "$TMP/edited_original"; then
+  pass "an edited dunstrc produces a .pre-split file byte-identical to the original"
+else
+  fail "an edited dunstrc produces a .pre-split file byte-identical to the original"
+fi
+
+if grep -q 'frame_color = "#ffcc00"' "$edited_home/.config/dunst/dunstrc.d/99-user.conf"; then
+  pass "99-user.conf contains the edited key"
+else
+  fail "99-user.conf contains the edited key"
+fi
+
+HOME="$edited_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >/dev/null 2>&1
+check "a second run creates no additional .pre-split file" \
+  "$(find "$edited_home/.config/dunst" -maxdepth 1 -name 'dunstrc.pre-split.*' | wc -l)" "1"
+
+# ---- migration 2: 99-user.conf written by an earlier run is untouched ---
+
+preserve_home="$TMP/home-move-preserve"
+must_be_fixture "$preserve_home"
+mkdir -p "$preserve_home/.config/dunst/dunstrc.d"
+git -C "$REPO" show 12d5e47:.config/dunst/dunstrc >"$preserve_home/.config/dunst/dunstrc"
+echo "# MARKER-DO-NOT-OVERWRITE" >"$preserve_home/.config/dunst/dunstrc.d/99-user.conf"
+
+HOME="$preserve_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >/dev/null 2>&1
+if grep -q 'MARKER-DO-NOT-OVERWRITE' "$preserve_home/.config/dunst/dunstrc.d/99-user.conf"; then
+  pass "99-user.conf written by an earlier run is not overwritten"
+else
+  fail "99-user.conf written by an earlier run is not overwritten"
 fi
 
 # ---- a missing dunstrc is a no-op ----------------------------------------
