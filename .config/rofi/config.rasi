@@ -68,7 +68,6 @@ configuration {
     display-run:                "";
     display-filebrowser:        "";
     display-window:             "";
-    display-wallpaper:          "󰸉";
 
 	/*---------- Misc setting ----------*/
 	terminal: "rofi-sensible-terminal";
