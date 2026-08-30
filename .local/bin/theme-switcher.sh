@@ -78,23 +78,17 @@ if [[ -f "$GEN/hyprlock.conf" ]]; then
 fi
 
 # 7. Update Dunst colors
+# generated/dunst-colors is already valid dunst config, so it drops straight in
+# as an override. Drop-ins outrank the base dunstrc, and lexical order decides
+# between them, so 90-theme sits above hyprsimple's default and below the user's.
+DUNST_DROPIN="$HOME/.config/dunst/dunstrc.d/90-theme.conf"
+mkdir -p "$(dirname "$DUNST_DROPIN")"
 if [[ -f "$GEN/dunst-colors" ]]; then
-  DUNST_CONFIG="$HOME/.config/dunst/dunstrc"
-  if [[ -f "$DUNST_CONFIG" ]]; then
-    # Extract colors from generated file
-    LOW_BG=$(sed -n '/urgency_low/,/urgency_normal/{/background/s/.*"\(.*\)".*/\1/p}' "$GEN/dunst-colors")
-    LOW_FG=$(sed -n '/urgency_low/,/urgency_normal/{/foreground/s/.*"\(.*\)".*/\1/p}' "$GEN/dunst-colors")
-    LOW_FC=$(sed -n '/urgency_low/,/urgency_normal/{/frame_color/s/.*"\(.*\)".*/\1/p}' "$GEN/dunst-colors")
-    NORM_FC=$(sed -n '/urgency_normal/,/urgency_critical/{/frame_color/s/.*"\(.*\)".*/\1/p}' "$GEN/dunst-colors")
-    CRIT_FC=$(sed -n '/urgency_critical/,${/frame_color/s/.*"\(.*\)".*/\1/p}' "$GEN/dunst-colors")
-
-    # Replace in dunstrc (all urgency levels share bg/fg, differ by frame_color)
-    sed -i "s/frame_color = \"#[a-fA-F0-9]*\"/frame_color = \"$LOW_FC\"/1" "$DUNST_CONFIG"
-    sed -i "/\[urgency_normal\]/,/\[/{s/frame_color = \".*\"/frame_color = \"$NORM_FC\"/}" "$DUNST_CONFIG"
-    sed -i "/\[urgency_critical\]/,/\[/{s/frame_color = \".*\"/frame_color = \"$CRIT_FC\"/}" "$DUNST_CONFIG"
-    sed -i "s/background = \"#[a-fA-F0-9]*\"/background = \"$LOW_BG\"/g" "$DUNST_CONFIG"
-    sed -i "s/foreground = \"#[a-fA-F0-9]*\"/foreground = \"$LOW_FG\"/g" "$DUNST_CONFIG"
-  fi
+  cp "$GEN/dunst-colors" "$DUNST_DROPIN"
+else
+  # This theme has no colors.toml, so there are no colours to apply. Drop the
+  # previous theme's file rather than leaving its colours in force.
+  rm -f "$DUNST_DROPIN"
 fi
 
 # 8. Update btop theme

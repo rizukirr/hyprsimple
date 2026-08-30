@@ -1,3 +1,6 @@
+[global]
+    frame_color = "{{ color7 }}"
+
 [urgency_low]
     background = "{{ background }}"
     foreground = "{{ foreground }}"
