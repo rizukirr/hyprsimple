@@ -7,7 +7,7 @@ if [[ ! -d "$OUTPUT_DIR" ]]; then
   exit 1
 fi
 
-SCOPE="$1"      # "region" or "output"
+SCOPE="$1"      # "region", "output", or "stop"
 AUDIO_MODE="$2" # "mic", "internal", or "none"
 
 start_screenrecording() {
@@ -72,6 +72,14 @@ toggle_screenrecording_indicator() {
 screenrecording_active() {
   pgrep -x wl-screenrec >/dev/null || pgrep -x wf-recorder >/dev/null
 }
+
+if [[ "$SCOPE" == "stop" ]]; then
+  # Stop-only. The waybar indicator clicks this, and without it a click while
+  # nothing is recording would fall through to the region branch and pop up a
+  # selector.
+  screenrecording_active && stop_screenrecording
+  exit 0
+fi
 
 if screenrecording_active; then
   stop_screenrecording

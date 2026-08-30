@@ -311,5 +311,35 @@ check "the shipped config.jsonc fixture's checksum is listed in the migration's 
 check "the shipped style.css fixture's checksum is listed in the migration's STYLE_SUMS" \
   "$(grep -c "$style_shipped_sum" <<<"$style_sums_block")" "1"
 
+
+# ---- screen-record.sh stop mode -----------------------------------------
+# The indicator's on-click passes `stop`. Without that branch a click while
+# nothing is recording falls through to the region branch and runs slurp, so
+# the check that matters is that slurp is never reached.
+
+stop_bin="$TMP/stop-bin"
+mkdir -p "$stop_bin"
+for stub in slurp dunstify pkill wl-screenrec wf-recorder; do
+  printf '#!/bin/sh\necho "%s" >>"%s/calls"\nexit 0\n' "$stub" "$stop_bin" >"$stop_bin/$stub"
+  chmod +x "$stop_bin/$stub"
+done
+
+printf '#!/bin/sh\nexit 1\n' >"$stop_bin/pgrep"
+chmod +x "$stop_bin/pgrep"
+: >"$stop_bin/calls"
+PATH="$stop_bin:$PATH" bash "$REPO/.local/bin/screen-record.sh" stop >/dev/null 2>&1
+check "screen-record.sh stop runs nothing when idle" \
+  "$(wc -l <"$stop_bin/calls")" "0"
+
+printf '#!/bin/sh\nexit 0\n' >"$stop_bin/pgrep"
+chmod +x "$stop_bin/pgrep"
+: >"$stop_bin/calls"
+PATH="$stop_bin:$PATH" bash "$REPO/.local/bin/screen-record.sh" stop >/dev/null 2>&1
+if grep -q '^pkill$' "$stop_bin/calls" && ! grep -q '^slurp$' "$stop_bin/calls"; then
+  pass "screen-record.sh stop stops a running recording without a selector"
+else
+  fail "screen-record.sh stop stops a running recording without a selector"
+fi
+
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
