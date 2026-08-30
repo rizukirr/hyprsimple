@@ -359,7 +359,8 @@ chain_home="$TMP/home-chain"
 must_be_fixture "$chain_home"
 mkdir -p "$chain_home/.config/dunst"
 cat "$PRESPLIT" \
-  | sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
+  | sed -e 's|browser = /usr/bin/brave|browser = /usr/bin/firefox|' \
+        -e 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
   >"$chain_home/.config/dunst/dunstrc"
 cp "$chain_home/.config/dunst/dunstrc" "$TMP/chain_original"
 
@@ -374,6 +375,12 @@ if [[ -n $survivor ]] && cmp -s "$survivor" "$TMP/chain_original"; then
   pass "the surviving copy is byte-identical to the original dunstrc"
 else
   fail "the surviving copy is byte-identical to the original dunstrc"
+fi
+
+if [[ $survivor == *"/dunstrc.pre-split."* ]]; then
+  pass "the surviving copy is the promoted .pre-split, not the plain .bak"
+else
+  fail "the surviving copy is the promoted .pre-split, not the plain .bak"
 fi
 
 # ---- a missing dunstrc is a no-op ----------------------------------------
