@@ -104,6 +104,46 @@ for stub in pgrep pkill uwsm; do
 done
 export PATH="$STUB_BIN:$PATH"
 
+# ---- restart-waybar.sh: --if-running only restarts a running waybar -------
+# An exit status alone can't tell a skipped launch from a completed one,
+# since both are 0, so a uwsm stub that writes a marker file is used instead,
+# and the marker's presence or absence is what gets asserted.
+
+ifrun_marker="$TMP/ifrun-launched"
+ifrun_bin="$TMP/ifrun-bin"
+mkdir -p "$ifrun_bin"
+printf '#!/bin/sh\ntouch "%s"\n' "$ifrun_marker" >"$ifrun_bin/uwsm"
+chmod +x "$ifrun_bin/uwsm"
+
+# not running: the shared stub pgrep (installed above, exits 1) is still
+# first on this PATH.
+rm -f "$ifrun_marker"
+PATH="$ifrun_bin:$PATH" bash "$RESTART" --if-running >/dev/null 2>&1
+marker_seen=no
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [[ -f $ifrun_marker ]] && { marker_seen=yes; break; }
+  sleep 0.1
+done
+check "--if-running launches nothing when waybar is not running" "$marker_seen" "no"
+
+# running: a second, separate stub dir gives pgrep exit 0, prepended only for
+# this call so the shared stub is left untouched.
+running_pgrep_bin="$TMP/running-pgrep-bin"
+mkdir -p "$running_pgrep_bin"
+printf '#!/bin/sh\nexit 0\n' >"$running_pgrep_bin/pgrep"
+chmod +x "$running_pgrep_bin/pgrep"
+
+rm -f "$ifrun_marker"
+saved_path="$PATH"
+PATH="$running_pgrep_bin:$ifrun_bin:$PATH" bash "$RESTART" --if-running >/dev/null 2>&1
+marker_seen=no
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [[ -f $ifrun_marker ]] && { marker_seen=yes; break; }
+  sleep 0.1
+done
+PATH="$saved_path"
+check "--if-running launches waybar when it is already running" "$marker_seen" "yes"
+
 # ---- the shipped config.jsonc fixture -------------------------------------
 
 stripped="$TMP/shipped-stripped.json"

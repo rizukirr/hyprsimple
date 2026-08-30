@@ -36,7 +36,7 @@ pick_aur_helper() {
 }
 
 reload_waybar() {
-  "$HOME/.local/bin/hyprsimple-restart-waybar.sh"
+  "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running
   ok "waybar reloaded"
 }
 
