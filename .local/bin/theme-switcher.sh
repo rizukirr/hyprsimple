@@ -179,9 +179,7 @@ if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
 
   "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running
 
-  if pgrep -x dunst > /dev/null; then
-    pkill dunst; uwsm app -- dunst &
-  fi
+  "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running
 
   notify-send "Theme Manager" "Theme '$THEME' applied!" -i "$CACHE_DIR/current_wallpaper"
 fi

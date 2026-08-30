@@ -4,6 +4,10 @@
     // clock module (incl. themed calendar colors) is generated per-theme; see theme-clock.jsonc
     "include": ["~/.config/waybar/theme-clock.jsonc"],
     // "width": 1280, // Waybar width
+    // Real-time signals used by modules below. waybar re-runs a module when it
+    // receives SIGRTMIN+N. Keep this table current before adding a new one.
+    //   8  custom/screenrecording, sent by .local/bin/screen-record.sh
+    //   7, 9, 10 unused
     // Choose the order of the modules
     "modules-left": ["hyprland/workspaces", "custom/muslimtify"],
     "modules-center": ["hyprland/window"],
@@ -123,7 +127,7 @@
         "exec": "~/.local/bin/waybar-screenrecording.sh",
         "return-type": "json",
         "signal": 8,
-        "on-click": "~/.local/bin/screen-record.sh"
+        "on-click": "~/.local/bin/screen-record.sh stop"
     },
     "custom/muslimtify": {
         "exec": "~/.local/bin/waybar-muslimtify.sh",
