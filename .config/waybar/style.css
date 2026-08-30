@@ -175,3 +175,14 @@ tooltip label {
     text-shadow: 0 0 10px alpha(@warning, 0.6);
     box-shadow: inset 0 1px 0 alpha(@warning, 0.15), 0 2px 8px alpha(@warning, 0.2);
 }
+
+#custom-screenrecording {
+    min-width: 12px;
+    margin: 0 7.5px;
+    padding: 0;
+}
+
+#custom-screenrecording.active {
+    color: @danger;
+    text-shadow: 0 0 8px alpha(@danger, 0.5);
+}
