@@ -47,11 +47,12 @@ elif [[ $MODE == "next" ]]; then
   done
   SELECTED="${WALLPAPERS[$NEXT]}"
 elif [[ $MODE == "pick" ]]; then
-  # Two columns, not three: a theme ships at most four wallpapers, so three
-  # columns would render three and then a lone one.
+  # Three columns, matching the theme picker. A theme ships at most four
+  # wallpapers, so the last row is often short, and consistency with the theme
+  # grid was preferred over a tidier final row.
   SELECTED=$("$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" |
     "$HOME/.local/bin/hyprsimple-image-picker.sh" \
-      --prompt "Wallpaper" --columns 2 --selected "$CURRENT")
+      --prompt "Wallpaper" --columns 3 --selected "$CURRENT")
   [[ -z $SELECTED ]] && exit 0
 fi
 
