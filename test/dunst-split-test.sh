@@ -7,6 +7,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATION="$REPO/migrations/1788065734.sh"
 MIGRATION2="$REPO/migrations/1788066582.sh"
+PRESPLIT="$REPO/test/fixtures/dunst/dunstrc.presplit"
 SWITCHER="$REPO/.local/bin/theme-switcher.sh"
 TEMPLATER="$REPO/.local/bin/theme-apply-templates.sh"
 TMP="$(mktemp -d)"
@@ -279,7 +280,7 @@ fi
 unedited_home="$TMP/home-move-unedited"
 must_be_fixture "$unedited_home"
 mkdir -p "$unedited_home/.config/dunst"
-git -C "$REPO" show 12d5e47:.config/dunst/dunstrc >"$unedited_home/.config/dunst/dunstrc"
+cat "$PRESPLIT" >"$unedited_home/.config/dunst/dunstrc"
 
 HOME="$unedited_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >"$TMP/mig2_out" 2>&1
 check "migration 2 exits 0 for an unedited dunstrc" "$?" "0"
@@ -307,7 +308,7 @@ check "99-user.conf exists after the run" \
 edited_home="$TMP/home-move-edited"
 must_be_fixture "$edited_home"
 mkdir -p "$edited_home/.config/dunst"
-git -C "$REPO" show 12d5e47:.config/dunst/dunstrc \
+cat "$PRESPLIT" \
   | sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
   >"$edited_home/.config/dunst/dunstrc"
 cp "$edited_home/.config/dunst/dunstrc" "$TMP/edited_original"
@@ -337,7 +338,7 @@ check "a second run creates no additional .pre-split file" \
 preserve_home="$TMP/home-move-preserve"
 must_be_fixture "$preserve_home"
 mkdir -p "$preserve_home/.config/dunst/dunstrc.d"
-git -C "$REPO" show 12d5e47:.config/dunst/dunstrc >"$preserve_home/.config/dunst/dunstrc"
+cat "$PRESPLIT" >"$preserve_home/.config/dunst/dunstrc"
 echo "# MARKER-DO-NOT-OVERWRITE" >"$preserve_home/.config/dunst/dunstrc.d/99-user.conf"
 
 HOME="$preserve_home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION2" >/dev/null 2>&1
@@ -351,6 +352,15 @@ fi
 
 HOME="$TMP/nothing" HYPRSIMPLE_PATH="$inst" bash "$MIGRATION" >/dev/null 2>&1
 check "a missing dunstrc exits 0" "$?" "0"
+
+# ---- the vendored fixture matches the migration's checksum --------------
+
+fixture_sum=$(md5sum "$PRESPLIT" | cut -d' ' -f1)
+if grep -q "$fixture_sum" "$MIGRATION2"; then
+  pass "the vendored fixture matches a checksum the migration recognises"
+else
+  fail "the vendored fixture matches a checksum the migration recognises"
+fi
 
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
