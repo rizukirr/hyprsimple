@@ -43,3 +43,6 @@ jobs:
 
       - name: hypr-conf-split-test
         run: bash test/hypr-conf-split-test.sh
+
+      - name: waybar-refresh-test
+        run: bash test/waybar-refresh-test.sh

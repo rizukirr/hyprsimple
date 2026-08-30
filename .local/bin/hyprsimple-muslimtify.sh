@@ -36,12 +36,8 @@ pick_aur_helper() {
 }
 
 reload_waybar() {
-  if pgrep -x waybar >/dev/null; then
-    pkill waybar
-    sleep 0.2
-    uwsm app -- waybar >/dev/null 2>&1 &
-    ok "waybar reloaded"
-  fi
+  "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running
+  ok "waybar reloaded"
 }
 
 backup() {
