@@ -533,6 +533,10 @@ mkdir -p "$HOME/.config/rofi"
 mkdir -p "$HOME/.config/dunst/dunstrc.d"
 ln -sfn "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf"
 
+# hyprlock, hypridle and xdph source their defaults through this link, so no
+# config file has to hardcode an install path that HYPRSIMPLE_PATH can change.
+ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
+
 # One-time setup: symlink rofi launcher/powermenu dirs to the default theme
 ln -sfn "$THEME_DIR/rofi/launcher" "$HOME/.config/rofi/launcher"
 ln -sfn "$THEME_DIR/rofi/powermenu" "$HOME/.config/rofi/powermenu"
