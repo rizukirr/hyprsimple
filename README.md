@@ -10,15 +10,15 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 > Unless you're familiar with Hyprland configuration and don't mind dealing with potential issues, I recommend using a tagged release. But ultimately, it's up to you.
 
 
-![Home Screen](assets/image1.jpg)
+<img width="1920" height="1080" alt="image1" src="https://github.com/user-attachments/assets/c10495c5-dda8-44a1-be69-8f6ac0f965b4" /> 
 
 | Power Menu | Terminal|
 |----------------------------------|--------------------------------|
-| ![Power Menu](assets/image5.jpg) | ![Terminal](assets/image2.jpg) |
+| <img width="1920" height="1080" alt="2026-08-31-231634_hyprshot" src="https://github.com/user-attachments/assets/c2e9b0b1-5f92-4bc1-984f-8b14542a74dc" /> | <img width="1920" height="1080" alt="2026-08-31-231849_hyprshot" src="https://github.com/user-attachments/assets/5609d417-fa72-4387-bec9-d898f4513bab" /> |
 
 | Menu Launcher | Theme Switcher |
 |-------------------------------------|-------------------------------------|
-| ![Menu Launcher](assets/image3.jpg) | ![Theme Switcher](assets/image4.jpg) |
+| <img width="1920" height="1080" alt="2026-08-31-231603_hyprshot" src="https://github.com/user-attachments/assets/8d0913ea-b47f-4f62-9c1b-eb7d31bcab83" /> | <img width="1920" height="1080" alt="2026-08-30-235001_hyprshot" src="https://github.com/user-attachments/assets/a32760b2-e947-4a88-86e3-296142599933" /> |
 
 ## Features
 
