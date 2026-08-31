@@ -416,9 +416,36 @@ install_to_canonical_path() {
   echo -e "${GREEN}hyprsimple installed to $HYPRSIMPLE_PATH${NC}"
 }
 
+# New installs follow release tags rather than the tip of main, so a user who
+# never passes an argument to hyprsimple-update only ever sees tagged versions.
+# A source checkout on anything other than main is somebody testing a branch,
+# and every failure here leaves the install on the branch it already had.
+follow_latest_release() {
+  [[ -d $HYPRSIMPLE_PATH/.git ]] || return 0
+
+  local branch
+  branch=$(git -C "$HYPRSIMPLE_PATH" symbolic-ref --quiet --short HEAD) || return 0
+  [[ $branch == main ]] || return 0
+
+  local tag
+  tag=$(git -C "$HYPRSIMPLE_PATH" ls-remote --tags origin 2>/dev/null |
+    sed 's|.*refs/tags/||; s|\^{}$||' | sort -u |
+    awk '{ key = $0; sub(/^v/, "", key); print key "\t" $0 }' |
+    sort -V | tail -1 | cut -f2) || return 0
+  [[ -n $tag ]] || return 0
+
+  # --depth 1 so this never undoes the history-shrinking migration.
+  git -C "$HYPRSIMPLE_PATH" fetch --quiet --depth 1 origin tag "$tag" 2>/dev/null || return 0
+  git -C "$HYPRSIMPLE_PATH" checkout --quiet --detach "$tag" 2>/dev/null || return 0
+
+  echo -e "${GREEN}Following releases, now on $tag.${NC}"
+  echo "Run 'hyprsimple-update main' if you would rather track main."
+}
+
 echo ""
 echo -e "${YELLOW}Installing hyprsimple to $HYPRSIMPLE_PATH...${NC}"
 install_to_canonical_path
+follow_latest_release
 
 # A fresh install already ships every fix, so mark all migrations as done and
 # let new users skip the entire history.
