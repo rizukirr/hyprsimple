@@ -49,3 +49,6 @@ jobs:
 
       - name: theme-picker-test
         run: bash test/theme-picker-test.sh
+
+      - name: update-channel-test
+        run: bash test/update-channel-test.sh
