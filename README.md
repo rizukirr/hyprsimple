@@ -83,6 +83,26 @@ hyprsimple-update
 This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`,
 installs any newly required packages, and runs pending migrations.
 
+#### Releases or main
+
+A fresh install follows release tags, so `hyprsimple-update` on its own moves
+you from one release to the next and never to an untagged commit.
+
+```bash
+hyprsimple-update            # stay on the channel you are already on
+hyprsimple-update --stable   # switch to the newest release
+hyprsimple-update main       # switch to main, and stay there
+hyprsimple-update <branch>   # switch to any branch of origin, for testing
+```
+
+The choice sticks. Once you run `hyprsimple-update main`, every later bare
+`hyprsimple-update` pulls main until you run `hyprsimple-update --stable`. There
+is no config file behind this: the channel is whatever the checkout at
+`~/.local/share/hyprsimple` is on, which you can read with `hyprsimple-debug`.
+
+Tracking main gets you fixes the day they merge, at the cost of landing on
+commits no release has covered.
+
 **An update never edits your `~/.config` files on its own.** Only a migration
 does, and only when a default genuinely has to change. Every migration says what
 it touched.
@@ -280,7 +300,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 
 | Script | Description |
 |--------|-------------|
-| `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations |
+| `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-refresh-waybar.sh` | Reset waybar's config and style, keeping your bar position |
