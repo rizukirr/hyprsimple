@@ -434,8 +434,10 @@ follow_latest_release() {
     sort -V | tail -1 | cut -f2) || return 0
   [[ -n $tag ]] || return 0
 
-  # --depth 1 so this never undoes the history-shrinking migration.
-  git -C "$HYPRSIMPLE_PATH" fetch --quiet --depth 1 origin tag "$tag" 2>/dev/null || return 0
+  # --depth 1 so this never undoes the history-shrinking migration. --force
+  # because .git is copied from the source clone, which may carry a stale tag of
+  # the same name, and git leaves such a tag alone while still exiting 0.
+  git -C "$HYPRSIMPLE_PATH" fetch --quiet --force --depth 1 origin tag "$tag" 2>/dev/null || return 0
   git -C "$HYPRSIMPLE_PATH" checkout --quiet --detach "$tag" 2>/dev/null || return 0
 
   echo -e "${GREEN}Following releases, now on $tag.${NC}"

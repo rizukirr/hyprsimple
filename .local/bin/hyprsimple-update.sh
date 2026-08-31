@@ -109,9 +109,14 @@ if [[ -d $HYPRSIMPLE_PATH/.git ]]; then
     if [[ -n $current_branch ]]; then
       echo -e "${YELLOW}Leaving branch $current_branch for releases.${NC}"
     fi
-    # --depth 1 on every fetch: an install that was shrunk to a shallow clone
-    # must stay one, or the 165 MB that migration reclaimed comes straight back.
-    git -C "$HYPRSIMPLE_PATH" fetch --quiet --depth 1 origin tag "$tag" || {
+    # --depth 1: an install that was shrunk to a shallow clone must stay one, or
+    # the 165 MB that migration reclaimed comes straight back.
+    #
+    # --force: a tag that already exists locally is never updated without it.
+    # git prints "! [rejected] (would clobber existing tag)" and still exits 0,
+    # so a re-pointed release would leave the install on the old commit while
+    # this script reported success.
+    git -C "$HYPRSIMPLE_PATH" fetch --quiet --force --depth 1 origin tag "$tag" || {
       echo -e "${RED}Could not fetch $tag from origin.${NC}"
       exit 1
     }

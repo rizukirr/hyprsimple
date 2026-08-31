@@ -107,6 +107,18 @@ check "bare run on a tag exits 0" "$(rc)" 0
 check "bare run on a tag stays detached" "$(head_state)" DETACHED
 check "bare run on a tag moves to the new release" "$(installed_version)" 0.5.0
 
+# --- a re-pointed release reaches an install already holding that tag -------
+# git refuses to update an existing tag without --force, prints
+# "! [rejected] (would clobber existing tag)", and still exits 0. Without the
+# force flag this check passes its exit code and fails on content.
+commit_version 0.5.0-hotfix
+git -C "$WORK" tag -f v0.5.0 >/dev/null 2>&1
+git -C "$WORK" push -q --force origin v0.5.0
+
+run_update
+check "a moved tag exits 0" "$(rc)" 0
+check "a moved tag actually updates the install" "$(installed_version)" 0.5.0-hotfix
+
 # --- a branch argument moves back, and sticks -------------------------------
 commit_version 0.6.0-dev
 git -C "$WORK" push -q origin main
