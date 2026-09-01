@@ -36,7 +36,12 @@ printf '#!/bin/sh\nexit 0\n' >"$STUB/hyprsimple-migrate.sh"
 chmod +x "$STUB/hyprsimple-migrate.sh"
 
 ORIGIN="$TMP/origin.git"
-git init -q --bare "$ORIGIN"
+# -b main explicitly: a bare repo takes its HEAD from the runner's
+# init.defaultBranch, which is master on the CI image and main here. A mismatch
+# makes every clone come out empty with only a warning on stderr, which is how
+# four of these checks once passed against an install that did not exist.
+git init -q --bare -b main "$ORIGIN" 2>/dev/null ||
+  { git init -q --bare "$ORIGIN"; git -C "$ORIGIN" symbolic-ref HEAD refs/heads/main; }
 
 # A minimal origin carrying one unsplittable config and the updater itself.
 SEED="$TMP/seed"
@@ -57,6 +62,13 @@ new_case() {
   INSTALL="$CASE/install"
   FAKE_HOME="$CASE/home"
   git clone -q "file://$ORIGIN" "$INSTALL"
+  # A fixture that did not clone must fail loudly. Every grep below returns 0
+  # against an empty install, so without this the suite reports success for
+  # checks it never actually ran.
+  if [[ ! -f $INSTALL/.local/bin/hyprsimple-update.sh ]]; then
+    printf 'not ok - fixture install did not clone (%s)\n' "$1" >&2
+    exit 1
+  fi
   mkdir -p "$FAKE_HOME/.config" "$FAKE_HOME/.local/bin"
   cp "$SEED/.local/bin/hyprsimple-refresh-config.sh" "$FAKE_HOME/.local/bin/"
   printf '#!/bin/sh\nexit 0\n' >"$FAKE_HOME/.local/bin/hyprsimple-migrate.sh"
