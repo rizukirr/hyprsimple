@@ -25,12 +25,25 @@ must_be_fixture() {
   fi
 }
 
+# The templates as they were when this migration was written, not as they are
+# now. This fixture stands in for a home that predates the delivery change, and
+# such a home cannot contain a template added afterwards. Copying the current
+# set instead makes the suite fail the moment a template is added, which is a
+# fixture bug rather than a regression.
+CLEANUP_COMMIT=$(git -C "$REPO" log --diff-filter=A --format=%H -- migrations/1788278344.sh | tail -1)
+if [[ -z $CLEANUP_COMMIT ]]; then
+  printf 'not ok - could not find the commit that added the migration\n' >&2
+  exit 1
+fi
+
 new_home() {
   HOMEDIR="$TMP/$1"
   must_be_fixture "$HOMEDIR"
   TPL="$HOMEDIR/.config/hypr/themes/templates"
   mkdir -p "$TPL"
-  cp "$SHIPPED"/*.tpl "$TPL/"
+  while IFS= read -r rel; do
+    git -C "$REPO" show "$CLEANUP_COMMIT:$rel" >"$TPL/$(basename "$rel")"
+  done < <(git -C "$REPO" ls-tree --name-only "$CLEANUP_COMMIT" .config/hypr/themes/templates/ | grep '\.tpl$')
   # A fixture that did not populate must fail loudly rather than let a later
   # check pass against an empty directory.
   if [[ $(ls "$TPL" | wc -l) -eq 0 ]]; then
