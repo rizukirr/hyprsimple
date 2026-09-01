@@ -8,6 +8,15 @@ MIGRATION="$REPO/migrations/1787992467.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# An empty or unexpected path turns the rm and cp calls below into operations on
+# the real home directory. Every fixture path goes through this first.
+must_be_fixture() {
+  if [[ -z ${1:-} || $1 != "$TMP"/* ]]; then
+    printf 'not ok - refusing to operate outside the fixture: %s\n' "${1:-<empty>}" >&2
+    exit 1
+  fi
+}
+
 failures=0
 pass() { printf 'ok - %s\n' "$1"; }
 check() {
@@ -17,6 +26,7 @@ check() {
 
 # An untouched file, byte-identical to what shipped, must be replaced.
 home="$TMP/untouched"
+must_be_fixture "$home"
 mkdir -p "$home/.config/hypr/bindings"
 cp "$REPO/.config/hypr/monitors.lua" "$home/.config/hypr/monitors.lua" || {
   echo "fixture: cannot copy monitors.lua from the repo" >&2

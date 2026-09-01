@@ -14,6 +14,15 @@ UPDATE="$REPO/.local/bin/hyprsimple-update.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# An empty or unexpected path turns the rm and cp calls below into operations on
+# the real home directory. Every fixture path goes through this first.
+must_be_fixture() {
+  if [[ -z ${1:-} || $1 != "$TMP"/* ]]; then
+    printf 'not ok - refusing to operate outside the fixture: %s\n' "${1:-<empty>}" >&2
+    exit 1
+  fi
+}
+
 failures=0
 pass() { printf 'ok - %s\n' "$1"; }
 fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
@@ -32,6 +41,7 @@ printf '#!/bin/bash\nexit 0\n' >"$STUB/hyprctl"
 chmod +x "$STUB/pgrep" "$STUB/hyprctl"
 
 FAKE_HOME="$TMP/home"
+must_be_fixture "$FAKE_HOME"
 mkdir -p "$FAKE_HOME/.local/bin"
 printf '#!/bin/bash\nexit 0\n' >"$FAKE_HOME/.local/bin/hyprsimple-migrate.sh"
 chmod +x "$FAKE_HOME/.local/bin/hyprsimple-migrate.sh"
@@ -66,6 +76,9 @@ git -C "$WORK" push -q origin main --tags
 # The install as the shrinking migration leaves it: shallow, and with every tag
 # ref deleted. Tag resolution has to work from this state.
 git clone -q --depth 1 "file://$ORIGIN" "$INSTALL"
+# A clone that produced nothing makes every later check pass against an empty
+# tree, which is how four checks once reported ok while testing nothing.
+[[ -e $INSTALL/.git ]] || { printf 'not ok - fixture clone produced nothing\n' >&2; exit 1; }
 git -C "$INSTALL" for-each-ref --format='%(refname)' refs/tags |
   while read -r r; do git -C "$INSTALL" update-ref -d "$r"; done
 

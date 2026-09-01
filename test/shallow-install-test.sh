@@ -47,6 +47,9 @@ make_install() {
   git -C "$TMP/$name-work" tag -a v1 -m v1
   git -C "$TMP/$name-work" push -q origin v1
   git clone -q "$origin" "$inst"
+  # A clone that produced nothing makes every later check pass against an empty
+  # tree, which is how four checks once reported ok while testing nothing.
+  [[ -e $inst/.git ]] || { printf 'not ok - fixture clone produced nothing\n' >&2; exit 1; }
   # The install clone commits too, in the unmerged-branch case. A GitHub runner
   # has no global git identity, so it needs its own.
   git -C "$inst" config user.email test@example.com
