@@ -67,3 +67,6 @@ jobs:
 
       - name: config-drift-report-test
         run: bash test/config-drift-report-test.sh
+
+      - name: template-cleanup-test
+        run: bash test/template-cleanup-test.sh
