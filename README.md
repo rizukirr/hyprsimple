@@ -123,6 +123,10 @@ hyprsimple-refresh-config hypr/hyprlock.conf
 
 Writing a migration is documented in [`migrations/README.md`](migrations/README.md).
 
+Some configs cannot be delivered automatically. `starship.toml`, `yazi/yazi.toml` and `hypr/hyprsunset.conf` are TOML, and `wlogout/layout` is a stream of JSON objects, so none of them has an include directive to hang a default off the way rofi and dunst do.
+
+When an update changes one of those and you have your own version, `hyprsimple-update` says so and prints the command to take the new one. It only mentions a file this update actually changed, so editing something on purpose does not nag you every time.
+
 #### Rofi
 
 Rofi's defaults live in the install, at `~/.config/rofi/hyprsimple`, which is a
