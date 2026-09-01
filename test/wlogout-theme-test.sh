@@ -138,6 +138,40 @@ check "and the user is told how to take it" \
 HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >/dev/null 2>&1
 check "a second run exits 0" "$?" "0"
 
+# --- 5. the follow-up migration renders the new template ------------------
+#
+# The theming migration installs the fallback and updates style.css but does
+# not render, so without this an existing install sits on the fallback's
+# catppuccin colours until its next theme switch. A build input that is never
+# built reaches nobody.
+
+RENDER_MIGRATION="$REPO/migrations/1788280106.sh"
+
+HOMEDIR="$TMP/render"
+must_be_fixture "$HOMEDIR"
+mkdir -p "$HOMEDIR/.local/bin" "$HOMEDIR/.config/hypr/themes/solo" "$HOMEDIR/.config/wlogout"
+cp "$RENDER" "$HOMEDIR/.local/bin/theme-apply-templates.sh"
+chmod +x "$HOMEDIR/.local/bin/theme-apply-templates.sh"
+printf 'background = "#2d353b"\nforeground = "#d3c6aa"\n' >"$HOMEDIR/.config/hypr/themes/solo/colors.toml"
+mkdir -p "$HOMEDIR/.config/hypr/themes/solo/generated"
+ln -sfn "$HOMEDIR/.config/hypr/themes/solo/generated/hyprland-colors.lua" \
+  "$HOMEDIR/.config/hypr/theme-active.lua"
+cp "$REPO/.config/wlogout/wlogout-colors.css" "$HOMEDIR/.config/wlogout/wlogout-colors.css"
+
+check "before the render migration wlogout holds the fallback" \
+  "$(grep -c 'wl_background #11111b' "$HOMEDIR/.config/wlogout/wlogout-colors.css")" "1"
+
+HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$RENDER_MIGRATION" >"$TMP/render_out" 2>&1
+check "the template is rendered for an existing theme" \
+  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css")" "1"
+check "and the active theme's colours reach wlogout" \
+  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/wlogout/wlogout-colors.css")" "1"
+
+before_render=$(md5sum "$HOMEDIR/.config/wlogout/wlogout-colors.css" | cut -d' ' -f1)
+HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$RENDER_MIGRATION" >/dev/null 2>&1
+check "a second render run changes nothing" \
+  "$(md5sum "$HOMEDIR/.config/wlogout/wlogout-colors.css" | cut -d' ' -f1)" "$before_render"
+
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
