@@ -102,26 +102,31 @@ fi
 
 # --- 4. the migration installs the colour file before replacing the style --
 
+# The pre-theming style.css, pinned as a fixture rather than read from git
+# history. CI checks out shallow, so `git log ... | tail -1` there resolves to
+# HEAD and hands back the themed file, and the migration checks below would
+# compare it against itself and pass without testing anything.
+PRESPLIT_STYLE="$REPO/test/fixtures/wlogout/style.presplit.css"
+
 new_home() {
   HOMEDIR="$TMP/$1"
   must_be_fixture "$HOMEDIR"
   mkdir -p "$HOMEDIR/.config/wlogout"
-  git -C "$REPO" show "$2:.config/wlogout/style.css" >"$HOMEDIR/.config/wlogout/style.css"
-  if [[ ! -s $HOMEDIR/.config/wlogout/style.css ]]; then
-    printf 'not ok - fixture style.css did not populate (%s)\n' "$1" >&2
+  cp "$PRESPLIT_STYLE" "$HOMEDIR/.config/wlogout/style.css"
+  if ! grep -q '#11111b' "$HOMEDIR/.config/wlogout/style.css"; then
+    printf 'not ok - fixture is not the pre-theming stylesheet (%s)\n' "$1" >&2
     exit 1
   fi
 }
-first_style=$(git -C "$REPO" log --format=%H -- .config/wlogout/style.css | tail -1)
 
-new_home pristine "$first_style"
+new_home pristine
 HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >"$TMP/mig_out" 2>&1
 check "a pristine style.css is replaced with the themed one" \
   "$(cmp -s "$HOMEDIR/.config/wlogout/style.css" "$STYLE" && echo same || echo different)" "same"
 check "and the file it imports exists afterwards" \
   "$([[ -f $HOMEDIR/.config/wlogout/wlogout-colors.css ]] && echo yes || echo no)" "yes"
 
-new_home edited "$first_style"
+new_home edited
 printf '\n/* mine */\n' >>"$HOMEDIR/.config/wlogout/style.css"
 before=$(md5sum "$HOMEDIR/.config/wlogout/style.css" | cut -d' ' -f1)
 HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >"$TMP/mig_edit" 2>&1

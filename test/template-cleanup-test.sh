@@ -25,25 +25,23 @@ must_be_fixture() {
   fi
 }
 
-# The templates as they were when this migration was written, not as they are
-# now. This fixture stands in for a home that predates the delivery change, and
-# such a home cannot contain a template added afterwards. Copying the current
-# set instead makes the suite fail the moment a template is added, which is a
-# fixture bug rather than a regression.
-CLEANUP_COMMIT=$(git -C "$REPO" log --diff-filter=A --format=%H -- migrations/1788278344.sh | tail -1)
-if [[ -z $CLEANUP_COMMIT ]]; then
-  printf 'not ok - could not find the commit that added the migration\n' >&2
-  exit 1
-fi
+# The templates as they were when this migration was written, pinned as
+# fixtures rather than read from git history. This suite stands in for a home
+# that predates the delivery change, and such a home cannot contain a template
+# added afterwards. Reading history is not an option: CI checks out shallow, so
+# `git log` there resolves to HEAD and hands back the current set, which is the
+# bug this comment exists to prevent recurring.
+PRECLEANUP="$REPO/test/fixtures/templates-precleanup"
 
 new_home() {
   HOMEDIR="$TMP/$1"
   must_be_fixture "$HOMEDIR"
   TPL="$HOMEDIR/.config/hypr/themes/templates"
   mkdir -p "$TPL"
-  while IFS= read -r rel; do
-    git -C "$REPO" show "$CLEANUP_COMMIT:$rel" >"$TPL/$(basename "$rel")"
-  done < <(git -C "$REPO" ls-tree --name-only "$CLEANUP_COMMIT" .config/hypr/themes/templates/ | grep '\.tpl$')
+  for f in "$PRECLEANUP"/*.tpl; do
+    [[ $f == *.OLD.tpl ]] && continue
+    cp "$f" "$TPL/"
+  done
   # A fixture that did not populate must fail loudly rather than let a later
   # check pass against an empty directory.
   if [[ $(ls "$TPL" | wc -l) -eq 0 ]]; then
@@ -96,8 +94,11 @@ check "an added file stops the removal" \
 # the user's work.
 
 new_home stale
-old=$(git -C "$REPO" log --format=%H -- .config/hypr/themes/templates/dunst-colors.tpl | tail -1)
-git -C "$REPO" show "$old:.config/hypr/themes/templates/dunst-colors.tpl" >"$TPL/dunst-colors.tpl"
+# dunst-colors.tpl is the only template with two shipped versions, and the
+# older one is pinned separately. A home that never took that update holds it,
+# which is still not the user's work, and only carrying the full history in the
+# migration lets it be recognised.
+cp "$PRECLEANUP/dunst-colors.OLD.tpl" "$TPL/dunst-colors.tpl"
 run
 check "an older shipped version does not block removal" \
   "$([[ -d $TPL ]] && echo present || echo gone)" "gone"

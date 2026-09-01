@@ -1,0 +1,12 @@
+@define-color fg {{ foreground }};
+@define-color bg-widget {{ color0 }};
+@define-color bg-deep {{ background }};
+@define-color accent {{ accent }};
+@define-color accent-bright {{ color6 }};
+@define-color accent-dim {{ color4 }};
+@define-color secondary {{ color5 }};
+@define-color success {{ color2 }};
+@define-color warning {{ color3 }};
+@define-color danger {{ color1 }};
+@define-color info {{ color6 }};
+@define-color muted {{ color1 }};
