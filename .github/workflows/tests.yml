@@ -64,3 +64,6 @@ jobs:
 
       - name: template-delivery-test
         run: bash test/template-delivery-test.sh
+
+      - name: config-drift-report-test
+        run: bash test/config-drift-report-test.sh

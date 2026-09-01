@@ -79,6 +79,11 @@ fi
 
 # ---- Pull ----------------------------------------------------------------
 
+# Recorded before the pull so the end of this run can name exactly which shipped
+# configs changed, rather than comparing every file on every update.
+PREV_COMMIT=""
+[[ -d $HYPRSIMPLE_PATH/.git ]] && PREV_COMMIT=$(git -C "$HYPRSIMPLE_PATH" rev-parse HEAD 2>/dev/null)
+
 if [[ -d $HYPRSIMPLE_PATH/.git ]]; then
   echo -e "${YELLOW}Pulling latest hyprsimple...${NC}"
 
@@ -212,6 +217,41 @@ fi
 
 echo -e "\n${YELLOW}Running pending migrations...${NC}"
 bash "$HOME/.local/bin/hyprsimple-migrate.sh"
+
+# ---- Configs this update changed that you still hold your own copy of ----
+#
+# Some configs cannot be delivered automatically. starship.toml, yazi.toml and
+# hyprsunset.conf are TOML and wlogout/layout is a stream of JSON objects, and
+# none of those formats has an include directive, so there is no equivalent of
+# the rofi stubs or the dunst drop-in for them.
+#
+# hyprsimple-refresh-config.sh has always been able to update one, but nothing
+# ever said that it needed updating, so the command existed and was never run.
+# This closes that, and it is deliberately driven by what this pull actually
+# changed rather than by comparing everything: a user who edited a file on
+# purpose is not nagged on every update, only when hyprsimple touches the same
+# file. Migrations run first, so anything already handled is not mentioned.
+
+if [[ -n $PREV_COMMIT ]] && [[ $PREV_COMMIT != "$(git -C "$HYPRSIMPLE_PATH" rev-parse HEAD 2>/dev/null)" ]]; then
+  drifted=()
+  while IFS= read -r rel; do
+    [[ -n $rel ]] || continue
+    shipped="$HYPRSIMPLE_PATH/$rel"
+    user="$HOME/.config/${rel#.config/}"
+    # Absent means the user never had it, and a symlink means something else
+    # already manages it. Neither is drift.
+    [[ -f $shipped && -f $user && ! -L $user ]] || continue
+    cmp -s "$shipped" "$user" || drifted+=("${rel#.config/}")
+  done < <(git -C "$HYPRSIMPLE_PATH" diff --name-only "$PREV_COMMIT" HEAD -- .config/ 2>/dev/null)
+
+  if [[ ${#drifted[@]} -gt 0 ]]; then
+    echo -e "\n${YELLOW}This update changed configs you have your own version of:${NC}"
+    for rel in "${drifted[@]}"; do
+      echo "  hyprsimple-refresh-config.sh $rel"
+    done
+    echo "Each one backs your version up and shows the diff. Nothing is deleted."
+  fi
+fi
 
 # ---- Reload --------------------------------------------------------------
 
