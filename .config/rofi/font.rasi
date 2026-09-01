@@ -1,3 +1,6 @@
-* {
-    font: "Iosevka Nerd Font 14";
-}
+@import "hyprsimple/font.rasi"
+
+/* hyprsimple's default is imported above. Anything you set below wins,
+   property by property, and anything you leave out keeps the default.
+   Put your own settings here rather than above the import, because the
+   later declaration is the one rofi uses. */

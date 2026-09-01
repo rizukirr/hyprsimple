@@ -566,6 +566,13 @@ ln -sfn "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" "$HOME/.config/dunst
 # config file has to hardcode an install path that HYPRSIMPLE_PATH can change.
 ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
 
+# rofi resolves a relative @import against ~/.config/rofi no matter which file
+# does the importing, so the stubs there reach their defaults through this link
+# and the defaults keep reaching rofi-colors.rasi. Symlinking rather than
+# copying is what lets hyprsimple-update deliver a rofi change without a
+# migration, the same guarantee dunstrc.d and hypr/hyprsimple already give.
+ln -sfn "$HYPRSIMPLE_PATH/default/rofi" "$HOME/.config/rofi/hyprsimple"
+
 # One-time setup: symlink rofi launcher/powermenu dirs to the default theme
 ln -sfn "$THEME_DIR/rofi/launcher" "$HOME/.config/rofi/launcher"
 ln -sfn "$THEME_DIR/rofi/powermenu" "$HOME/.config/rofi/powermenu"
