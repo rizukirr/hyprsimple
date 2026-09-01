@@ -15,7 +15,7 @@ jobs:
       - name: Install Lua and ImageMagick
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 imagemagick python3-gi gir1.2-gtk-3.0
+          sudo apt-get install -y lua5.4 imagemagick
           # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
           # plain name exist rather than relying on the package to register it.
           sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua

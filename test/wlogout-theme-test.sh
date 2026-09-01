@@ -97,7 +97,12 @@ PY
 )
   check "and without the colour file it is fatal, which is why order matters" "$broken" "error"
 else
-  printf 'skip - python gtk3 bindings absent, stylesheet not parsed\n'
+  # Not installed in CI on purpose: the GTK3 stack costs minutes per run to
+  # install, and what these two checks pin is GTK's own behaviour, which does
+  # not change per pull request. The checks that constrain this repository's
+  # code, that the import is present and that every colour it names is defined,
+  # run everywhere. These run on a developer machine.
+  printf 'skip - python gtk3 bindings absent, stylesheet not parsed here\n'
 fi
 
 # --- 4. the migration installs the colour file before replacing the style --
