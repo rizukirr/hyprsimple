@@ -1,0 +1,75 @@
+@import "~/.config/rofi/rofi-colors.rasi"
+
+* {
+    font: "Iosevka Nerd Font 13";
+}
+
+configuration {
+    show-icons: false;
+}
+
+window {
+    transparency:       "real";
+    location:           center;
+    anchor:             center;
+    width:              650px;
+    border-radius:      16px;
+    background-color:   @background;
+    border:             2px;
+    border-color:       @selected;
+}
+
+mainbox {
+    spacing:            0px;
+    background-color:   transparent;
+    children:           [ "inputbar", "listview" ];
+}
+
+inputbar {
+    padding:            14px 16px;
+    background-color:   transparent;
+    text-color:         @foreground;
+    children:           [ "prompt", "entry" ];
+}
+
+prompt {
+    padding:            0px 8px 0px 0px;
+    background-color:   transparent;
+    text-color:         @selected;
+}
+
+entry {
+    background-color:   transparent;
+    text-color:         @foreground;
+    cursor:             text;
+    placeholder:        "Filter...";
+    placeholder-color:  @background-alt;
+}
+
+listview {
+    columns:            1;
+    lines:              15;
+    scrollbar:          false;
+    fixed-height:       false;
+    padding:            0px 8px 8px 8px;
+    spacing:            2px;
+    background-color:   transparent;
+}
+
+element {
+    padding:            8px 12px;
+    border-radius:      8px;
+    background-color:   transparent;
+    text-color:         @foreground;
+}
+
+element selected.normal {
+    background-color:   @background-alt;
+    text-color:         @selected;
+}
+
+element-text {
+    background-color:   transparent;
+    text-color:         inherit;
+    font:               "Iosevka Nerd Font Mono 13";
+}

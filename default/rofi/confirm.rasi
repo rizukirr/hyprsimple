@@ -1,0 +1,83 @@
+/*****----- configuration -----*****/
+configuration {
+    show-icons:                 false;
+}
+
+/*****----- global properties -----*****/
+@import                          "rofi-colors.rasi"
+
+/*****----- main window -----*****/
+window {
+    location:                    center;
+    anchor:                      center;
+    fullscreen:                  false;
+    width:                       500px;
+    border-radius:               20px;
+    cursor:                      "default";
+    background-color:            @background;
+}
+
+/*****----- main box -----*****/
+mainbox {
+    spacing:                     10px;
+    padding:                     10px;
+    background-color:            transparent;
+    children:                    [ "message", "listview" ];
+}
+
+/*****----- message -----*****/
+message {
+    margin:                      0px;
+    padding:                     20px;
+    border-radius:               20px;
+    background-color:            @background-alt;
+    text-color:                  @foreground;
+}
+textbox {
+    background-color:            inherit;
+    text-color:                  inherit;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+    placeholder-color:           @foreground;
+    blink:                       true;
+    markup:                      true;
+}
+
+/*****----- listview -----*****/
+listview {
+    columns:                     2;
+    lines:                       1;
+    cycle:                       true;
+    dynamic:                     true;
+    scrollbar:                   false;
+    layout:                      vertical;
+    reverse:                     false;
+    fixed-height:                true;
+    fixed-columns:               true;
+
+    spacing:                     10px;
+    background-color:            transparent;
+    text-color:                  @foreground;
+    cursor:                      "default";
+}
+
+/*****----- elements -----*****/
+element {
+    padding:                     30px 20px 30px 10px;
+    border-radius:               20px;
+    background-color:            @background-alt;
+    text-color:                  @foreground;
+    cursor:                      pointer;
+}
+element-text {
+    font:                        "jetbrainsmono nerd font 48";
+    background-color:            transparent;
+    text-color:                  inherit;
+    cursor:                      inherit;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+}
+element selected.normal {
+    background-color:            var(selected);
+    text-color:                  var(background);
+}

@@ -246,8 +246,10 @@ check "with no magick on PATH the icon path is the source wallpaper" \
 check "the shipped launcher/config.rasi's modi contains no themes: mode" \
   "$(grep 'modi:' "$REPO/.config/rofi/launcher/config.rasi" | grep -c 'themes:')" "0"
 
-check "no shipped file under .config mentions theme-selector" \
-  "$(grep -rl 'theme-selector' "$REPO/.config" 2>/dev/null | wc -l)" "0"
+# default/ is searched too. The rofi defaults moved there in the import split,
+# so grepping .config alone would pass no matter what those files contain.
+check "no shipped file under .config or default mentions theme-selector" \
+  "$(grep -rl 'theme-selector' "$REPO/.config" "$REPO/default" 2>/dev/null | wc -l)" "0"
 
 # ---- the migration ----------------------------------------------------
 

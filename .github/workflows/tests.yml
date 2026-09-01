@@ -52,3 +52,9 @@ jobs:
 
       - name: update-channel-test
         run: bash test/update-channel-test.sh
+
+      - name: rofi-split-smoke
+        run: bash test/rofi-split-smoke.sh
+
+      - name: rofi-split-migration-test
+        run: bash test/rofi-split-migration-test.sh
