@@ -264,9 +264,15 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
     active=$(readlink "$HOME/.config/hypr/theme-active.lua" 2>/dev/null || true)
     if [[ -n $active ]]; then
       gen="${active%/*}"
-      # if rather than `[[ ]] && cmd`: under set -e a standalone && list whose
-      # test is false returns 1 and takes the whole update down, and every one
-      # of these files is legitimately absent on some theme.
+      # Plain if blocks, because each of these files is legitimately absent on
+      # some themes and the intent reads better than a chain of && lists.
+      #
+      # Not for the reason an earlier version of this comment gave. It claimed
+      # `[[ test ]] && cmd` aborts the script under set -e when the test is
+      # false. It does not: bash exempts a command that is not the last in an
+      # && list, and a standalone list of that shape leaves set -e alone. What
+      # actually took the update down was `x=$(cmd)` where cmd fails, which is
+      # why the two assignments above carry `|| true` and these do not need it.
       if [[ -f $gen/wlogout-colors.css ]]; then
         mkdir -p "$HOME/.config/wlogout"
         cp "$gen/wlogout-colors.css" "$HOME/.config/wlogout/wlogout-colors.css"
