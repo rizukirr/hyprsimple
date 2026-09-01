@@ -15,10 +15,20 @@ jobs:
       - name: Install Lua and ImageMagick
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 imagemagick
+          sudo apt-get install -y lua5.4 imagemagick shellcheck
           # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
           # plain name exist rather than relying on the package to register it.
           sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua
+
+      # PROBE ONLY: reports findings without failing, so their size can be seen
+      # before deciding what to enforce.
+      - name: shellcheck-probe
+        run: |
+          shellcheck --severity=warning --format=gcc \
+            install.sh bootstrap.sh .local/bin/*.sh test/*.sh migrations/*.sh 2>&1 | tee /tmp/sc.txt || true
+          echo "---- totals ----"
+          awk -F': ' '{print $2}' /tmp/sc.txt | sort | uniq -c | sort -rn | head -20
+          echo "total findings: $(grep -c . /tmp/sc.txt || echo 0)"
 
       - name: install-copy-test
         run: bash test/install-copy-test.sh
