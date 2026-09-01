@@ -123,6 +123,36 @@ hyprsimple-refresh-config hypr/hyprlock.conf
 
 Writing a migration is documented in [`migrations/README.md`](migrations/README.md).
 
+#### Rofi
+
+Rofi's defaults live in the install, at `~/.config/rofi/hyprsimple`, which is a
+link into `~/.local/share/hyprsimple`. What sits in `~/.config/rofi` is a short
+file per config that imports its default:
+
+```
+@import "hyprsimple/config.rasi"
+```
+
+Put your own settings **below** that line. Rofi applies the later declaration,
+so anything you set there wins property by property, and anything you leave out
+keeps hyprsimple's value and keeps receiving updates to it. A setting placed
+above the import is silently overridden by the default, with no error.
+
+Because the defaults are a link rather than a copy, a rofi change reaches you
+through `hyprsimple-update` alone. No migration is involved.
+
+If the split migration reported that one of your files was left alone, it had
+edits of its own and is not importing anything. To take the stub and keep a
+backup of yours:
+
+```bash
+hyprsimple-refresh-config rofi/config.rasi
+```
+
+`rofi/launcher` and `rofi/powermenu` are not part of this. Both are links into
+the active theme and their styles are rewritten on every theme switch, so they
+belong to the theme rather than to you.
+
 ## Network
 
 To see the available network interfaces, run `wifi`. To connect to a network, run `wifi <network name>` for example `wifi "MY NETWORK"`
