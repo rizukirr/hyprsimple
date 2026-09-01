@@ -58,3 +58,6 @@ jobs:
 
       - name: rofi-split-migration-test
         run: bash test/rofi-split-migration-test.sh
+
+      - name: update-self-replace-test
+        run: bash test/update-self-replace-test.sh

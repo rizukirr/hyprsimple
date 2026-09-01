@@ -26,6 +26,13 @@ must_be_fixture() {
   fi
 }
 
+# rofi searches the XDG config dir for a relative @import before it falls back
+# to the working directory, so without this the fixture's imports resolve
+# against the maintainer's real ~/.config/rofi. That made these checks pass for
+# the wrong reason until a real install grew a hyprsimple link and they started
+# reading it instead.
+export XDG_CONFIG_HOME=""
+
 # rofi is not installed on the CI runner. The checks that need it are skipped
 # there rather than silently passing, so a local run stays the stronger one.
 HAVE_ROFI=0
@@ -82,7 +89,7 @@ if [[ $HAVE_ROFI == 1 ]]; then
   # A property rofi knows. -dump-theme silently drops unknown custom
   # properties, so asserting on an invented one would pass against anything.
   printf 'window { width: 321px; }\n' >>"$INSTALL/default/rofi/theme-picker/style.rasi"
-  got=$(cd "$FAKE_HOME/.config/rofi" && HOME="$FAKE_HOME" rofi -no-config -dump-theme \
+  got=$(cd "$FAKE_HOME/.config/rofi" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" rofi -no-config -dump-theme \
     -theme "$FAKE_HOME/.config/rofi/theme-picker/style.rasi" 2>/dev/null |
     sed -n 's/^[[:space:]]*width:[[:space:]]*\([0-9]*\)px.*/\1/p' | head -1)
   check "a default changed in the install is live through the stub" "$got" "321"
@@ -91,7 +98,7 @@ if [[ $HAVE_ROFI == 1 ]]; then
 
   printf 'window { width: 999px; }\n' >>"$FAKE_HOME/.config/rofi/theme-picker/style.rasi"
   printf 'window { height: 654px; }\n' >>"$INSTALL/default/rofi/theme-picker/style.rasi"
-  out=$(cd "$FAKE_HOME/.config/rofi" && HOME="$FAKE_HOME" rofi -no-config -dump-theme \
+  out=$(cd "$FAKE_HOME/.config/rofi" && HOME="$FAKE_HOME" XDG_CONFIG_HOME="$FAKE_HOME/.config" rofi -no-config -dump-theme \
     -theme "$FAKE_HOME/.config/rofi/theme-picker/style.rasi" 2>/dev/null)
   check "the stub's own override wins over the default" \
     "$(sed -n 's/^[[:space:]]*width:[[:space:]]*\([0-9]*\)px.*/\1/p' <<<"$out" | head -1)" "999"
