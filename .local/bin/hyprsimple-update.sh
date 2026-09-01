@@ -218,6 +218,73 @@ fi
 echo -e "\n${YELLOW}Running pending migrations...${NC}"
 bash "$HOME/.local/bin/hyprsimple-migrate.sh"
 
+# ---- Themes, when a template changed --------------------------------------
+#
+# Templates are build inputs. Shipping one and never building it reaches nobody,
+# which is what happened when wlogout was themed: the stylesheet was wired up
+# correctly to colours that were never rendered, and every existing install sat
+# on the fallback until its next theme switch. It took a second migration to
+# notice.
+#
+# Rendering here removes that class of bug rather than paying for it again. A
+# template change now reaches every theme on the next update, so no future
+# template needs a migration to deliver it.
+#
+# Gated on a stamp of the template directory so this is a no-op on the ordinary
+# update where nothing changed, and rendering is deterministic from colors.toml
+# anyway, so a redundant run would only rewrite identical bytes.
+
+TEMPLATES_DIR="$HYPRSIMPLE_PATH/.config/hypr/themes/templates"
+STAMP_DIR="$HOME/.local/state/hyprsimple"
+STAMP="$STAMP_DIR/templates.stamp"
+RENDERER="$HOME/.local/bin/theme-apply-templates.sh"
+
+if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
+  # `|| true` on both: under set -e an assignment whose command substitution
+  # fails aborts the update, and a first run legitimately has no stamp file.
+  current=$(cat "$TEMPLATES_DIR"/*.tpl 2>/dev/null | md5sum | cut -d' ' -f1 || true)
+  previous=$(cat "$STAMP" 2>/dev/null || true)
+
+  if [[ $current != "$previous" ]]; then
+    echo -e "\n${YELLOW}Templates changed, re-rendering your themes...${NC}"
+    rendered=0
+    for dir in "$HOME/.config/hypr/themes"/*/; do
+      name=$(basename "$dir")
+      [[ $name == templates || $name == templates.user ]] && continue
+      [[ -f $dir/colors.toml ]] || continue
+      if "$RENDERER" "$dir" >/dev/null 2>&1; then rendered=$((rendered + 1)); fi
+    done
+    echo -e "${GREEN}Rendered $rendered theme(s).${NC}"
+
+    # The active theme's freshly rendered output has to reach the places a
+    # theme switch would copy it to, or the render is invisible until the user
+    # switches themes, which is the original bug wearing a different hat.
+    # readlink exits non-zero when the path is not a symlink, which is a normal
+    # state here rather than an error.
+    active=$(readlink "$HOME/.config/hypr/theme-active.lua" 2>/dev/null || true)
+    if [[ -n $active ]]; then
+      gen="${active%/*}"
+      # if rather than `[[ ]] && cmd`: under set -e a standalone && list whose
+      # test is false returns 1 and takes the whole update down, and every one
+      # of these files is legitimately absent on some theme.
+      if [[ -f $gen/wlogout-colors.css ]]; then
+        mkdir -p "$HOME/.config/wlogout"
+        cp "$gen/wlogout-colors.css" "$HOME/.config/wlogout/wlogout-colors.css"
+      fi
+      if [[ -f $gen/hyprlock.conf ]]; then
+        cp "$gen/hyprlock.conf" "$HOME/.config/hypr/theme-hyprlock.conf"
+      fi
+      if [[ -f $gen/dunst-colors ]]; then
+        mkdir -p "$HOME/.config/dunst/dunstrc.d"
+        cp "$gen/dunst-colors" "$HOME/.config/dunst/dunstrc.d/90-theme.conf"
+      fi
+    fi
+
+    mkdir -p "$STAMP_DIR"
+    printf '%s\n' "$current" >"$STAMP"
+  fi
+fi
+
 # ---- Configs this update changed that you still hold your own copy of ----
 #
 # Some configs cannot be delivered automatically. starship.toml, yazi.toml and

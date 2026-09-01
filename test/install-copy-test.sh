@@ -10,6 +10,15 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# An empty or unexpected path turns the rm and cp calls below into operations on
+# the real home directory. Every fixture path goes through this first.
+must_be_fixture() {
+  if [[ -z ${1:-} || $1 != "$TMP"/* ]]; then
+    printf 'not ok - refusing to operate outside the fixture: %s\n' "${1:-<empty>}" >&2
+    exit 1
+  fi
+}
+
 failures=0
 
 pass() { printf 'ok - %s\n' "$1"; }
@@ -55,6 +64,8 @@ build_fixture() {
 
 DOTFILES_DIR="$TMP/src"
 HYPRSIMPLE_PATH="$TMP/install"
+must_be_fixture "$DOTFILES_DIR"
+must_be_fixture "$HYPRSIMPLE_PATH"
 build_fixture "$DOTFILES_DIR"
 install_to_canonical_path >/dev/null
 
@@ -166,6 +177,9 @@ git -C "$origin_repo" commit -qam two
 SOURCE_DIR="$TMP/shallow"
 HYPRSIMPLE_PATH="$TMP/shallow-install"
 git clone -q --depth 1 "file://$origin_repo" "$SOURCE_DIR"
+# A clone that produced nothing makes every later check pass against an empty
+# tree, which is how four checks once reported ok while testing nothing.
+[[ -e $SOURCE_DIR/.git ]] || { printf 'not ok - fixture clone produced nothing\n' >&2; exit 1; }
 check "clone under test is actually shallow" "$([[ -f $SOURCE_DIR/.git/shallow ]] && echo yes || echo no)" yes
 copy_source_to_canonical_path >/dev/null
 check "shallow source installs tracked content" "$([[ -f $HYPRSIMPLE_PATH/.config/kept.conf ]] && echo yes || echo no)" yes
