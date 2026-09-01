@@ -4,7 +4,40 @@
 # Reads colors.toml from theme dir, processes templates, outputs generated configs
 
 THEME_DIR="$1"
-TEMPLATES_DIR="$HOME/.config/hypr/themes/templates"
+# Templates are build inputs, not config, so the install owns them and a change
+# to one reaches every user through hyprsimple-update alone. No migration.
+#
+# The install always wins over ~/.config/hypr/themes/templates. install.sh
+# copied every template into every existing home, and a stale copy cannot be
+# told apart from a customised one by comparing it to the current shipped file:
+# both simply differ. Honouring the home directory would therefore leave every
+# existing install pinned to the templates it was installed with, which is the
+# gap this closes.
+#
+# An override lives in templates.user/ instead, where its presence is a
+# deliberate act rather than a leftover.
+TEMPLATES_DIR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/.config/hypr/themes/templates"
+USER_TEMPLATES_DIR="$HOME/.config/hypr/themes/templates.user"
+STALE_TEMPLATES_DIR="$HOME/.config/hypr/themes/templates"
+
+# Resolve one template name to the file to render.
+template_path() {
+  local name="$1"
+  [[ -f $USER_TEMPLATES_DIR/$name ]] && { printf '%s' "$USER_TEMPLATES_DIR/$name"; return 0; }
+  [[ -f $TEMPLATES_DIR/$name ]] && printf '%s' "$TEMPLATES_DIR/$name"
+}
+
+# A home template that differs from the shipped one was probably edited on
+# purpose, and is now being ignored. Say so rather than change the result
+# silently. Identical leftovers are not worth mentioning.
+warn_about_stale() {
+  local name="$1" stale="$STALE_TEMPLATES_DIR/$1"
+  [[ -f $stale && -f $TEMPLATES_DIR/$name ]] || return 0
+  cmp -s "$stale" "$TEMPLATES_DIR/$name" && return 0
+  [[ -f $USER_TEMPLATES_DIR/$name ]] && return 0
+  echo "Note: $stale differs from hyprsimple's and is no longer used." >&2
+  echo "      Move it to $USER_TEMPLATES_DIR/ to keep it." >&2
+}
 COLORS_FILE="$THEME_DIR/colors.toml"
 
 if [[ ! -f $COLORS_FILE ]]; then
@@ -38,10 +71,19 @@ done <"$COLORS_FILE" >"$sed_script"
 # Generate configs from templates
 mkdir -p "$THEME_DIR/generated"
 
-for tpl in "$TEMPLATES_DIR"/*.tpl; do
-  filename=$(basename "$tpl" .tpl)
-  sed -f "$sed_script" "$tpl" >"$THEME_DIR/generated/$filename"
-done
+# The union of the install and the override directory, so a template added to
+# the repository renders without the user having anything at all.
+while IFS= read -r name; do
+  warn_about_stale "$name"
+  tpl=$(template_path "$name")
+  [[ -n $tpl ]] || continue
+  sed -f "$sed_script" "$tpl" >"$THEME_DIR/generated/${name%.tpl}"
+done < <(
+  {
+    [[ -d $TEMPLATES_DIR ]] && ls "$TEMPLATES_DIR" 2>/dev/null | grep '\.tpl$'
+    [[ -d $USER_TEMPLATES_DIR ]] && ls "$USER_TEMPLATES_DIR" 2>/dev/null | grep '\.tpl$'
+  } | sort -u
+)
 
 rm "$sed_script"
 echo "Templates generated in $THEME_DIR/generated/"

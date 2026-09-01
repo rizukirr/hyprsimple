@@ -362,10 +362,11 @@ check "every key from the theme producer names a directory in the fixture themes
 
 tmpl_themes="$TMP/themes-templates"
 must_be_fixture "$tmpl_themes"
-mkdir -p "$tmpl_themes/one" "$tmpl_themes/two" "$tmpl_themes/three" "$tmpl_themes/templates"
+mkdir -p "$tmpl_themes/one" "$tmpl_themes/two" "$tmpl_themes/three" \
+  "$tmpl_themes/templates" "$tmpl_themes/templates.user"
 tmpl_out="$TMP/out-templates"
 THEMES_DIR="$tmpl_themes" XDG_CACHE_HOME="$TMP/cache-templates" bash "$PICKER" >"$tmpl_out"
-check "the theme producer emits one row per theme directory, excluding templates" "$(wc -l <"$tmpl_out")" "3"
+check "the theme producer excludes templates and templates.user" "$(wc -l <"$tmpl_out")" "3"
 
 # ---- the wallpaper producer's keys, and its label shape --------------------
 

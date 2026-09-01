@@ -153,6 +153,14 @@ hyprsimple-refresh-config rofi/config.rasi
 the active theme and their styles are rewritten on every theme switch, so they
 belong to the theme rather than to you.
 
+#### Theme templates
+
+Themes are rendered from the `.tpl` files in `~/.local/share/hyprsimple/.config/hypr/themes/templates`, and the install owns them, so a template change reaches you through `hyprsimple-update` with no migration.
+
+To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same name and edit it there. That directory wins over the install, and a file in it with no shipped counterpart is rendered too, so you can add templates of your own.
+
+Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is no longer read. If a file in it differs from the shipped one, the theme switcher says so and tells you where to move it.
+
 ## Network
 
 To see the available network interfaces, run `wifi`. To connect to a network, run `wifi <network name>` for example `wifi "MY NETWORK"`

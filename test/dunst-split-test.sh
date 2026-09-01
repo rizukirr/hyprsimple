@@ -144,11 +144,15 @@ check "switching to a colourless theme removes the drop-in" \
 
 # ---- theme-apply-templates.sh renders a [global] frame_color ------------
 
+# The renderer reads templates from the install, not from the home directory,
+# so the fixture install is where this one goes.
 tpl_home="$TMP/template-home"
+tpl_inst="$TMP/template-install"
 must_be_fixture "$tpl_home"
-mkdir -p "$tpl_home/.config/hypr/themes/templates"
+must_be_fixture "$tpl_inst"
+mkdir -p "$tpl_home/.config/hypr" "$tpl_inst/.config/hypr/themes/templates"
 cp "$REPO/.config/hypr/themes/templates/dunst-colors.tpl" \
-  "$tpl_home/.config/hypr/themes/templates/"
+  "$tpl_inst/.config/hypr/themes/templates/"
 
 tpl_theme="$TMP/template-theme"
 mkdir -p "$tpl_theme"
@@ -160,7 +164,7 @@ color1 = "#f38ba8"
 color7 = "#bac2de"
 EOF
 
-HOME="$tpl_home" bash "$TEMPLATER" "$tpl_theme" >"$TMP/tpl_out" 2>&1
+HOME="$tpl_home" HYPRSIMPLE_PATH="$tpl_inst" bash "$TEMPLATER" "$tpl_theme" >"$TMP/tpl_out" 2>&1
 check "theme-apply-templates.sh exits 0" "$?" "0"
 
 rendered="$tpl_theme/generated/dunst-colors"

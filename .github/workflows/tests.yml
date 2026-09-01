@@ -61,3 +61,6 @@ jobs:
 
       - name: update-self-replace-test
         run: bash test/update-self-replace-test.sh
+
+      - name: template-delivery-test
+        run: bash test/template-delivery-test.sh
