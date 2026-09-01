@@ -1,0 +1,8 @@
+/* Replaced on every theme switch from the theme's colors.toml. These values are
+   only what a fresh install shows before the first switch.
+
+   style.css imports this file, and GTK treats a missing import as a fatal
+   parse error that yields an empty stylesheet, so this file existing is what
+   keeps the power menu styled at all. */
+@define-color wl_background #11111b;
+@define-color wl_foreground #cdd6f4;

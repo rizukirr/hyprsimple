@@ -1,3 +1,11 @@
+/* Colours come from the active theme. wlogout-colors.css is rewritten on every
+   theme switch from the theme's colors.toml.
+
+   This import must resolve. GTK treats a missing @import as a fatal parse error
+   and returns an empty stylesheet, so a broken link here leaves the power menu
+   completely unstyled rather than merely uncoloured. */
+@import url("wlogout-colors.css");
+
 * {
     font-family: JetBrains Mono, Symbols Nerd Font;
     font-size: 24px;
@@ -6,12 +14,12 @@
 }
 
 window {
-    background-color: #11111b;
+    background-color: @wl_background;
     /* border-radius: 10px; */
 }
 
 button {
-    background-color: #11111b;
+    background-color: @wl_background;
     border-style: solid;
     /* border-width: 2px; */
     border-radius: 50px;
@@ -23,11 +31,11 @@ button {
 
 button:active,
 button:hover {
-    background-color: #cdd6f4;
+    background-color: @wl_foreground;
 }
 
 button:focus {
-    background-color: #cdd6f4;
+    background-color: @wl_foreground;
 }
 
 #lock {
@@ -36,7 +44,7 @@ button:focus {
 
 #lock:hover {
     background-image: image(url("~/.local/share/assets/wlogout/lock-hover.png"), url("/usr/local/share/wlogout/icons/lock.png"));
-    color: #11111b;
+    color: @wl_background;
 }
 
 #logout {
@@ -45,7 +53,7 @@ button:focus {
 
 #logout:hover {
     background-image: image(url("~/.local/share/assets/wlogout/logout-hover.png"), url("/usr/local/share/wlogout/icons/logout.png"));
-    color: #11111b;
+    color: @wl_background;
 }
 
 #suspend {
@@ -54,7 +62,7 @@ button:focus {
 
 #suspend:hover {
     background-image: image(url("~/.local/share/assets/wlogout/sleep-hover.png"), url("/usr/local/share/wlogout/icons/suspend.png"));
-    color: #11111b;
+    color: @wl_background;
 }
 
 #shutdown {
@@ -63,7 +71,7 @@ button:focus {
 
 #shutdown:hover {
     background-image: image(url("~/.local/share/assets/wlogout/power-hover.png"), url("/usr/local/share/wlogout/icons/shutdown.png")); 
-    color: #11111b;
+    color: @wl_background;
 }
 
 #reboot {
@@ -72,17 +80,17 @@ button:focus {
 
 #reboot:hover {
     background-image: image(url("~/.local/share/assets/wlogout/restart-hover.png"), url("/usr/local/share/wlogout/icons/reboot.png"));
-    color: #11111b;
+    color: @wl_background;
 }
 
 #exit {
     background-image: image(url("~/.local/share/assets/wlogout/restart.png"), url("/usr/local/share/wlogout/icons/reboot.png"));
-    background-color: #11111b;
+    background-color: @wl_background;
 
 }
 
 #exit:hover {
     background-image: image(url("~/.local/share/assets/wlogout/restart-hover.png"), url("/usr/local/share/wlogout/icons/reboot.png"));
-    color: #11111b;
-    background-color: #cdd6f4;
+    color: @wl_background;
+    background-color: @wl_foreground;
 }
