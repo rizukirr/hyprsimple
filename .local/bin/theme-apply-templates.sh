@@ -80,8 +80,11 @@ while IFS= read -r name; do
   sed -f "$sed_script" "$tpl" >"$THEME_DIR/generated/${name%.tpl}"
 done < <(
   {
-    [[ -d $TEMPLATES_DIR ]] && ls "$TEMPLATES_DIR" 2>/dev/null | grep '\.tpl$'
-    [[ -d $USER_TEMPLATES_DIR ]] && ls "$USER_TEMPLATES_DIR" 2>/dev/null | grep '\.tpl$'
+    # Globs rather than `ls | grep`, which splits a template name containing a
+    # space into two names and then renders neither.
+    for f in "$TEMPLATES_DIR"/*.tpl "$USER_TEMPLATES_DIR"/*.tpl; do
+      [[ -f $f ]] && basename "$f"
+    done
   } | sort -u
 )
 

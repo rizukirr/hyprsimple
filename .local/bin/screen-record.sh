@@ -11,7 +11,9 @@ SCOPE="$1"      # "region", "output", or "stop"
 AUDIO_MODE="$2" # "mic", "internal", or "none"
 
 start_screenrecording() {
-  local filename="$OUTPUT_DIR/screenrecording-$(date +'%Y-%m-%d_%H-%M-%S').mp4"
+  local stamp
+  stamp=$(date +'%Y-%m-%d_%H-%M-%S')
+  local filename="$OUTPUT_DIR/screenrecording-$stamp.mp4"
   local audio_opts=()
 
   # Detect whether wf-recorder or wl-screenrec will be used

@@ -26,6 +26,7 @@ fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
 check() { if [[ $2 == "$3" ]]; then pass "$1"; else printf 'not ok - %s (want %s, got %s)\n' "$1" "$3" "$2" >&2; failures=$((failures + 1)); fi; }
 
 # The function depends on these globals and nothing else.
+# shellcheck disable=SC2034  # read by the bootstrap.sh function eval'd below
 RED='' GREEN='' YELLOW='' NC=''
 eval "$(sed -n '/^install_to_canonical_path() {/,/^}/p' "$REPO/install.sh")"
 eval "$(sed -n '/^copy_source_to_canonical_path() {/,/^}/p' "$REPO/bootstrap.sh")"

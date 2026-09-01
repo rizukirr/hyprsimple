@@ -121,6 +121,7 @@ hyprsimple_version() {
 
   section "EXPLICITLY INSTALLED PACKAGES"
   if command -v expac >/dev/null 2>&1; then
+    # shellcheck disable=SC2046  # splitting is wanted: one argument per package
     expac -Q '%n %v' $(pacman -Qqe) 2>/dev/null | sort
   else
     pacman -Qe 2>/dev/null || echo "(unavailable)"
