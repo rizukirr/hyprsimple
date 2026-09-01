@@ -158,8 +158,20 @@ for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*
   [[ -f $script ]] || continue
   target="$HOME/.local/bin/$(basename "$script")"
   if ! cmp -s "$script" "$target"; then
-    cp -f "$script" "$target"
-    chmod +x "$target"
+    # Write beside the target and rename, rather than cp -f over it.
+    #
+    # One of these scripts is this one. cp -f rewrites the same inode, and bash
+    # reads a script incrementally by byte offset, so the running shell would
+    # resume at its old offset inside the new, longer file and land mid-word.
+    # That is a real failure seen in the wild: "line 61: he: command not found",
+    # after which the pull had already happened but the migrations never ran.
+    #
+    # A rename gives the new content a different inode. The running shell keeps
+    # reading the old one through the descriptor it already holds, finishes
+    # normally, and the next run picks up the new version.
+    cp -f "$script" "$target.new"
+    chmod +x "$target.new"
+    mv -f "$target.new" "$target"
     echo -e "${GREEN}Updated:${NC} $(basename "$script")"
   fi
 done
