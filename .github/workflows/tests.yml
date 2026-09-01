@@ -15,10 +15,24 @@ jobs:
       - name: Install Lua and ImageMagick
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 imagemagick
+          sudo apt-get install -y lua5.4 imagemagick shellcheck
           # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
           # plain name exist rather than relying on the package to register it.
           sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua
+
+      # Runs first: a shell bug is worth seeing before a suite that may fail
+      # because of it. hotspot.sh is excluded as vendored third party, 2035
+      # lines of create_ap that this project does not maintain. Migrations are
+      # checked as bash explicitly, since they deliberately carry no shebang.
+      - name: shellcheck
+        run: |
+          # hotspot.sh is vendored create_ap, 2035 lines this project does not
+          # maintain. zsh.sh is zsh, which shellcheck cannot parse at all.
+          mapfile -t bins < <(find .local/bin -maxdepth 1 -name '*.sh' \
+            ! -name 'hotspot.sh' ! -name 'zsh.sh' | sort)
+          shellcheck --severity=warning install.sh bootstrap.sh "${bins[@]}" test/*.sh
+          # Migrations deliberately carry no shebang, so the shell is stated here.
+          shellcheck --severity=warning --shell=bash migrations/*.sh
 
       - name: install-copy-test
         run: bash test/install-copy-test.sh

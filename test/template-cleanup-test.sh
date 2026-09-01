@@ -7,7 +7,6 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATION="$REPO/migrations/1788278344.sh"
-SHIPPED="$REPO/.config/hypr/themes/templates"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
