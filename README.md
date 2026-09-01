@@ -163,7 +163,7 @@ Themes are rendered from the `.tpl` files in `~/.local/share/hyprsimple/.config/
 
 To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same name and edit it there. That directory wins over the install, and a file in it with no shipped counterpart is rendered too, so you can add templates of your own.
 
-Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is no longer read. If a file in it differs from the shipped one, the theme switcher says so and tells you where to move it.
+Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is no longer read, and an update removes it once every file in it is one hyprsimple shipped. If you had edited one, the whole directory is left alone and you are told which file it was, so you can move it to `templates.user/`.
 
 ## Network
 
