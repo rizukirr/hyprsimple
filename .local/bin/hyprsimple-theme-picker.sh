@@ -25,7 +25,9 @@ swatches_for() {
 
 for dir in "$THEMES_DIR"/*/; do
   name=$(basename "$dir")
-  [[ $name == templates ]] && continue
+  # templates holds the render inputs and templates.user holds a user's
+  # overrides of them. Neither is a theme.
+  [[ $name == templates || $name == templates.user ]] && continue
 
   wallpaper=$(find "$dir/backgrounds" -maxdepth 1 -type f \
     \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -n 1)
