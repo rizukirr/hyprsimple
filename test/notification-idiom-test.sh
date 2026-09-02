@@ -123,16 +123,32 @@ check "battery-monitor reaches its low battery notification" \
 rm -f /tmp/battery-notification-flag
 
 # capslock-notify polls a sysfs LED when one exists and falls back to hyprctl
-# when it does not. The LED cannot be written without root, so this pair runs
-# only on the fallback path, which is what CI has.
+# when it does not. This exercises the fallback, which is the path CI takes,
+# since a runner has no capslock LED.
+#
+# On a machine that does have one, run the whole suite with the LED directory
+# masked to reach it:
+#
+#   unshare -rm bash -c 'mount -t tmpfs none /sys/class/leds && exec bash test/notification-idiom-test.sh'
+#
+# No root needed, and it is how this check was verified before it shipped.
 if compgen -G '/sys/class/leds/input*::capslock/brightness' >/dev/null; then
-  printf 'skip - capslock LED present, the hyprctl fallback path is not reachable here\n'
+  printf 'skip - capslock LED present, mask /sys/class/leds to reach the fallback\n'
 else
-  printf '#!/bin/bash\nn=$(cat "$STUB/caps" 2>/dev/null || echo 0)\necho $((n+1)) >"$STUB/caps"\n[[ $n == 0 ]] && echo false || echo true\n' >"$STUB/hyprctl"
+  # The counter path is baked in rather than passed through the environment.
+  # `PATH=... STUB=...` in one command is a trap: the assignments are not
+  # visible to each other, so it reads as though PATH sees the new STUB when
+  # it does not.
+  cat >"$STUB/hyprctl" <<EOF
+#!/bin/bash
+n=\$(cat "$STUB/caps" 2>/dev/null || echo 0)
+echo \$((n + 1)) >"$STUB/caps"
+[[ \$n == 0 ]] && echo false || echo true
+EOF
   chmod +x "$STUB/hyprctl"
   printf '#!/bin/bash\ncat\n' >"$STUB/jq"; chmod +x "$STUB/jq"
   : >"$LOG"; echo 0 >"$STUB/caps"
-  NOTIFY_LOG="$LOG" PATH="$STUB:$PATH" STUB="$STUB" timeout 3 bash "$BIN/capslock-notify.sh" >/dev/null 2>&1
+  NOTIFY_LOG="$LOG" PATH="$STUB:$PATH" timeout 3 bash "$BIN/capslock-notify.sh" >/dev/null 2>&1
   check "capslock-notify reaches a notification when the state flips" \
     "$(grep -c 'Caps Lock' "$LOG")" "1"
 fi
@@ -140,7 +156,11 @@ fi
 # The behaviour itself, against the running daemon. Skipped loudly where dunst
 # is not running, which includes CI. A check that silently degrades into a
 # no-op on the runner reads as coverage while proving nothing.
-if command -v dunstctl >/dev/null 2>&1 && pgrep -x dunst >/dev/null 2>&1; then
+# Gated on dunstctl actually answering, not on the binary existing and the
+# process being alive. Both of those can be true while the session bus is
+# unreachable, and then every check below returns an empty string and fails
+# with a confusing message instead of skipping.
+if dunstctl count displayed >/dev/null 2>&1; then
   dunstctl close-all
   notify-send -u low -t 3000 -r 4242 "probe" "first"
   notify-send -u low -t 3000 -r 4242 "probe" "second"
