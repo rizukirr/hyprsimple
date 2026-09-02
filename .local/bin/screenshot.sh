@@ -17,16 +17,16 @@ if [ "$mode" == "clipboard" ]; then
 fi
 
 if [ "$mode" == "window" ]; then
-    hyprshot -m window --freeze --output-folder $HOME/Pictures/Screenshots
+    hyprshot -m window --freeze --output-folder "$HOME/Pictures/Screenshots"
     exit 0
 fi
 
 if [ "$mode" == "region" ]; then
-    hyprshot -m region --freze --output-folder $HOME/Pictures/Screenshots
+    hyprshot -m region --freeze --output-folder "$HOME/Pictures/Screenshots"
     exit 0
 fi
 
 if [ "$mode" == "monitor" ]; then
-    hyprshot -m output --freeze --output-folder $HOME/Pictures/Screenshots
+    hyprshot -m output --freeze --output-folder "$HOME/Pictures/Screenshots"
     exit 0
 fi

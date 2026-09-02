@@ -97,6 +97,9 @@ jobs:
       - name: notification-idiom-test
         run: bash test/notification-idiom-test.sh
 
+      - name: screenshot-and-battery-test
+        run: bash test/screenshot-and-battery-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
