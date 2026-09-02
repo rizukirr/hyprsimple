@@ -3,7 +3,7 @@
 OUTPUT_DIR="${XDG_VIDEOS_DIR:-$HOME/Videos}"
 
 if [[ ! -d "$OUTPUT_DIR" ]]; then
-  dunstify "Screen recording directory does not exist: $OUTPUT_DIR" -u critical -t 3000
+  notify-send "Screen recording directory does not exist: $OUTPUT_DIR" -u critical -t 3000
   exit 1
 fi
 
@@ -33,7 +33,7 @@ start_screenrecording() {
     # Replace below with your actual monitor source name if needed
     MONITOR_SOURCE=$(pw-cli ls Node | grep monitor | head -n 1 | awk '{print $2}')
     if [[ -z "$MONITOR_SOURCE" ]]; then
-      dunstify "No monitor source found for internal audio!" -u critical -t 3000
+      notify-send "No monitor source found for internal audio!" -u critical -t 3000
       exit 1
     fi
     audio_opts=(--audio="pw:$MONITOR_SOURCE")
@@ -42,7 +42,7 @@ start_screenrecording() {
     audio_opts=()
     ;;
   *)
-    dunstify "Invalid audio mode: $AUDIO_MODE (use mic/internal/none)" -u critical -t 3000
+    notify-send "Invalid audio mode: $AUDIO_MODE (use mic/internal/none)" -u critical -t 3000
     exit 1
     ;;
   esac
@@ -62,7 +62,7 @@ start_screenrecording() {
 stop_screenrecording() {
   pkill -x wl-screenrec
   pkill -x wf-recorder
-  dunstify "Screen recording saved to $OUTPUT_DIR" -t 2000
+  notify-send "Screen recording saved to $OUTPUT_DIR" -t 2000
   sleep 0.2
   toggle_screenrecording_indicator
 }

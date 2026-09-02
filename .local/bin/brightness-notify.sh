@@ -15,7 +15,7 @@ show_notification() {
   filled=$((brightness / 5))
   empty=$((20 - filled))
   bar="$(printf '█%.0s' $(seq 1 $filled))$(printf '░%.0s' $(seq 1 $empty))"
-  dunstify -u low -t 1500 -r $NOTIFY_ID "Brightness: $brightness%" "$bar"
+  notify-send -u low -t 1500 -r $NOTIFY_ID "Brightness: $brightness%" "$bar"
 }
 
 show_notification "$(get_brightness)"

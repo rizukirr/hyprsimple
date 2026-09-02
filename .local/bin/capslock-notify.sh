@@ -29,9 +29,9 @@ while true; do
 
   if [ "$current_state" != "$previous_state" ]; then
     if [ "$current_state" = "true" ]; then
-      dunstify -u normal -t 2000 "Caps Lock" "ON"
+      notify-send -u normal -t 2000 "Caps Lock" "ON"
     else
-      dunstify -u normal -t 2000 "Caps Lock" "OFF"
+      notify-send -u normal -t 2000 "Caps Lock" "OFF"
     fi
     previous_state="$current_state"
   fi

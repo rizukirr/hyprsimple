@@ -12,7 +12,7 @@ fi
 
 if [ "$mode" == "clipboard" ]; then
     hyprshot -m output --clipboard-only
-    dunstify "Screenshot" "Copied to clipboard"
+    notify-send "Screenshot" "Copied to clipboard"
     exit 0
 fi
 
