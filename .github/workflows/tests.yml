@@ -36,6 +36,14 @@ jobs:
           # being made. SC2016 is excluded: every occurrence here is a grep
           # pattern or a stub written to disk, where single quotes are correct,
           # and the suites read shell source as data so it recurs by design.
+          #
+          # This runner's shellcheck is older than a current Arch one, and the
+          # difference is not only that the old one knows less. SC2002 was a
+          # default check here and became optional in 0.10, so it fails this
+          # step while a newer local shellcheck reports nothing. To reproduce
+          # this step locally, add --enable=all and read only the codes this
+          # step would have caught.
+          shellcheck --version | grep version:
           shellcheck --severity=style --exclude=SC2016 \
             install.sh bootstrap.sh "${bins[@]}" test/*.sh
           # Migrations deliberately carry no shebang, so the shell is stated

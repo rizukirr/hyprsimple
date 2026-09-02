@@ -312,8 +312,7 @@ check "99-user.conf exists after the run" \
 edited_home="$TMP/home-move-edited"
 must_be_fixture "$edited_home"
 mkdir -p "$edited_home/.config/dunst"
-cat "$PRESPLIT" \
-  | sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
+sed 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' "$PRESPLIT" \
   >"$edited_home/.config/dunst/dunstrc"
 cp "$edited_home/.config/dunst/dunstrc" "$TMP/edited_original"
 
@@ -362,9 +361,8 @@ fi
 chain_home="$TMP/home-chain"
 must_be_fixture "$chain_home"
 mkdir -p "$chain_home/.config/dunst"
-cat "$PRESPLIT" \
-  | sed -e 's|browser = /usr/bin/brave|browser = /usr/bin/firefox|' \
-        -e 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' \
+sed -e 's|browser = /usr/bin/brave|browser = /usr/bin/firefox|' \
+    -e 's/frame_color = "#a6adc8"/frame_color = "#ffcc00"/' "$PRESPLIT" \
   >"$chain_home/.config/dunst/dunstrc"
 cp "$chain_home/.config/dunst/dunstrc" "$TMP/chain_original"
 
