@@ -51,8 +51,6 @@ stub() {
   return 0
 }
 
-# --- 1. a poisoned batch still installs its survivors ----------------------
-
 FAILED_PACKAGES=()
 : >"$TMP/calls"; : >"$TMP/raw"
 install_packages stub --noconfirm -- good-one poisoned good-two >/dev/null 2>&1
@@ -66,8 +64,6 @@ check "good-two was retried on its own" \
 check "only the poisoned package was recorded as failed" \
   "${FAILED_PACKAGES[*]}" "poisoned"
 
-# --- 2. a clean batch does not trigger the retry ---------------------------
-
 FAILED_PACKAGES=()
 : >"$TMP/calls"; : >"$TMP/raw"
 install_packages stub --noconfirm -- good-one good-two >/dev/null 2>&1
@@ -77,10 +73,9 @@ check "a clean batch installs in one call" \
 check "a clean batch records no failures" \
   "${#FAILED_PACKAGES[@]}" "0"
 
-# --- 3. the separator divides installer from packages ----------------------
-#
-# Without it the flags would be treated as package names, so the check is that
-# the package log holds packages only.
+# The -- separator divides installer from packages. Without it the flags would
+# be treated as package names, so the check is that the package log holds
+# packages only.
 
 FAILED_PACKAGES=()
 : >"$TMP/calls"; : >"$TMP/raw"
@@ -89,8 +84,6 @@ install_packages stub --noconfirm -- good-one >/dev/null 2>&1
 check "installer flags did not leak into the package list" \
   "$(grep -c -- '--noconfirm' "$TMP/calls")" "0"
 
-# --- 4. a missing separator fails loudly -----------------------------------
-#
 # Without the separator every argument reads as part of the installer, so the
 # package list comes out empty. Returning 0 there would report success having
 # installed nothing, which is the failure this whole change exists to remove.
@@ -116,21 +109,15 @@ reached=$( (
 check "the guard is not swallowed by a caller that tests the result" \
   "$reached" ""
 
-# --- 5. the three raw call sites are gone ----------------------------------
-
 check "no pacman install discards its result with || true" \
   "$(grep -cE 'sudo pacman -S .*\|\| true' "$REPO/install.sh")" "0"
 
-# --- 6. the retry logic has one definition ---------------------------------
-#
 # The split exists so bulk-then-retry is written once. A second copy would pass
 # every check above while reintroducing the drift this change removes.
 
 check "the individual-retry loop is defined once" \
   "$(grep -c 'Retrying individually' "$REPO/install.sh")" "1"
 
-# --- 7. the file wrapper stays interactive ---------------------------------
-#
 # packages.txt is installed with prompts today. The driver sites pass
 # --noconfirm themselves, so nothing may add it to the bulk attempt on a
 # caller's behalf. This is the check that would catch that regression, and
@@ -146,8 +133,6 @@ check "the file wrapper reads its packages past comments and blanks" \
 check "the bulk attempt did not gain --noconfirm on the caller's behalf" \
   "$(grep -c -- '--noconfirm' "$TMP/raw")" "0"
 
-# --- 8. pacman accepts what install_packages composes ----------------------
-#
 # Every check above asserts on which words get composed, never on whether
 # pacman accepts them. `pacman -S --print` resolves targets without installing
 # and without root, so the real binary can rule on the real flag order,
