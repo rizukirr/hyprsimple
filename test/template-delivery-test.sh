@@ -45,15 +45,11 @@ render() {
 
 rendered() { cat "$THEME/generated/$1" 2>/dev/null; }
 
-# --- 1. a template only the install has -----------------------------------
-
 new_case only-install
 printf 'FROM-INSTALL {{ background }}\n' >"$INST/.config/hypr/themes/templates/probe.tpl"
 render
 check "a template only the install has is rendered" "$(rendered probe)" "FROM-INSTALL #111111"
 check "the renderer exits 0" "$(cat "$CASE/rc")" "0"
-
-# --- 2. a changed install template reaches a home that has no copy ---------
 
 new_case changed-install
 printf 'V1\n' >"$INST/.config/hypr/themes/templates/probe.tpl"
@@ -64,8 +60,6 @@ render
 check "a template changed in the install is delivered, no migration" \
   "$first -> $(rendered probe)" "V1 -> V2"
 
-# --- 3. a home copy identical to the shipped one must not pin the install --
-#
 # install.sh copied every template into every existing home, so treating any
 # home copy as an override would leave every existing install frozen. This is
 # the check the whole change exists for.
@@ -87,8 +81,6 @@ render
 check "an identical leftover is not warned about" \
   "$(grep -c 'no longer used' "$CASE/out")" "0"
 
-# --- 4. a genuinely customised home template still wins --------------------
-
 new_case customised
 mkdir -p "$HOMEDIR/.config/hypr/themes/templates.user"
 printf 'SHIPPED\n' >"$INST/.config/hypr/themes/templates/probe.tpl"
@@ -103,8 +95,6 @@ printf 'S\n' >"$INST/.config/hypr/themes/templates/probe.tpl"
 render
 check "a templates.user file with no shipped counterpart renders" "$(rendered extra)" "ONLY-MINE"
 
-# --- 5. a home with no template directory at all ---------------------------
-
 new_case no-home-dir
 printf 'A\n' >"$INST/.config/hypr/themes/templates/a.tpl"
 printf 'B\n' >"$INST/.config/hypr/themes/templates/b.tpl"
@@ -112,16 +102,12 @@ render
 check "every install template renders with no home directory" \
   "$(rendered a)$(rendered b)" "AB"
 
-# --- 6. a template added to the install, home dir exists but lacks it ------
-
 new_case added-template
 mkdir -p "$HOMEDIR/.config/hypr/themes/templates"
 printf 'OLD\n' >"$INST/.config/hypr/themes/templates/old.tpl"
 printf 'NEW\n' >"$INST/.config/hypr/themes/templates/new.tpl"
 render
 check "a newly shipped template renders without a home copy" "$(rendered new)" "NEW"
-
-# --- 7. every real shipped template still renders --------------------------
 
 new_case real-templates
 cp "$REPO/.config/hypr/themes/templates/"*.tpl "$INST/.config/hypr/themes/templates/"
@@ -137,8 +123,6 @@ rendered=("$THEME/generated"/*)
 [[ -e ${rendered[0]} ]] || rendered=()
 check "every shipped template produces a rendered file" \
   "${#rendered[@]}" "${#shipped[@]}"
-
-# --- 8. no colors.toml is still a clean exit -------------------------------
 
 new_case no-colors
 rm -f "$THEME/colors.toml"

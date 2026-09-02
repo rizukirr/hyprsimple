@@ -87,16 +87,12 @@ run_update() {
   printf '%s' "$?" >"$CASE/rc"
 }
 
-# --- 1. a changed config the user has their own version of is named --------
-
 new_case reports
 printf 'MINE\n' >"$FAKE_HOME/.config/starship.toml"
 ship .config/starship.toml V2
 run_update
 check "a changed config the user diverged from is reported" \
   "$(grep -c 'refresh-config.sh starship.toml' "$CASE/out")" "1"
-
-# --- 2. a config this update did not touch is not named -------------------
 
 new_case untouched
 printf 'MINE\n' >"$FAKE_HOME/.config/starship.toml"
@@ -106,8 +102,6 @@ run_update
 check "a config this update did not change is not reported" \
   "$(grep -c 'untouched.toml' "$CASE/out")" "0"
 
-# --- 3. a user whose copy matches the new shipped one is not nagged -------
-
 new_case matching
 ship .config/starship.toml V4
 printf 'V4\n' >"$FAKE_HOME/.config/starship.toml"
@@ -115,15 +109,11 @@ run_update
 check "a matching copy is not reported" \
   "$(grep -c 'refresh-config.sh starship.toml' "$CASE/out")" "0"
 
-# --- 4. a config the user never had is not reported -----------------------
-
 new_case absent
 ship .config/starship.toml V5
 run_update
 check "a config the user does not have is not reported" \
   "$(grep -c 'refresh-config.sh starship.toml' "$CASE/out")" "0"
-
-# --- 5. a symlinked config is managed elsewhere and is not drift ----------
 
 new_case symlinked
 ship .config/starship.toml V6
@@ -134,8 +124,6 @@ ln -sfn "$CASE/managed-elsewhere.toml" "$FAKE_HOME/.config/starship.toml"
 run_update
 check "a symlinked config is not reported" \
   "$(grep -c 'refresh-config.sh starship.toml' "$CASE/out")" "0"
-
-# --- 6. an update that pulls nothing new reports nothing ------------------
 
 new_case nochange
 printf 'MINE\n' >"$FAKE_HOME/.config/starship.toml"

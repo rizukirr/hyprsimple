@@ -58,8 +58,6 @@ ln -sfn "$INSTALL/default/rofi" "$FAKE_HOME/.config/rofi/hyprsimple"
 
 STUBS=(config.rasi confirm.rasi font.rasi keybindings/style.rasi theme-picker/style.rasi)
 
-# --- 1. every stub's import target exists ----------------------------------
-#
 # This is the failure that would otherwise be silent: rofi logs nothing for a
 # missing @import and renders unstyled instead of exiting non-zero.
 
@@ -83,8 +81,6 @@ done
 check "a default still imports the theme colours" \
   "$(grep -l 'rofi-colors.rasi' "$INSTALL/default/rofi/confirm.rasi" >/dev/null && echo yes || echo no)" "yes"
 
-# --- 2. a changed default is live through the stub, with no migration -------
-
 if [[ $HAVE_ROFI == 1 ]]; then
   # A property rofi knows. -dump-theme silently drops unknown custom
   # properties, so asserting on an invented one would pass against anything.
@@ -107,8 +103,6 @@ if [[ $HAVE_ROFI == 1 ]]; then
 else
   printf 'skip - rofi not installed, import resolution checks not run\n'
 fi
-
-# --- 4. the theme-owned paths are not part of the split --------------------
 
 for rel in launcher powermenu; do
   check "$rel is left out of the split" \

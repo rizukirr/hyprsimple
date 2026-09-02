@@ -63,23 +63,17 @@ run_update() {
   printf '%s' "$?" >"$TMP/rc"
 }
 
-# --- 1. a template that has never been rendered is rendered ---------------
-
 run_update
 check "an unrendered template is rendered by the update" \
   "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css" 2>/dev/null)" "1"
 check "and the active theme's output reaches wlogout" \
   "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/wlogout/wlogout-colors.css" 2>/dev/null)" "1"
 
-# --- 2. an update with no template change does not re-render --------------
-
 marker="$HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css"
 printf '/* touched by hand */\n' >>"$marker"
 run_update
 check "an unchanged template does not trigger a re-render" \
   "$(grep -c 'touched by hand' "$marker")" "1"
-
-# --- 3. a changed template does trigger one ------------------------------
 
 printf '@define-color wl_background {{ background }};\n@define-color wl_extra {{ foreground }};\n' \
   >"$INSTALL/.config/hypr/themes/templates/wlogout-colors.css.tpl"
@@ -89,8 +83,6 @@ check "a changed template triggers a re-render" \
 check "and the hand edit is gone, because rendering is the source of truth" \
   "$(grep -c 'touched by hand' "$marker")" "0"
 
-# --- 4. a newly shipped template reaches an existing theme ---------------
-#
 # This is the case that cost a second migration: shipping a template is not
 # delivering it unless something renders.
 
