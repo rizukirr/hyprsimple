@@ -264,12 +264,24 @@ EOF
 # --noconfirm in the installer half when the site should run unattended, which
 # is how packages.txt keeps prompting while the driver sites do not.
 install_packages() {
-  local installer=()
-  while (( $# > 0 )) && [[ $1 != "--" ]]; do
+  local installer=() saw_separator=0
+  while (( $# > 0 )); do
+    if [[ $1 == "--" ]]; then
+      saw_separator=1
+      shift
+      break
+    fi
     installer+=("$1")
     shift
   done
-  shift || true
+
+  # Without the separator every argument would be read as part of the installer,
+  # leaving no packages, and the function would report success having installed
+  # nothing. Fail loudly instead: the ERR trap names the calling line.
+  if (( ! saw_separator )); then
+    echo -e "${RED}install_packages was called without a -- separator${NC}" >&2
+    return 1
+  fi
 
   local packages=("$@")
   (( ${#packages[@]} == 0 )) && return 0

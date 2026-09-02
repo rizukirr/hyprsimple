@@ -89,12 +89,27 @@ install_packages stub --noconfirm -- good-one >/dev/null 2>&1
 check "installer flags did not leak into the package list" \
   "$(grep -c -- '--noconfirm' "$TMP/calls")" "0"
 
-# --- 4. the three raw call sites are gone ----------------------------------
+# --- 4. a missing separator fails loudly -----------------------------------
+#
+# Without the separator every argument reads as part of the installer, so the
+# package list comes out empty. Returning 0 there would report success having
+# installed nothing, which is the failure this whole change exists to remove.
+
+FAILED_PACKAGES=()
+: >"$TMP/calls"; : >"$TMP/raw"
+install_packages stub --noconfirm good-one >/dev/null 2>&1
+check "a call with no -- separator returns non-zero" "$?" "1"
+# Deliberately not also asserting that no installer ran. An empty package list
+# returns early with or without the guard, so that check cannot discriminate:
+# it stays green with the guard deleted, which makes it noise rather than a
+# check. The exit status is the only part that actually moves.
+
+# --- 5. the three raw call sites are gone ----------------------------------
 
 check "no pacman install discards its result with || true" \
   "$(grep -cE 'sudo pacman -S .*\|\| true' "$REPO/install.sh")" "0"
 
-# --- 5. the retry logic has one definition ---------------------------------
+# --- 6. the retry logic has one definition ---------------------------------
 #
 # The split exists so bulk-then-retry is written once. A second copy would pass
 # every check above while reintroducing the drift this change removes.
@@ -102,7 +117,7 @@ check "no pacman install discards its result with || true" \
 check "the individual-retry loop is defined once" \
   "$(grep -c 'Retrying individually' "$REPO/install.sh")" "1"
 
-# --- 6. the file wrapper stays interactive ---------------------------------
+# --- 7. the file wrapper stays interactive ---------------------------------
 #
 # packages.txt is installed with prompts today. The driver sites pass
 # --noconfirm themselves, so nothing may add it to the bulk attempt on a
