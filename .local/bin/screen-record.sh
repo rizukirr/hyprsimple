@@ -18,7 +18,7 @@ start_screenrecording() {
 
   # Detect whether wf-recorder or wl-screenrec will be used
   local is_nvidia=false
-  if lspci | grep -qi 'nvidia'; then
+  if "$HOME/.local/bin/hyprsimple-hw-nvidia.sh"; then
     is_nvidia=true
   fi
 
