@@ -33,8 +33,6 @@ if [[ ${#suites[@]} -lt 5 ]]; then
 fi
 pass "found ${#suites[@]} suites to audit"
 
-# --- 1. no suite reads git history ----------------------------------------
-#
 # CI checks out shallow, and the workflow says so. On a depth-1 clone
 # `git log --format=%H -- <path> | tail -1` resolves to HEAD, so a suite asking
 # for an old version is handed the current one. That failed loudly in one suite
@@ -55,8 +53,6 @@ else
   fail "these read git history, which is empty on CI's shallow checkout: ${offenders[*]}"
 fi
 
-# --- 2. every suite cleans up after itself --------------------------------
-
 offenders=()
 for f in "${suites[@]}"; do
   grep -q 'mktemp -d' "$f" || continue
@@ -68,8 +64,6 @@ else
   fail "these leak their temp directory: ${offenders[*]}"
 fi
 
-# --- 3. a fixture guard that is defined is actually used ------------------
-#
 # must_be_fixture stops an empty or unexpected path turning a later rm or cp
 # into an operation on the real home directory. Defining it and never calling it
 # looks like protection in a diff and provides none, which is a mistake made
@@ -87,8 +81,6 @@ else
   fail "these define a fixture guard and never call it: ${offenders[*]}"
 fi
 
-# --- 4. a suite that invokes rofi isolates the config directory -----------
-#
 # rofi resolves a relative @import against the XDG config directory before the
 # working directory, so a fixture's imports silently resolved against the
 # maintainer's real ~/.config/rofi and the checks passed for the wrong reason.
@@ -106,11 +98,9 @@ else
   fail "these run rofi without isolating the config directory: ${offenders[*]}"
 fi
 
-# --- 5. a suite that builds a fixture asserts it was built ---------------
-#
-# The narrowest of these and the one that cost the most. A clone that produced
-# nothing left four checks reporting ok, because each asserted on absence and an
-# empty fixture produces no output either.
+# The narrowest check in this suite, and the one that cost the most. A clone
+# that produced nothing left four checks reporting ok, because each asserted on
+# absence and an empty fixture produces no output either.
 
 offenders=()
 for f in "${suites[@]}"; do
@@ -123,8 +113,6 @@ else
   fail "these clone without asserting the result exists: ${offenders[*]}"
 fi
 
-# --- 6. every suite is wired into CI -------------------------------------
-#
 # The workflow names each suite explicitly, so a file that is not listed never
 # runs there however good it is.
 

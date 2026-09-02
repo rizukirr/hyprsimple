@@ -26,8 +26,6 @@ must_be_fixture() {
   fi
 }
 
-# --- 1. the stylesheet is themed, not hardcoded ---------------------------
-
 STYLE="$REPO/.config/wlogout/style.css"
 check "style.css imports the colour file" \
   "$(grep -c '@import url("wlogout-colors.css")' "$STYLE")" "1"
@@ -39,8 +37,6 @@ check "every colour the stylesheet names is defined by the fallback" \
   "$(grep -oE '@wl_[a-z]+' "$STYLE" | sort -u | while read -r c; do
        grep -q "define-color ${c#@} " "$REPO/.config/wlogout/wlogout-colors.css" || echo miss
      done | grep -c miss)" "0"
-
-# --- 2. the template renders from a theme ---------------------------------
 
 THEME="$TMP/theme"
 must_be_fixture "$THEME"
@@ -56,8 +52,6 @@ check "the theme's background reaches the rendered colours" \
 check "the theme's foreground reaches the rendered colours" \
   "$(grep -c 'wl_foreground #d3c6aa' "$THEME/generated/wlogout-colors.css")" "1"
 
-# --- 3. GTK actually parses the pair ---------------------------------------
-#
 # The failure this guards against is specific: GTK treats a missing @import as
 # fatal and returns an empty stylesheet, so wlogout renders with no styling at
 # all. Asserting the file merely exists would not catch a stylesheet that
@@ -105,8 +99,6 @@ else
   printf 'skip - python gtk3 bindings absent, stylesheet not parsed here\n'
 fi
 
-# --- 4. the migration installs the colour file before replacing the style --
-
 # The pre-theming style.css, pinned as a fixture rather than read from git
 # history. CI checks out shallow, so `git log ... | tail -1` there resolves to
 # HEAD and hands back the themed file, and the migration checks below would
@@ -143,8 +135,6 @@ check "and the user is told how to take it" \
 HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >/dev/null 2>&1
 check "a second run exits 0" "$?" "0"
 
-# --- 5. the follow-up migration renders the new template ------------------
-#
 # The theming migration installs the fallback and updates style.css but does
 # not render, so without this an existing install sits on the fallback's
 # catppuccin colours until its next theme switch. A build input that is never

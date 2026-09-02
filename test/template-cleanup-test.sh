@@ -51,19 +51,13 @@ new_home() {
 
 run() { HOME="$HOMEDIR" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >"$TMP/out" 2>&1; }
 
-# --- 1. a directory of untouched shipped templates is removed --------------
-
 new_home pristine
 run
 check "a directory of shipped templates is removed" \
   "$([[ -d $TPL ]] && echo present || echo gone)" "gone"
 
-# --- 2. a re-run is a no-op ------------------------------------------------
-
 run
 check "a second run exits 0 with the directory already gone" "$?" "0"
-
-# --- 3. one customised file protects the whole directory ------------------
 
 new_home customised
 printf '/* mine */\n' >>"$TPL/waybar-colors.css.tpl"
@@ -78,16 +72,12 @@ check "and the user is told where to move it" \
 check "and the offending file is named" \
   "$(grep -c 'waybar-colors.css.tpl' "$TMP/out")" "1"
 
-# --- 4. a file the user added protects the directory too ------------------
-
 new_home added
 printf '/* mine */\n' >"$TPL/my-own.tpl"
 run
 check "an added file stops the removal" \
   "$([[ -d $TPL ]] && echo present || echo gone)" "present"
 
-# --- 5. an older shipped version still counts as ours ---------------------
-#
 # The point of carrying history rather than only the current checksum: a home
 # that never took a template update holds an old version, which is still not
 # the user's work.
@@ -101,8 +91,6 @@ cp "$PRECLEANUP/dunst-colors.OLD.tpl" "$TPL/dunst-colors.tpl"
 run
 check "an older shipped version does not block removal" \
   "$([[ -d $TPL ]] && echo present || echo gone)" "gone"
-
-# --- 6. a home without the directory at all -------------------------------
 
 HOMEDIR="$TMP/nodir"
 must_be_fixture "$HOMEDIR"

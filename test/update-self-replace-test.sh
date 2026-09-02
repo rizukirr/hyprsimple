@@ -19,8 +19,6 @@ check() {
   else printf 'not ok - %s (want %s, got %s)\n' "$1" "$3" "$2" >&2; failures=$((failures + 1)); fi
 }
 
-# --- 1. the refresh loop replaces by rename, not in place ------------------
-#
 # An inode-preserving write is what corrupts a running script. Asserting on the
 # mechanism rather than on a message keeps this readable when the wording of
 # the loop changes.
@@ -31,8 +29,6 @@ check "the refresh loop renames into place" \
 check "the refresh loop does not cp directly over the target" \
   "$(grep -cE '^\s*cp -f "\$script" "\$target"\s*$' <<<"$refresh_block")" "0"
 
-# --- 2. the behaviour itself, against a real self-replacing script ---------
-#
 # The property under test is bash's, not hyprsimple's, so the check runs it
 # rather than trusting either. The replacement is deliberately longer than the
 # original, because an equal-length one cannot shift the read offset and so

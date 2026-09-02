@@ -42,8 +42,6 @@ make_home() {
   printf '* { background: #000000FF; }\n' >"$home/.config/rofi/rofi-colors.rasi"
 }
 
-# --- 1. a pristine install is converted ------------------------------------
-
 home="$TMP/pristine"
 make_home "$home"
 HOME="$home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >"$TMP/out" 2>&1
@@ -58,8 +56,6 @@ check "the hyprsimple link is created" \
 check "the link resolves to the install's defaults" \
   "$([[ -f $home/.config/rofi/hyprsimple/config.rasi ]] && echo yes || echo no)" "yes"
 
-# --- 2. the theme-owned paths are untouched --------------------------------
-
 check "launcher/style.rasi is untouched" \
   "$(md5sum <"$home/.config/rofi/launcher/style.rasi" | cut -d' ' -f1)" \
   "$(printf '/* theme owned */\n' | md5sum | cut -d' ' -f1)"
@@ -70,14 +66,10 @@ check "rofi-colors.rasi is untouched" \
   "$(md5sum <"$home/.config/rofi/rofi-colors.rasi" | cut -d' ' -f1)" \
   "$(printf '* { background: #000000FF; }\n' | md5sum | cut -d' ' -f1)"
 
-# --- 3. a second run changes nothing ---------------------------------------
-
 before=$(find "$home/.config/rofi" -type f -exec md5sum {} + | sort | md5sum)
 HOME="$home" HYPRSIMPLE_PATH="$REPO" bash "$MIGRATION" >/dev/null 2>&1
 after=$(find "$home/.config/rofi" -type f -exec md5sum {} + | sort | md5sum)
 check "a second run is a no-op" "$after" "$before"
-
-# --- 4. an edited file is left alone ---------------------------------------
 
 edited="$TMP/edited"
 make_home "$edited"
@@ -90,8 +82,6 @@ check "the user is told how to convert it" \
   "$(grep -c 'hyprsimple-refresh-config.sh rofi/config.rasi' "$TMP/edited_out")" "1"
 check "an edited file does not stop the others converting" \
   "$(cmp -s "$edited/.config/rofi/font.rasi" "$REPO/.config/rofi/font.rasi" && echo same || echo different)" "same"
-
-# --- 5. a home with no rofi directory at all -------------------------------
 
 bare="$TMP/bare"
 must_be_fixture "$bare"
