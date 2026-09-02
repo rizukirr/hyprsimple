@@ -2,6 +2,7 @@
 
 # Enable bash completion
 if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+  # shellcheck disable=SC1091  # ships with bash-completion, not with this repo
   . /usr/share/bash-completion/bash_completion
 fi
 

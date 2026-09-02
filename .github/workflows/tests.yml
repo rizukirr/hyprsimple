@@ -30,9 +30,28 @@ jobs:
           # maintain. zsh.sh is zsh, which shellcheck cannot parse at all.
           mapfile -t bins < <(find .local/bin -maxdepth 1 -name '*.sh' \
             ! -name 'hotspot.sh' ! -name 'zsh.sh' | sort)
-          shellcheck --severity=warning install.sh bootstrap.sh "${bins[@]}" test/*.sh
-          # Migrations deliberately carry no shebang, so the shell is stated here.
-          shellcheck --severity=warning --shell=bash migrations/*.sh
+          # style is the lowest severity, and it is where SC2012 lives. Parsing
+          # ls output is the one finding class this project has actually shipped
+          # as a bug, in #52, so warning was set above the severity of the bugs
+          # being made. SC2016 is excluded: every occurrence here is a grep
+          # pattern or a stub written to disk, where single quotes are correct,
+          # and the suites read shell source as data so it recurs by design.
+          #
+          # This runner's shellcheck is older than a current Arch one, and the
+          # difference is not only that the old one knows less. SC2002 was a
+          # default check here and became optional in 0.10, so it fails this
+          # step while a newer local shellcheck reports nothing. To reproduce
+          # this step locally, add --enable=all and read only the codes this
+          # step would have caught.
+          shellcheck --version | grep version:
+          shellcheck --severity=style --exclude=SC2016 \
+            install.sh bootstrap.sh "${bins[@]}" test/*.sh
+          # Migrations deliberately carry no shebang, so the shell is stated
+          # here. They are held to the same threshold, not because the shipped
+          # ones will ever run again, since install.sh pre-creates their
+          # markers, but because a future one runs unattended exactly once on
+          # every machine and cannot be re-run.
+          shellcheck --severity=style --exclude=SC2016 --shell=bash migrations/*.sh
 
       - name: install-copy-test
         run: bash test/install-copy-test.sh

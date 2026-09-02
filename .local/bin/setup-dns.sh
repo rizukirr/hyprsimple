@@ -4,7 +4,7 @@ echo "Select DNS provider:"
 echo "1) Cloudflare (1.1.1.1)"
 echo "2) Google (8.8.8.8)"
 echo "3) DHCP (default)"
-read -p "Choice [1-3]: " choice
+read -rp "Choice [1-3]: " choice
 
 case $choice in
   1)
