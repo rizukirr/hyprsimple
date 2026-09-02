@@ -175,21 +175,29 @@ if dunstctl count displayed >/dev/null 2>&1; then
   check "the same pair without an id displays as two" \
     "$(dunstctl count displayed)" "2"
 
-  # screen-record.sh sends critical notifications with -t 3000, and dunst's
-  # documented default for critical urgency is never to expire. It does expire
-  # here, because hyprsimple's own dunst config sets a global timeout and the
-  # urgency_critical section overrides only colours. Measured rather than
-  # assumed: a critical notification with -t 1000 is gone after 2.5s, and one
-  # with no -t survives that long. Asserting it so a drop-in that sets
-  # urgency_critical timeout cannot change it invisibly.
+  # screen-record.sh sends critical notifications with -t 3000, and dunst
+  # documents critical urgency as never expiring by default. It does expire
+  # here, because default/dunst/10-hyprsimple.conf sets a global timeout and
+  # the urgency_critical sections override only colours.
+  #
+  # Both probes are --transient, and that is not incidental. The same file sets
+  # idle_threshold = 120, which stops notifications timing out at all once the
+  # user has been idle that long. An automated run is idle by definition, so
+  # without --transient these checks pass when someone is at the keyboard and
+  # fail when nobody is, which is how they were written and how they flaked.
+  # dunst documents transient as the client-side bypass for exactly this.
+  #
+  # Measured in the failing state rather than reasoned about: with the machine
+  # idle, an ordinary -t 1000 notification was still displayed after 2 seconds
+  # and a transient one was gone, at both critical and low urgency.
   dunstctl close-all
-  notify-send -u critical -t 1000 "probe" "critical honours -t"
+  notify-send -u critical -t 1000 --transient "probe" "critical honours -t"
   sleep 2.5
   check "a critical notification honours its own -t" \
     "$(dunstctl count displayed)" "0"
 
   dunstctl close-all
-  notify-send -u critical "probe" "critical without -t outlives it"
+  notify-send -u critical --transient "probe" "critical without -t outlives it"
   sleep 2.5
   check "a critical notification without -t outlives that window" \
     "$(dunstctl count displayed)" "1"
