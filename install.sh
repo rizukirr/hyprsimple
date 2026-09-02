@@ -147,7 +147,7 @@ detect_and_install_nvidia() {
   fi
 
   echo -e "${YELLOW}Installing NVIDIA packages: ${NVIDIA_PACKAGES[*]}${NC}"
-  sudo pacman -S --needed --noconfirm "${NVIDIA_PACKAGES[@]}" || true
+  install_packages sudo pacman -S --noconfirm -- "${NVIDIA_PACKAGES[@]}"
 
   # Append NVIDIA env vars to uwsm/env
   if [[ $GPU_ARCH = "turing_plus" ]]; then
@@ -191,7 +191,7 @@ detect_and_install_vulkan() {
   done
 
   if (( ${#VULKAN_PACKAGES[@]} > 0 )); then
-    sudo pacman -S --needed --noconfirm "${VULKAN_PACKAGES[@]}" || true
+    install_packages sudo pacman -S --noconfirm -- "${VULKAN_PACKAGES[@]}"
     echo -e "${GREEN}Vulkan drivers installed${NC}"
   else
     echo -e "${YELLOW}No Vulkan-compatible GPU detected${NC}"
@@ -253,16 +253,43 @@ EOF
   echo -e "${GREEN}GPU setup complete ($GPU_VENDOR selected as primary)${NC}"
 }
 
-# Install packages from a list. If the bulk install fails, retry one by one so
-# we can name the packages that are actually broken instead of leaving the user
-# with a half-configured desktop and no idea what went wrong.
-install_package_list() {
-  local list_file="$1"
-  shift
-  local installer=("$@")
-  local packages=()
+# Install packages. Bulk first, because one transaction resolves dependencies
+# once. If the bulk install fails, retry one by one so we can name the packages
+# that are actually broken instead of leaving the user with a half-configured
+# desktop and no idea what went wrong, and so that one unresolvable name does
+# not take the rest of its batch down with it.
+#
+# Usage: install_packages installer... -- package...
+# The separator is needed because both halves are variadic. The caller supplies
+# --noconfirm in the installer half when the site should run unattended, which
+# is how packages.txt keeps prompting while the driver sites do not.
+install_packages() {
+  local installer=() saw_separator=0
+  while (( $# > 0 )); do
+    if [[ $1 == "--" ]]; then
+      saw_separator=1
+      shift
+      break
+    fi
+    installer+=("$1")
+    shift
+  done
 
-  mapfile -t packages < <(grep -v '^\s*#' "$list_file" | grep -v '^\s*$')
+  # Without the separator every argument would be read as part of the installer,
+  # leaving no packages, and the function would report success having installed
+  # nothing.
+  #
+  # This exits rather than returning. A `return 1` is swallowed by any caller
+  # that wraps the call in a condition, which turns a programming error into a
+  # silently skipped install, and the ERR trap never fires there either. Since
+  # the trap cannot report the location in that case, name it here.
+  if (( ! saw_separator )); then
+    echo -e "${RED}install.sh: install_packages was called without a -- separator${NC}" >&2
+    echo -e "${RED}  at ${BASH_SOURCE[1]:-?} line ${BASH_LINENO[0]:-?}${NC}" >&2
+    exit 1
+  fi
+
+  local packages=("$@")
   (( ${#packages[@]} == 0 )) && return 0
 
   if "${installer[@]}" --needed "${packages[@]}"; then
@@ -277,6 +304,18 @@ install_package_list() {
       FAILED_PACKAGES+=("$pkg")
     fi
   done
+}
+
+# The same thing, reading its package names from a file.
+install_package_list() {
+  local list_file="$1"
+  shift
+  local packages=()
+
+  mapfile -t packages < <(grep -v '^\s*#' "$list_file" | grep -v '^\s*$')
+  (( ${#packages[@]} == 0 )) && return 0
+
+  install_packages "$@" -- "${packages[@]}"
 }
 
 # Install official packages
@@ -612,7 +651,7 @@ muslimtify daemon install || true
 muslimtify daemon status || true
 # thermald is Intel-only and pointless on AMD or on a desktop, so gate it
 if bash "$HOME/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
-  sudo pacman -S --needed --noconfirm thermald >/dev/null 2>&1 || FAILED_PACKAGES+=(thermald)
+  install_packages sudo pacman -S --noconfirm -- thermald
   sudo systemctl enable --now thermald || true
   echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
 else

@@ -91,6 +91,9 @@ jobs:
       - name: template-autorender-test
         run: bash test/template-autorender-test.sh
 
+      - name: package-install-test
+        run: bash test/package-install-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
