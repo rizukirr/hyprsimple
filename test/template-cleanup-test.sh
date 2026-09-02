@@ -43,7 +43,7 @@ new_home() {
   done
   # A fixture that did not populate must fail loudly rather than let a later
   # check pass against an empty directory.
-  if [[ $(ls "$TPL" | wc -l) -eq 0 ]]; then
+  if ! compgen -G "$TPL/*" >/dev/null; then
     printf 'not ok - fixture templates did not copy (%s)\n' "$1" >&2
     exit 1
   fi

@@ -55,7 +55,10 @@ if [[ -f $DUNSTRC ]] && ! cmp -s "$DUNSTRC" "$BASE"; then
     # The earlier migration already saved this file as it was before anything
     # touched it, which is a more complete record than the copy just made.
     # Promote it into this name so the user is left with one file, not two.
-    bak=$(ls -1 "$DUNSTRC".bak.* 2>/dev/null | tail -1)
+    bak=""
+    for candidate in "$DUNSTRC".bak.*; do
+      [[ -f $candidate ]] && bak="$candidate"
+    done
     [[ -n $bak ]] && mv -f "$bak" "$kept"
 
     echo "Kept your dunstrc at $kept"

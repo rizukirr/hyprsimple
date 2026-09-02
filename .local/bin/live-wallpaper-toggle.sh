@@ -25,6 +25,8 @@ turn_off() {
   # Try to get current wallpaper from hyprpaper IPC
   ACTIVE=$(hyprctl hyprpaper listactive 2>/dev/null | head -1)
   # Parse: output format is "monitor = /path/to/wallpaper"
+  # shellcheck disable=SC2001  # the run of spaces is variable width, which
+  # parameter expansion cannot match
   RESOLVED=$(echo "$ACTIVE" | sed 's/.*= *//')
 
   # Validate resolved path exists and is inside the theme backgrounds dir

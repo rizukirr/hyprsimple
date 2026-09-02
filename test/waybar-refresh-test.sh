@@ -169,7 +169,7 @@ check "custom/screenrecording's on-click names screen-record.sh" \
 
 # ---- consolidating restarts did not scatter the relaunch or drop the signal
 
-hits=$(grep -rlE 'uwsm app -- waybar|nohup waybar' "$REPO/.local/bin" "$REPO/install.sh" 2>/dev/null | grep -v 'hyprsimple-restart-waybar\.sh$' | wc -l)
+hits=$(grep -rlE 'uwsm app -- waybar|nohup waybar' "$REPO/.local/bin" "$REPO/install.sh" 2>/dev/null | grep -vc 'hyprsimple-restart-waybar\.sh$')
 check "no file besides hyprsimple-restart-waybar.sh relaunches waybar directly" "$hits" "0"
 
 if grep -q 'RTMIN+8' "$SCREEN_RECORD"; then

@@ -688,7 +688,7 @@ echo "2. Customize ~/.config/hypr/monitors.conf for your setup"
 echo "3. Update later with: hyprsimple-update"
 echo ""
 
-read -p "Logout to take effect? (y/n) " logout
+read -rp "Logout to take effect? (y/n) " logout
 if [ "$logout" == "y" ]; then
     echo "Logging out..."
     hyprctl dispatch exit

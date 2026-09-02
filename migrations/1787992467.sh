@@ -77,7 +77,7 @@ while IFS= read -r -d '' f; do
   esac
   if grep -q 'require("hypr\.vars")' "$f"; then
     sed -i 's|require("hypr\.vars")|require("default.hypr.vars")|g' "$f"
-    repointed+=("${f#$CONF/}")
+    repointed+=("${f#"$CONF"/}")
   fi
 done < <(find "$CONF" -name '*.lua' -type f -print0)
 

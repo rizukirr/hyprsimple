@@ -128,9 +128,15 @@ cp "$REPO/.config/hypr/themes/templates/"*.tpl "$INST/.config/hypr/themes/templa
 cp "$REPO/.config/hypr/themes/everforest/colors.toml" "$THEME/colors.toml" 2>/dev/null ||
   printf 'background = "#111111"\n' >"$THEME/colors.toml"
 render
-shipped_count=$(ls "$REPO/.config/hypr/themes/templates/"*.tpl | wc -l)
+# Arrays rather than counting ls output. The difference is a filename holding a
+# newline, which ls reports as two lines and an array holds as one entry.
+# Measured, not assumed: a space does not do this, and an earlier version of
+# this comment claimed it did. It also drops a subprocess per count.
+shipped=("$REPO/.config/hypr/themes/templates/"*.tpl)
+rendered=("$THEME/generated"/*)
+[[ -e ${rendered[0]} ]] || rendered=()
 check "every shipped template produces a rendered file" \
-  "$(ls "$THEME/generated" 2>/dev/null | wc -l)" "$shipped_count"
+  "${#rendered[@]}" "${#shipped[@]}"
 
 # --- 8. no colors.toml is still a clean exit -------------------------------
 

@@ -5,8 +5,14 @@
 #   SSID      -> connect (open network, or known/saved network)
 #   SSID PASS -> connect with passphrase
 
-# Auto-detect WiFi interface
-IFACE=$(ls -d /sys/class/net/*/wireless 2>/dev/null | head -1 | cut -d'/' -f5)
+# Auto-detect WiFi interface. A glob rather than parsing ls output, so the
+# shell splits the paths instead of a newline doing it.
+IFACE=""
+for wireless in /sys/class/net/*/wireless; do
+  [[ -d $wireless ]] || continue
+  IFACE=$(basename "$(dirname "$wireless")")
+  break
+done
 
 if [[ -z $IFACE ]]; then
   echo "No WiFi interface found"
