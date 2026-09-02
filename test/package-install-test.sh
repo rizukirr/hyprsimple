@@ -97,12 +97,24 @@ check "installer flags did not leak into the package list" \
 
 FAILED_PACKAGES=()
 : >"$TMP/calls"; : >"$TMP/raw"
-install_packages stub --noconfirm good-one >/dev/null 2>&1
-check "a call with no -- separator returns non-zero" "$?" "1"
+# Subshells throughout, because the guard exits rather than returning. That is
+# the point of it: a `return` is swallowed by a caller that tests the result,
+# which turns a programming error into a silently skipped install.
+( install_packages stub --noconfirm good-one ) >/dev/null 2>&1
+check "a call with no -- separator exits non-zero" "$?" "1"
 # Deliberately not also asserting that no installer ran. An empty package list
 # returns early with or without the guard, so that check cannot discriminate:
 # it stays green with the guard deleted, which makes it noise rather than a
 # check. The exit status is the only part that actually moves.
+
+# The failure a `return 1` would hide. Neither branch of the conditional may be
+# reached, and neither may the line after it.
+reached=$( (
+  if install_packages stub --noconfirm good-one; then echo then-branch; else echo else-branch; fi
+  echo after
+) 2>/dev/null )
+check "the guard is not swallowed by a caller that tests the result" \
+  "$reached" ""
 
 # --- 5. the three raw call sites are gone ----------------------------------
 
@@ -133,6 +145,32 @@ check "the file wrapper reads its packages past comments and blanks" \
   "$(grep -cx 'good-one good-two' "$TMP/calls")" "1"
 check "the bulk attempt did not gain --noconfirm on the caller's behalf" \
   "$(grep -c -- '--noconfirm' "$TMP/raw")" "0"
+
+# --- 8. pacman accepts what install_packages composes ----------------------
+#
+# Every check above asserts on which words get composed, never on whether
+# pacman accepts them. `pacman -S --print` resolves targets without installing
+# and without root, so the real binary can rule on the real flag order,
+# including the doubled --noconfirm the retry path produces.
+#
+# Skipped loudly where pacman is absent, which includes CI. A check that
+# silently degrades into a no-op on the runner is worse than one that is not
+# there, because it reads as coverage.
+
+if command -v pacman >/dev/null 2>&1; then
+  pacman -S --noconfirm --needed --print bash >/dev/null 2>&1
+  check "pacman accepts the bulk composition" "$?" "0"
+
+  pacman -S --noconfirm --needed --noconfirm --print bash >/dev/null 2>&1
+  check "pacman accepts the retry composition, doubled --noconfirm and all" "$?" "0"
+
+  # Discrimination: the two checks above are worthless unless pacman would
+  # actually reject a bad composition through this same call.
+  pacman -S --noconfirm --needed --not-a-real-flag --print bash >/dev/null 2>&1
+  check "pacman rejects a composition it does not understand" "$?" "1"
+else
+  printf 'skip - pacman not installed, composition not replayed\n'
+fi
 
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2

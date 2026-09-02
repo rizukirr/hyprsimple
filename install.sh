@@ -277,10 +277,16 @@ install_packages() {
 
   # Without the separator every argument would be read as part of the installer,
   # leaving no packages, and the function would report success having installed
-  # nothing. Fail loudly instead: the ERR trap names the calling line.
+  # nothing.
+  #
+  # This exits rather than returning. A `return 1` is swallowed by any caller
+  # that wraps the call in a condition, which turns a programming error into a
+  # silently skipped install, and the ERR trap never fires there either. Since
+  # the trap cannot report the location in that case, name it here.
   if (( ! saw_separator )); then
-    echo -e "${RED}install_packages was called without a -- separator${NC}" >&2
-    return 1
+    echo -e "${RED}install.sh: install_packages was called without a -- separator${NC}" >&2
+    echo -e "${RED}  at ${BASH_SOURCE[1]:-?} line ${BASH_LINENO[0]:-?}${NC}" >&2
+    exit 1
   fi
 
   local packages=("$@")
