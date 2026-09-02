@@ -103,12 +103,16 @@ echo ""
 
 detect_and_install_nvidia() {
   echo -e "${YELLOW}Detecting NVIDIA GPU...${NC}"
-  NVIDIA="$(lspci | grep -i 'nvidia' || true)"
 
-  if [[ -z $NVIDIA ]]; then
+  # The predicate answers the yes or no, and the capture below supplies the
+  # model string that the driver regexes need. Asking twice costs a second
+  # lspci on NVIDIA machines only, which is nothing in a script that installs a
+  # desktop, and it keeps one definition of what counts as an NVIDIA GPU.
+  if ! bash "$DOTFILES_DIR/.local/bin/hyprsimple-hw-nvidia.sh"; then
     echo -e "${GREEN}No NVIDIA GPU detected, skipping${NC}"
     return 0
   fi
+  NVIDIA="$(lspci | grep -i 'nvidia' || true)"
 
   echo -e "${GREEN}NVIDIA GPU detected: $NVIDIA${NC}"
 
@@ -383,7 +387,7 @@ setup_firewall() {
 
 setup_battery() {
   echo -e "${YELLOW}Detecting battery...${NC}"
-  if ls /sys/class/power_supply/BAT* &>/dev/null; then
+  if bash "$DOTFILES_DIR/.local/bin/hyprsimple-hw-battery.sh"; then
     echo -e "${GREEN}Battery detected, setting balanced power profile${NC}"
     command -v powerprofilesctl &>/dev/null && powerprofilesctl set balanced
   else
@@ -650,7 +654,7 @@ systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
 muslimtify daemon status || true
 # thermald is Intel-only and pointless on AMD or on a desktop, so gate it
-if bash "$HOME/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
+if bash "$DOTFILES_DIR/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
   install_packages sudo pacman -S --noconfirm -- thermald
   sudo systemctl enable --now thermald || true
   echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"

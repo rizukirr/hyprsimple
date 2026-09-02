@@ -17,6 +17,6 @@ cpu_model=$(grep -m1 '^model[[:space:]]*:' /proc/cpuinfo | cut -d: -f2 | tr -d '
 (( cpu_model >= 42 )) || exit 1
 
 # Has a battery, i.e. is a laptop
-compgen -G "/sys/class/power_supply/BAT*" >/dev/null || exit 1
+"$(dirname "${BASH_SOURCE[0]}")/hyprsimple-hw-battery.sh" || exit 1
 
 exit 0
