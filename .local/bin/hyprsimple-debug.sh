@@ -12,7 +12,9 @@
 
 export HYPRSIMPLE_PATH="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}"
 
-LOG_FILE="/tmp/hyprsimple-debug.log"
+# mktemp rather than a fixed /tmp path. `>` on a predictable name in a
+# world-writable directory follows a symlink someone else placed there first.
+LOG_FILE="$(mktemp -t hyprsimple-debug.XXXXXX.log)"
 INSTALL_LOG="$HOME/.local/state/hyprsimple/install.log"
 
 PRINT_ONLY=false
@@ -36,8 +38,9 @@ while (( $# > 0 )); do
   shift
 done
 
-# Print a section only if the tool backing it exists, so this works on a
-# minimal install without erroring out.
+# A section heading. Whether a section has anything to report is decided by its
+# caller, each of which falls back to a note when the tool it needs is missing,
+# so this works on a minimal install without erroring out.
 section() {
   echo ""
   echo "========================================="
@@ -131,9 +134,15 @@ hyprsimple_version() {
 upload() {
   echo "Uploading to 0x0.st..."
   local url
-  url=$(curl -sF "file=@$LOG_FILE" -Fexpires=24 https://0x0.st)
 
-  if [[ -n $url ]]; then
+  # --fail matters: without it curl exits 0 on an HTTP error and prints the
+  # error body, which is non-empty, so a rate-limited upload used to be
+  # announced as a link. The https:// test catches a 200 carrying something
+  # that is not one.
+  url=$(curl --fail --silent --show-error \
+    -F "file=@$LOG_FILE" -Fexpires=24 https://0x0.st) || url=""
+
+  if [[ $url == https://* ]]; then
     echo ""
     echo "Log uploaded. Share this link on your issue:"
     echo ""
