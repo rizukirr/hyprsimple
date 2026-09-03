@@ -29,8 +29,16 @@ y() {
     local cwd
     yazi "$@" --cwd-file="$tmp"
     IFS= read -r -d '' cwd <"$tmp"
-    [ -n "$cwd" ] && [ "$cwd" != "$PWD" ] && builtin cd -- "$cwd" || return
+    # Clean up unconditionally, and still report a failed cd. The old form
+    # ended the chain with `|| return`, which fired on every exit that did not
+    # change directory and skipped the cleanup, leaving a yazi-cwd file behind
+    # in /tmp each time.
+    local rc=0
+    if [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+      builtin cd -- "$cwd" || rc=$?
+    fi
     rm -f -- "$tmp"
+    return "$rc"
   fi
 }
 

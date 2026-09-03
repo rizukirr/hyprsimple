@@ -7,7 +7,9 @@
 #   hyprsimple-muslimtify.sh remove   # strip waybar module + uninstall package
 #
 # Edits ~/.config/waybar/config.jsonc and ~/.config/waybar/style.css.
-# Backups are written next to the originals with a .bak suffix.
+# The first edit of each writes a .bak next to the original, and later edits
+# leave it alone, so the backup always holds the file as it was before
+# hyprsimple first touched it.
 
 set -u
 
@@ -40,7 +42,11 @@ reload_waybar() {
   ok "waybar reloaded"
 }
 
+# Keeps the first backup rather than the most recent one. add saves the user's
+# original, and a later remove used to overwrite that with the add-patched
+# version, so the thing the backup existed to preserve was the thing it lost.
 backup() {
+  [[ -f "$1.bak" ]] && return 0
   cp -f "$1" "$1.bak"
 }
 
@@ -52,12 +58,19 @@ pkg_installed() {
   pacman -Qi muslimtify >/dev/null 2>&1
 }
 
-# Returns the list of installed muslimtify-related packages (main + debug).
+# Returns the list of installed muslimtify-related packages (main + debug), or
+# nothing at all when none are installed.
+#
+# The guard matters. `printf '%s\n'` with no arguments still prints one empty
+# line, so an empty list reached mapfile as an array of length one holding "",
+# the caller's `(( ${#pkgs[@]} > 0 ))` was true, and remove tried to uninstall a
+# package with no name.
 installed_pkgs() {
   local p list=()
   for p in muslimtify muslimtify-debug; do
     pacman -Qi "$p" >/dev/null 2>&1 && list+=("$p")
   done
+  (( ${#list[@]} > 0 )) || return 0
   printf '%s\n' "${list[@]}"
 }
 
