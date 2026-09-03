@@ -5,11 +5,13 @@
 
 case "$1" in
   on)
-    sudo cpupower frequency-set -g performance
+    # Reporting the mode only if cpupower set it. Announcing it either way is
+    # how a failed governor change looked like a successful one.
+    sudo cpupower frequency-set -g performance || { echo "CPU: could not set performance" >&2; exit 1; }
     echo "CPU: performance"
     ;;
   off)
-    sudo cpupower frequency-set -g powersave
+    sudo cpupower frequency-set -g powersave || { echo "CPU: could not set powersave" >&2; exit 1; }
     echo "CPU: powersave"
     ;;
   *)
