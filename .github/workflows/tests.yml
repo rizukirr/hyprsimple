@@ -134,6 +134,9 @@ jobs:
       - name: generated-cleanup-test
         run: bash test/generated-cleanup-test.sh
 
+      - name: committed-symlinks-test
+        run: bash test/committed-symlinks-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
