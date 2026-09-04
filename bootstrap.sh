@@ -70,8 +70,43 @@ fi
 
 # ---- Canonical path ------------------------------------------------------
 
+# Anything below this point touches the destination, so the question is asked
+# first. It used to live in the middle of the copy, after `rm -rf
+# "$HYPRSIMPLE_PATH"`, which meant answering "no" deleted the install that was
+# already there and then declined to replace it. Nothing to undo, nothing left.
+confirm_installing_head() {
+  local src="$1"
+  git -C "$src" rev-parse HEAD &>/dev/null || return 0
+  [[ -n $(git -C "$src" status --porcelain) ]] || return 0
+
+  echo -e "${YELLOW}Uncommitted changes in $src will not be installed. Installing HEAD.${NC}"
+  # Only ask when someone is there to answer. Under curl-pipe, stdin is the
+  # script itself, so reading from it would consume the installer.
+  [[ -t 0 ]] || return 0
+
+  local reply
+  read -rp "Continue and install HEAD? (y/N) " reply
+  if [[ ! $reply =~ ^[Yy]$ ]]; then
+    echo -e "${RED}Aborted. Commit or stash your changes, then run this again.${NC}"
+    return 1
+  fi
+}
+
+# A directory with nothing in it is not somebody's data. A run that failed
+# after creating the destination used to wedge every later run behind a message
+# telling the user to move aside a directory this script had made itself.
+dir_is_empty() {
+  local entry
+  for entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    [[ -e $entry || -L $entry ]] && return 1
+  done
+  return 0
+}
+
+confirm_installing_head "$SOURCE_DIR"
+
 if [[ -e $HYPRSIMPLE_PATH ]]; then
-  if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]]; then
+  if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]] && ! dir_is_empty "$HYPRSIMPLE_PATH"; then
     echo -e "${RED}$HYPRSIMPLE_PATH exists but does not look like a hyprsimple checkout.${NC}"
     echo -e "${RED}Move it aside and run this again.${NC}"
     exit 1
@@ -92,18 +127,6 @@ copy_source_to_canonical_path() {
   # abort the installer under set -e. Testing HEAD covers both "not a repo" and
   # "no commits", and both divert to the plain copy below.
   if git -C "$SOURCE_DIR" rev-parse HEAD &>/dev/null; then
-    if [[ -n $(git -C "$SOURCE_DIR" status --porcelain) ]]; then
-      echo -e "${YELLOW}Uncommitted changes in $SOURCE_DIR will not be installed. Installing HEAD.${NC}"
-      # Only ask when someone is there to answer. Under curl-pipe, stdin is the
-      # script itself, so reading from it would consume the installer.
-      if [[ -t 0 ]]; then
-        read -rp "Continue and install HEAD? (y/N) " reply
-        if [[ ! $reply =~ ^[Yy]$ ]]; then
-          echo -e "${RED}Aborted. Commit or stash your changes, then run this again.${NC}"
-          return 1
-        fi
-      fi
-    fi
     git -C "$SOURCE_DIR" archive HEAD | tar -x -C "$HYPRSIMPLE_PATH"
     cp -a "$SOURCE_DIR/.git" "$HYPRSIMPLE_PATH/.git"
   else
