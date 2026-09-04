@@ -131,11 +131,34 @@ done
 # for as long as the timer is enabled, having done nothing.
 HARD_SCRIPT_DEPS=(
   "battery-monitor.sh upower upower"
+
+  # iw is how both of these find and configure a wireless interface, and
+  # neither has another way. It was in no package list and nothing hyprsimple
+  # installs depends on it, so it was present here only because CachyOS pulls
+  # it in through cachyos-settings and wireless-regdb. On a plain Arch machine
+  # with exactly this list, it would not have been there.
+  "wifi-powersave.sh iw iw"
+
+  # hotspot.sh is vendored create_ap and excluded from the lint step, but the
+  # feature is aliased as `hotspot` and documented, and its dependencies are
+  # this project's problem. Four of the five below are in packages.txt already
+  # and are there for nothing else, which is what made the missing one stand
+  # out: the access point, its DHCP, its NAT and its entropy were all provided,
+  # and the tool that finds the interface was not.
+  "hotspot.sh iw iw"
+  "hotspot.sh hostapd hostapd"
+  "hotspot.sh dnsmasq dnsmasq"
+  "hotspot.sh iptables iptables"
+  "hotspot.sh haveged haveged"
 )
 
 for entry in "${HARD_SCRIPT_DEPS[@]}"; do
   read -r script prog pkg <<<"$entry"
-  if [[ $(grep -c "\\b$prog\\b" "$REPO/.local/bin/$script") -eq 0 ]]; then
+  # Comment lines are stripped first. These scripts explain in prose why they
+  # call what they call, so counting every mention meant an entry stayed
+  # "current" after the script had stopped using the command entirely.
+  uses=$(grep -v '^[[:space:]]*#' "$REPO/.local/bin/$script" | grep -c "\\b$prog\\b")
+  if (( uses == 0 )); then
     fail "$script no longer calls $prog, so remove it from HARD_SCRIPT_DEPS"
   elif printf '%s\n' "$packages" | grep -qx "$pkg"; then
     pass "$prog is installed by hyprsimple, so $script can run (package $pkg)"
