@@ -128,6 +128,9 @@ jobs:
       - name: muslimtify-and-dns-test
         run: bash test/muslimtify-and-dns-test.sh
 
+      - name: launched-programs-test
+        run: bash test/launched-programs-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

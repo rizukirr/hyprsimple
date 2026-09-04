@@ -181,9 +181,6 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + B` | Open browser (Brave) |
 | `SUPER + A` | App launcher (Rofi) |
 | `SUPER + F` | File manager (Nautilus) |
-| `SUPER + O` | Notes (Obsidian) |
-| `SUPER + S` | Android Studio |
-| `SUPER + E` | Emoji picker |
 | `SUPER + V` | Clipboard history |
 | `SUPER + M` | Color picker |
 
