@@ -35,7 +35,7 @@ HOMEDIR="$TMP/home"
 must_be_fixture "$INSTALL"
 must_be_fixture "$HOMEDIR"
 mkdir -p "$INSTALL/.config/hypr/themes/templates" "$HOMEDIR/.local/bin" \
-  "$HOMEDIR/.config/hypr/themes/solo/generated" "$HOMEDIR/.config/wlogout"
+  "$HOMEDIR/.config/hypr/themes/solo/generated"
 
 cp "$REPO/.local/bin/theme-apply-templates.sh" "$HOMEDIR/.local/bin/"
 chmod +x "$HOMEDIR/.local/bin/theme-apply-templates.sh"
@@ -47,12 +47,12 @@ ln -sfn "$HOMEDIR/.config/hypr/themes/solo/generated/hyprland-colors.lua" \
   "$HOMEDIR/.config/hypr/theme-active.lua"
 
 printf '@define-color wl_background {{ background }};\n' \
-  >"$INSTALL/.config/hypr/themes/templates/wlogout-colors.css.tpl"
+  >"$INSTALL/.config/hypr/themes/templates/hyprlock.conf.tpl"
 
 # The fixture must be in the state these checks assume before any of them runs.
 # Five checks in this repository have passed against a fixture that was not what
 # it claimed, so this is asserted rather than trusted.
-if [[ -f $HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css ]]; then
+if [[ -f $HOMEDIR/.config/hypr/themes/solo/generated/hyprlock.conf ]]; then
   printf 'not ok - fixture already has rendered output before the first run\n' >&2
   exit 1
 fi
@@ -65,18 +65,18 @@ run_update() {
 
 run_update
 check "an unrendered template is rendered by the update" \
-  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css" 2>/dev/null)" "1"
-check "and the active theme's output reaches wlogout" \
-  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/wlogout/wlogout-colors.css" 2>/dev/null)" "1"
+  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/hypr/themes/solo/generated/hyprlock.conf" 2>/dev/null)" "1"
+check "and the active theme's output reaches the lock screen" \
+  "$(grep -c 'wl_background #2d353b' "$HOMEDIR/.config/hypr/theme-hyprlock.conf" 2>/dev/null)" "1"
 
-marker="$HOMEDIR/.config/hypr/themes/solo/generated/wlogout-colors.css"
+marker="$HOMEDIR/.config/hypr/themes/solo/generated/hyprlock.conf"
 printf '/* touched by hand */\n' >>"$marker"
 run_update
 check "an unchanged template does not trigger a re-render" \
   "$(grep -c 'touched by hand' "$marker")" "1"
 
 printf '@define-color wl_background {{ background }};\n@define-color wl_extra {{ foreground }};\n' \
-  >"$INSTALL/.config/hypr/themes/templates/wlogout-colors.css.tpl"
+  >"$INSTALL/.config/hypr/themes/templates/hyprlock.conf.tpl"
 run_update
 check "a changed template triggers a re-render" \
   "$(grep -c 'wl_extra #d3c6aa' "$marker")" "1"

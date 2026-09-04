@@ -46,8 +46,8 @@ else
   exit 2
 fi
 
-# Paths the policy covers. .local/share/assets/wlogout is deliberately absent:
-# those are UI icons with alpha, referenced by .config/wlogout/style.css.
+# Paths the policy covers: theme backgrounds and lock screens, which are
+# photographs, and assets, which is where any future UI art would go.
 mapfile -t targets < <(
   find .config/hypr/themes/*/backgrounds .config/hypr/themes/*/lockscreen.* assets \
     -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \

@@ -1,5 +1,4 @@
 # AUR Packages
-wlogout
 wl-mirror
 wl-screenrec-git
 muslimtify

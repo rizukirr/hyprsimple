@@ -78,17 +78,6 @@ if [[ -f "$GEN/hyprlock.conf" ]]; then
   cp "$GEN/hyprlock.conf" "$HOME/.config/hypr/theme-hyprlock.conf"
 fi
 
-# 6b. Update wlogout colors
-#
-# Copied rather than symlinked, deliberately. style.css imports this file, and
-# GTK treats a missing import as a fatal parse error that yields an empty
-# stylesheet, so a dangling link would leave the power menu entirely unstyled.
-# A copy means a theme without colors.toml keeps the previous colours instead.
-if [[ -f "$GEN/wlogout-colors.css" ]]; then
-  mkdir -p "$HOME/.config/wlogout"
-  cp "$GEN/wlogout-colors.css" "$HOME/.config/wlogout/wlogout-colors.css"
-fi
-
 # 7. Update Dunst colors
 # generated/dunst-colors is already valid dunst config, so it drops straight in
 # as an override. Drop-ins outrank the base dunstrc, and lexical order decides
