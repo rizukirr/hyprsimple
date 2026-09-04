@@ -73,11 +73,13 @@ mkdir -p "$THEME_DIR/generated"
 
 # The union of the install and the override directory, so a template added to
 # the repository renders without the user having anything at all.
+rendered=()
 while IFS= read -r name; do
   warn_about_stale "$name"
   tpl=$(template_path "$name")
   [[ -n $tpl ]] || continue
   sed -f "$sed_script" "$tpl" >"$THEME_DIR/generated/${name%.tpl}"
+  rendered+=("${name%.tpl}")
 done < <(
   {
     # Globs rather than `ls | grep`, which splits a template name containing a
@@ -87,6 +89,25 @@ done < <(
     done
   } | sort -u
 )
+
+# Everything under generated/ is written by this script and read by nothing
+# else, so a file here with no template behind it is output from a template
+# that has since been removed. wlogout's colours sat in all sixteen themes
+# after the power menu was dropped, because rendering only ever wrote.
+#
+# Guarded on having rendered something. If TEMPLATES_DIR were missing or empty
+# the loop above would produce no names, and reconciling against an empty set
+# would delete every generated file in every theme.
+if (( ${#rendered[@]} > 0 )); then
+  for existing in "$THEME_DIR/generated"/*; do
+    [[ -f $existing ]] || continue
+    keep=0
+    for name in "${rendered[@]}"; do
+      [[ $(basename "$existing") == "$name" ]] && keep=1 && break
+    done
+    (( keep )) || rm -f "$existing"
+  done
+fi
 
 rm "$sed_script"
 echo "Templates generated in $THEME_DIR/generated/"
