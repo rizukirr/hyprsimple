@@ -44,8 +44,12 @@ jobs:
           # this step locally, add --enable=all and read only the codes this
           # step would have caught.
           shellcheck --version | grep version:
+          # The rofi scripts are shell too, and were not in this list. Nothing
+          # had ever linted them: eleven findings were waiting, including an
+          # SC2034 dead variable, which is the class this step's severity was
+          # raised to catch.
           shellcheck --severity=style --exclude=SC2016 \
-            install.sh bootstrap.sh "${bins[@]}" test/*.sh
+            install.sh bootstrap.sh "${bins[@]}" test/*.sh .config/rofi/*/*.sh
           # Migrations deliberately carry no shebang, so the shell is stated
           # here. They are held to the same threshold, not because the shipped
           # ones will ever run again, since install.sh pre-creates their
@@ -139,6 +143,9 @@ jobs:
 
       - name: confirm-before-delete-test
         run: bash test/confirm-before-delete-test.sh
+
+      - name: powermenu-test
+        run: bash test/powermenu-test.sh
 
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
