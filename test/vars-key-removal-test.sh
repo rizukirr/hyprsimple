@@ -82,11 +82,10 @@ done
 
 # ---- the migration ------------------------------------------------------
 
-# A glob rather than parsing ls, which is the finding class this project has
-# actually shipped as a bug. Migrations are named after a unix timestamp, so
-# the glob's own sort is chronological.
-migrations=("$REPO/migrations"/*.sh)
-MIGRATION="${migrations[-1]}"
+# Pinned by name. Taking the newest migration instead made this suite point at
+# whatever landed last, and the next migration after it aimed all six checks
+# below at an unrelated file.
+MIGRATION="$REPO/migrations/1788529166.sh"
 if grep -q 'applications.lua' "$MIGRATION"; then
   pass "the newest migration is the applications.lua one"
 else
