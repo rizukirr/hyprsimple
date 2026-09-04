@@ -131,6 +131,9 @@ jobs:
       - name: launched-programs-test
         run: bash test/launched-programs-test.sh
 
+      - name: vars-key-removal-test
+        run: bash test/vars-key-removal-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
