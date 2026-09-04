@@ -190,17 +190,41 @@ if dunstctl count displayed >/dev/null 2>&1; then
   # Measured in the failing state rather than reasoned about: with the machine
   # idle, an ordinary -t 1000 notification was still displayed after 2 seconds
   # and a transient one was gone, at both critical and low urgency.
+  # These two race a wall clock against dunst's global timeout, so they report
+  # how long they actually took. "critical without -t outlives that window"
+  # failed once during a full sweep and could not be reproduced afterwards in
+  # twelve isolated runs or four more full sweeps. Neither theory survived
+  # testing: no suite restarts the live dunst, and the check held under load.
+  #
+  # Rather than guess at a fix for something that would not reproduce, the
+  # window is now measured. If the elapsed time reaches the timeout the check
+  # could not have concluded anything, and it says so instead of reporting the
+  # product as broken. The sleep is also 1s rather than 2.5s, which leaves four
+  # seconds of headroom in a five second window instead of two and a half.
+  global_timeout_ms=5000
+
+  elapsed_ms() { printf '%s' "$(( $(date +%s%3N) - $1 ))"; }
+
   dunstctl close-all
   notify-send -u critical -t 1000 --transient "probe" "critical honours -t"
-  sleep 2.5
+  sleep 1.5
   check "a critical notification honours its own -t" \
     "$(dunstctl count displayed)" "0"
 
   dunstctl close-all
+  started=$(date +%s%3N)
   notify-send -u critical --transient "probe" "critical without -t outlives it"
-  sleep 2.5
-  check "a critical notification without -t outlives that window" \
-    "$(dunstctl count displayed)" "1"
+  sleep 1
+  displayed=$(dunstctl count displayed)
+  took=$(elapsed_ms "$started")
+  if (( took >= global_timeout_ms )); then
+    printf 'not ok - inconclusive: reading the count took %sms, past the %sms timeout\n' \
+      "$took" "$global_timeout_ms" >&2
+    failures=$((failures + 1))
+  else
+    check "a critical notification without -t outlives that window ($((took))ms of ${global_timeout_ms}ms)" \
+      "$displayed" "1"
+  fi
   dunstctl close-all
 else
   printf 'skip - dunst not running, replacement behaviour not exercised\n'
