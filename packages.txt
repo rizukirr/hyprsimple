@@ -1,5 +1,6 @@
 # Core Hyprland
 hyprland
+uwsm
 hyprpaper
 hyprlock
 hypridle
@@ -36,6 +37,7 @@ zip
 cpupower
 btop
 power-profiles-daemon
+upower
 qt5-wayland
 qt6-wayland
 kvantum

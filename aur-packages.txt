@@ -1,7 +1,6 @@
 # AUR Packages
 wlogout
 wl-mirror
-nwg-look
 wl-screenrec-git
 muslimtify
 imagemagick

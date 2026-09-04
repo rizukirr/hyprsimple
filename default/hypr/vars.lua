@@ -7,9 +7,7 @@ M.fileManager = "nautilus"
 M.menu = os.getenv("HOME") .. "/.config/rofi/launcher/launcher.sh"
 M.powermenu = os.getenv("HOME") .. "/.config/rofi/powermenu/powermenu.sh"
 M.browser = "brave --enable-features=UseOzonePlatform --ozone-platform=wayland"
-M.notes = "obsidian"
 M.colorPicker = "hyprpicker"
-M.androidstudio = "android-studio"
 
 -- pcall so a syntax error in the user's file degrades to these defaults rather
 -- than killing the session. hypr.vars and default.hypr.vars are distinct module
