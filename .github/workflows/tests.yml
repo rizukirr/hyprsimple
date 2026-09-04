@@ -154,6 +154,9 @@ jobs:
       - name: shell-init-test
         run: bash test/shell-init-test.sh
 
+      - name: wifi-test
+        run: bash test/wifi-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
