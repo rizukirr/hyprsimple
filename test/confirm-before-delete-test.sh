@@ -52,7 +52,24 @@ fi
 SRC="$TMP/src"
 must_be_fixture "$SRC"
 mkdir -p "$SRC/migrations" "$SRC/.local/bin"
-cp "$REPO/bootstrap.sh" "$SRC/bootstrap.sh"
+
+# bootstrap.sh refuses to run anywhere but Arch, and CI is Ubuntu. The fixture
+# copy has that one guard neutered and nothing else, and the substitution is
+# asserted so a silent miss cannot leave this suite testing an unmodified
+# script that exits on line 35.
+#
+# This is not hypothetical. The first version of this suite ran bootstrap.sh
+# unmodified, and on CI it exited immediately, so "declining leaves the
+# existing install in place" passed because nothing had run at all. The check
+# below that the script actually gets as far as printing its own progress is
+# what stops that recurring.
+sed 's|^if \[\[ ! -f /etc/arch-release \]\]; then$|if false; then|' \
+  "$REPO/bootstrap.sh" >"$SRC/bootstrap.sh"
+
+check "the fixture neutered exactly the Arch guard and nothing else" \
+  "$(diff "$REPO/bootstrap.sh" "$SRC/bootstrap.sh" | grep -cE '^[<>]')" "2"
+check "and the fixture no longer refuses to run here" \
+  "$(grep -c 'if false; then' "$SRC/bootstrap.sh")" "1"
 printf '#!/bin/bash\necho install\n' >"$SRC/install.sh"
 printf 'echo migration\n' >"$SRC/migrations/1.sh"
 printf '#!/bin/bash\nexit 0\n' >"$SRC/.local/bin/hyprsimple-migrate.sh"
@@ -87,8 +104,14 @@ seed_existing_install() {
 
 # ---- declining must not destroy the existing install ---------------------
 
+# Before anything is concluded from bootstrap's behaviour, prove it ran. Every
+# check below reads a filesystem that an exiting script simply leaves alone,
+# which is indistinguishable from correct behaviour.
 seed_existing_install
 out="$(run_bootstrap n)"
+check "bootstrap actually runs, rather than exiting before it does anything" \
+  "$(printf '%s' "$out" | grep -c 'Using the checkout at')" "1"
+
 check "declining leaves the existing install in place" \
   "$([[ -f $DEST/USER_DATA.txt ]] && echo kept || echo DESTROYED)" "kept"
 check "declining says so" \
