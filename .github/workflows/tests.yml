@@ -15,7 +15,11 @@ jobs:
       - name: Install Lua and ImageMagick
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 imagemagick shellcheck
+          # fish and zsh are here so their own parsers can check their own init
+          # files. shellcheck cannot read either dialect, which is how both
+          # went unchecked: zsh.sh is excluded from the lint step by name, and
+          # fish.fish never matched its *.sh glob at all.
+          sudo apt-get install -y lua5.4 imagemagick shellcheck fish zsh
           # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
           # plain name exist rather than relying on the package to register it.
           sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua
@@ -146,6 +150,9 @@ jobs:
 
       - name: powermenu-test
         run: bash test/powermenu-test.sh
+
+      - name: shell-init-test
+        run: bash test/shell-init-test.sh
 
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
