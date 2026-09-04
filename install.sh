@@ -411,13 +411,41 @@ echo ""
 # hyprsimple-update.sh and every migration read from $HYPRSIMPLE_PATH, so mirror
 # this checkout there (including .git, so updates can pull).
 
+# A directory with nothing in it is not somebody's data. A run that failed
+# after creating the destination used to wedge every later run behind a message
+# telling the user to move aside a directory this installer had made itself.
+dir_is_empty() {
+  local entry
+  for entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    [[ -e $entry || -L $entry ]] && return 1
+  done
+  return 0
+}
+
 install_to_canonical_path() {
   if [[ $DOTFILES_DIR = "$HYPRSIMPLE_PATH" ]]; then
     return 0
   fi
 
+  # Asked before anything is touched. This used to sit in the middle of the
+  # copy, after the rm -rf below, so answering "no" deleted the install that was
+  # already there and then declined to replace it.
+  if git -C "$DOTFILES_DIR" rev-parse HEAD &>/dev/null &&
+    [[ -n $(git -C "$DOTFILES_DIR" status --porcelain) ]]; then
+    echo -e "${YELLOW}Uncommitted changes in $DOTFILES_DIR will not be installed. Installing HEAD.${NC}"
+    # Only ask when someone is there to answer. Under curl-pipe, stdin is the
+    # script itself, so reading from it would consume the installer.
+    if [[ -t 0 ]]; then
+      read -rp "Continue and install HEAD? (y/N) " reply
+      if [[ ! $reply =~ ^[Yy]$ ]]; then
+        echo -e "${RED}Aborted. Commit or stash your changes, then run this again.${NC}"
+        return 1
+      fi
+    fi
+  fi
+
   if [[ -e $HYPRSIMPLE_PATH ]]; then
-    if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]]; then
+    if [[ ! -f "$HYPRSIMPLE_PATH/install.sh" ]] && ! dir_is_empty "$HYPRSIMPLE_PATH"; then
       echo -e "${RED}$HYPRSIMPLE_PATH exists but does not look like a hyprsimple checkout.${NC}"
       echo -e "${RED}Move it aside and re-run this installer.${NC}"
       return 1
@@ -437,18 +465,6 @@ install_to_canonical_path() {
   # abort the installer under set -e. Testing HEAD covers both "not a repo" and
   # "no commits", and both divert to the plain copy below.
   if git -C "$DOTFILES_DIR" rev-parse HEAD &>/dev/null; then
-    if [[ -n $(git -C "$DOTFILES_DIR" status --porcelain) ]]; then
-      echo -e "${YELLOW}Uncommitted changes in $DOTFILES_DIR will not be installed. Installing HEAD.${NC}"
-      # Only ask when someone is there to answer. Under curl-pipe, stdin is the
-      # script itself, so reading from it would consume the installer.
-      if [[ -t 0 ]]; then
-        read -rp "Continue and install HEAD? (y/N) " reply
-        if [[ ! $reply =~ ^[Yy]$ ]]; then
-          echo -e "${RED}Aborted. Commit or stash your changes, then run this again.${NC}"
-          return 1
-        fi
-      fi
-    fi
     git -C "$DOTFILES_DIR" archive HEAD | tar -x -C "$HYPRSIMPLE_PATH"
     cp -a "$DOTFILES_DIR/.git" "$HYPRSIMPLE_PATH/.git"
   else
