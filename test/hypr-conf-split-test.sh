@@ -75,11 +75,35 @@ fi
 
 # ---- hyprlock.conf and xdph.conf are unchanged by the split --------------
 
-if cmp -s "$REPO/default/hypr/hyprlock.conf" "$PRESPLIT_HYPRLOCK"; then
-  pass "default/hypr/hyprlock.conf is byte-identical to the pre-split version"
-else
-  fail "default/hypr/hyprlock.conf is byte-identical to the pre-split version"
-fi
+# hyprlock.conf was byte-identical to the pre-split version until the clock's
+# font was fixed. Byte equality would now pin the file forever against any
+# change at all, which is not what this was protecting, so every difference has
+# to be a named one instead. The fixture itself must never change: the split
+# migration recognises those exact bytes on users' machines, which the checksum
+# check above pins.
+# Trailing whitespace is stripped from each side so a blank line in the diff
+# does not turn into a trailing space nobody can see in the expectation.
+hyprlock_diff="$(diff "$PRESPLIT_HYPRLOCK" "$REPO/default/hypr/hyprlock.conf" |
+  grep -E '^[<>]' | sed 's/[[:space:]]*$//')"
+read -r -d '' hyprlock_expected <<'EXPECTED'
+<     font_family = Fira Semibold
+>     font_family = JetBrainsMono Nerd Font
+<     halign = right
+<     valign = bottom
+<     shadow_passes = 5
+<     shadow_size = 10
+< }
+<
+< label {
+<     monitor =
+<     text = mening sare
+<     color = $font_color
+<     font_size = 20
+<     position = -100, 160
+EXPECTED
+
+check "default/hypr/hyprlock.conf differs from the pre-split version only where intended" \
+  "$hyprlock_diff" "$hyprlock_expected"
 
 if cmp -s "$REPO/default/hypr/xdph.conf" "$PRESPLIT_XDPH"; then
   pass "default/hypr/xdph.conf is byte-identical to the pre-split version"

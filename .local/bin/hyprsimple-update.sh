@@ -221,10 +221,10 @@ bash "$HOME/.local/bin/hyprsimple-migrate.sh"
 # ---- Themes, when a template changed --------------------------------------
 #
 # Templates are build inputs. Shipping one and never building it reaches nobody,
-# which is what happened when wlogout was themed: the stylesheet was wired up
-# correctly to colours that were never rendered, and every existing install sat
-# on the fallback until its next theme switch. It took a second migration to
-# notice.
+# which is what happened when the power menu was themed: the stylesheet was
+# wired up correctly to colours that were never rendered, and every existing
+# install sat on the fallback until its next theme switch. It took a second
+# migration to notice.
 #
 # Rendering here removes that class of bug rather than paying for it again. A
 # template change now reaches every theme on the next update, so no future
@@ -273,10 +273,6 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
       # && list, and a standalone list of that shape leaves set -e alone. What
       # actually took the update down was `x=$(cmd)` where cmd fails, which is
       # why the two assignments above carry `|| true` and these do not need it.
-      if [[ -f $gen/wlogout-colors.css ]]; then
-        mkdir -p "$HOME/.config/wlogout"
-        cp "$gen/wlogout-colors.css" "$HOME/.config/wlogout/wlogout-colors.css"
-      fi
       if [[ -f $gen/hyprlock.conf ]]; then
         cp "$gen/hyprlock.conf" "$HOME/.config/hypr/theme-hyprlock.conf"
       fi
@@ -294,9 +290,8 @@ fi
 # ---- Configs this update changed that you still hold your own copy of ----
 #
 # Some configs cannot be delivered automatically. starship.toml, yazi.toml and
-# hyprsunset.conf are TOML and wlogout/layout is a stream of JSON objects, and
-# none of those formats has an include directive, so there is no equivalent of
-# the rofi stubs or the dunst drop-in for them.
+# hyprsunset.conf are TOML, and that format has no include directive, so there
+# is no equivalent of the rofi stubs or the dunst drop-in for them.
 #
 # hyprsimple-refresh-config.sh has always been able to update one, but nothing
 # ever said that it needed updating, so the command existed and was never run.

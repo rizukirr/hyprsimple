@@ -144,6 +144,41 @@ for entry in "${HARD_SCRIPT_DEPS[@]}"; do
   fi
 done
 
+# A font is the same class of promise as a program: the config names it and
+# something has to install it. When nothing does, fontconfig substitutes
+# silently, so the lock screen or the bar renders in a font nobody chose and
+# nothing anywhere says so. default/hypr/hyprlock.conf asked for Fira Semibold
+# for months and every lock screen drew in Noto Sans.
+font_package_of() {
+  # Matched case-insensitively, because fontconfig is and the configs are not
+  # consistent about it.
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    "jetbrainsmono nerd font" | "jetbrainsmono nerd font mono") echo ttf-jetbrains-mono-nerd ;;
+    "iosevka nerd font") echo ttf-iosevka-nerd ;;
+    *) echo "" ;;
+  esac
+}
+
+mapfile -t fonts < <(
+  grep -rhoE 'font[_-]?family[[:space:]]*[:=][^;#}]*' "$REPO/.config" "$REPO/default" 2>/dev/null |
+    sed -E 's/^[^:=]*[:=][[:space:]]*//; s/[[:space:]]*$//' |
+    sort -u
+)
+
+check "the extractor found the fonts the config names" \
+  "$([[ ${#fonts[@]} -ge 1 ]] && echo enough || echo none)" "enough"
+
+for font in "${fonts[@]}"; do
+  pkg="$(font_package_of "$font")"
+  if [[ -z $pkg ]]; then
+    fail "the config asks for the font '$font', which no package in this table provides"
+  elif printf '%s\n' "$packages" | grep -qx "$pkg"; then
+    pass "the font '$font' is installed by hyprsimple (package $pkg)"
+  else
+    fail "the config asks for the font '$font' but no package list installs $pkg"
+  fi
+done
+
 # A package named twice is installed twice, once from the repositories and once
 # through the AUR helper, and the second one is a build nobody asked for.
 dupes="$(printf '%s\n' "$packages" | sort | uniq -d | tr '\n' ' ')"
