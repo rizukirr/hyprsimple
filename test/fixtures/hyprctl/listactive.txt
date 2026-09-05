@@ -1,0 +1,1 @@
+eDP-1: /path/to/theme/backgrounds/0-with-you.jpg

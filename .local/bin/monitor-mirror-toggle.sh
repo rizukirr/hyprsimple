@@ -46,7 +46,13 @@ mirror_off() {
 }
 
 is_mirrored() {
-  hyprctl monitors | grep -A 5 "$EXTERNAL" | grep -q "mirror of $PRIMARY"
+  # hyprctl reports this as a mirrorOf field, not the prose "mirror of", and it
+  # sits 23 lines into the block, so the old `grep -A 5` could not have reached
+  # it even with the right pattern. Read the field by name instead.
+  local mirror
+  mirror=$(hyprctl monitors -j |
+    jq -r --arg external "$EXTERNAL" '.[] | select(.name == $external) | .mirrorOf')
+  [[ $mirror == "$PRIMARY" ]]
 }
 
 case "$MODE" in

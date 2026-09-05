@@ -24,10 +24,11 @@ ACTION="$1"
 turn_off() {
   # Try to get current wallpaper from hyprpaper IPC
   ACTIVE=$(hyprctl hyprpaper listactive 2>/dev/null | head -1)
-  # Parse: output format is "monitor = /path/to/wallpaper"
-  # shellcheck disable=SC2001  # the run of spaces is variable width, which
-  # parameter expansion cannot match
-  RESOLVED=$(echo "$ACTIVE" | sed 's/.*= *//')
+  # Parse: hyprpaper answers "monitor: /path/to/wallpaper". It was read here as
+  # "monitor = /path", so the strip matched nothing, the path kept its "eDP-1: "
+  # prefix, the -f check below rejected it, and every disable fell back to the
+  # cached wallpaper. That is the exact staleness this lookup exists to avoid.
+  RESOLVED="${ACTIVE#*: }"
 
   # Validate resolved path exists and is inside the theme backgrounds dir
   if [[ ! -f "$RESOLVED" || "$RESOLVED" != "$BG_DIR"/* ]]; then

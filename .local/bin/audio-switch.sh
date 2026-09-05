@@ -33,8 +33,13 @@ fi
 
 [[ -z $next_sink_description ]] && next_sink_description="$next_sink_name"
 
-if [[ $next_sink_name != "$current_sink_name" ]]; then
-  pactl set-default-sink "$next_sink_name"
+# With a single sink the cycle lands back on the one already selected. That set
+# no default and still reported "Switched to", so the only machine where this
+# key does nothing was also the only one where it always claimed success.
+if [[ $next_sink_name == "$current_sink_name" ]]; then
+  notify-send "Audio Output" "Only one audio output: $next_sink_description"
+  exit 0
 fi
 
+pactl set-default-sink "$next_sink_name"
 notify-send "Audio Output" "Switched to: $next_sink_description"
