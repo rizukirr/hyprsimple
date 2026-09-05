@@ -1,0 +1,4 @@
+[
+  { "name": "eDP-1", "focused": true, "mirrorOf": "none" },
+  { "name": "HDMI-A-1", "focused": false, "mirrorOf": "none" }
+]

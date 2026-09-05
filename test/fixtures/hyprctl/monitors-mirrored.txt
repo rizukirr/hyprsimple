@@ -1,0 +1,25 @@
+Monitor eDP-1 (ID 0):
+	1920x1080@144.00200 at 0x0
+	description: LG Display 0x074D
+	focused: yes
+	dpmsStatus: 1
+	vrr: false
+	solitary: 0
+	activelyTearing: false
+	disabled: false
+	currentFormat: XRGB8888
+	mirrorOf: none
+	availableModes: 1920x1080@144.00Hz
+
+Monitor HDMI-A-1 (ID 1):
+	1920x1080@60.00000 at 0x0
+	description: Acme Projector
+	focused: no
+	dpmsStatus: 1
+	vrr: false
+	solitary: 0
+	activelyTearing: false
+	disabled: false
+	currentFormat: XRGB8888
+	mirrorOf: eDP-1
+	availableModes: 1920x1080@60.00Hz

@@ -91,6 +91,9 @@ jobs:
       - name: theme-picker-test
         run: bash test/theme-picker-test.sh
 
+      - name: toggle-scripts-test
+        run: bash test/toggle-scripts-test.sh
+
       - name: update-channel-test
         run: bash test/update-channel-test.sh
 
