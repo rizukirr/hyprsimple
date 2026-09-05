@@ -289,9 +289,9 @@ fi
 
 # ---- Configs this update changed that you still hold your own copy of ----
 #
-# Some configs cannot be delivered automatically. starship.toml, yazi.toml and
-# hyprsunset.conf are TOML, and that format has no include directive, so there
-# is no equivalent of the rofi stubs or the dunst drop-in for them.
+# Some configs cannot be delivered automatically. starship.toml and yazi.toml
+# are TOML, and that format has no include directive, so there is no equivalent
+# of the rofi stubs or the dunst drop-in for them.
 #
 # hyprsimple-refresh-config.sh has always been able to update one, but nothing
 # ever said that it needed updating, so the command existed and was never run.

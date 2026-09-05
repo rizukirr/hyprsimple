@@ -6,6 +6,11 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
   hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")
   hl.exec_cmd("uwsm app -- hypridle")
+  -- hyprsunset applies the profiles in ~/.config/hypr/hyprsunset.conf. Nothing
+  -- started it before, so those profiles never ran: the file invited you to
+  -- uncomment a night profile and uncommenting it did nothing. SUPER+N starts
+  -- it too, but only for that session and only once pressed.
+  hl.exec_cmd("uwsm app -- hyprsunset")
   hl.exec_cmd("uwsm app -- " .. os.getenv("HOME") .. "/.local/bin/capslock-notify.sh")
   hl.exec_cmd("uwsm app -- " .. vars.terminal)
   -- apply, not on: the flag records what you chose, and login restores it
