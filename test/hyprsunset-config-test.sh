@@ -77,8 +77,15 @@ else
     local dir="$TMP/xdg-$RANDOM"; mkdir -p "$dir/hypr"
     cp "$1" "$dir/hypr/hyprsunset.conf"
     timeout 4 env XDG_CONFIG_HOME="$dir" hyprsunset >"$dir/out" 2>&1 &
-    local pid=$!
-    sleep 2
+    local pid=$! waited=0
+    # Wait for the verdict rather than for a fixed two seconds. Four of these
+    # in one suite made the sweep noticeably slower, and a fixed sleep is both
+    # slower than it needs to be and flakier than it looks.
+    while (( waited < 40 )); do
+      grep -q 'Loaded [0-9]* profiles' "$dir/out" 2>/dev/null && break
+      sleep 0.1
+      waited=$((waited + 1))
+    done
     kill "$pid" 2>/dev/null
     pkill -x hyprsunset 2>/dev/null
     wait "$pid" 2>/dev/null
