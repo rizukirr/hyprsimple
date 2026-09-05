@@ -70,6 +70,18 @@ esac
 exit 0
 STUBEOF
 
+# multilib is a property of the machine's pacman.conf, so the test says whether
+# it is on rather than reading the real one.
+cat >"$STUB/pacman-conf" <<'STUBEOF'
+#!/bin/bash
+[[ ${MULTILIB:-on} == on ]] && printf 'core
+extra
+multilib
+' || printf 'core
+extra
+'
+STUBEOF
+
 # sudo runs what follows it, so `sudo pacman` reaches the pacman stub.
 cat >"$STUB/sudo" <<'STUBEOF'
 #!/bin/bash
@@ -102,7 +114,7 @@ run_nvidia() {
   HOME="$HOME_DIR" CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" \
     HYPRSIMPLE_MODULES_DIR="$TMP/modules" \
     NVIDIA_MODEL="$1" INSTALLED="$2" INSTALL_RC="${3:-0}" \
-    REPO_PACKAGES="${4:-}" \
+    REPO_PACKAGES="${4:-}" MULTILIB="${5:-on}" \
     bash -c '
       set -uo pipefail
       RED=""; GREEN=""; YELLOW=""; NC=""
@@ -167,6 +179,32 @@ check "a prebuilt kernel module is preferred over DKMS" \
   "$(grep -c '^pacman -S .*linux-nvidia-open' "$LOG")" "1"
 check "and DKMS is then not installed" \
   "$(grep -c 'nvidia-open-dkms' "$LOG")" "0"
+
+# --- 32-bit OpenGL is gated on multilib, and prime-run is always installed ---
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "" on
+check "with multilib on, Turing+ installs the 32-bit driver" \
+  "$(grep -c 'lib32-nvidia-utils' "$LOG")" "1"
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "" off
+check "with multilib off it is skipped rather than failed" \
+  "$(grep -c 'lib32-nvidia-utils' "$LOG")" "0"
+check "and the skip is explained" \
+  "$(grep -c 'multilib\] is not enabled' "$TMP/out")" "1"
+check "and the rest of the driver still installs" \
+  "$(grep -c '^pacman -S .*nvidia-open-dkms' "$LOG")" "1"
+
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-580xx-utils" 0 "" off
+check "the legacy branch skips its 32-bit driver too" \
+  "$(grep -c 'lib32-nvidia-580xx-utils' "$LOG")" "0"
+check "and still installs the legacy driver itself" \
+  "$(grep -c '^paru .*nvidia-580xx-dkms' "$LOG")" "1"
+
+for gen in "AD107M [GeForce RTX 4050 Max-Q]:nvidia-utils" "GP106 [GeForce GTX 1060 6GB]:nvidia-580xx-utils"; do
+  run_nvidia "${gen%%:*}" "${gen##*:}"
+  check "nvidia-prime is installed for ${gen%% *}, since FAQ.md's fix needs prime-run" \
+    "$(grep -c 'nvidia-prime' "$LOG")" "1"
+done
 
 # --- no NVIDIA at all -------------------------------------------------------
 

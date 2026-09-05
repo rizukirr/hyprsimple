@@ -105,6 +105,15 @@ lsmod | grep nvidia                          # empty at boot = good
 prime-run glxinfo | grep "OpenGL renderer"   # still loads the dGPU on demand
 ```
 
+> [!IMPORTANT]
+> `prime-run` comes from `nvidia-prime` and `glxinfo` from `mesa-utils`. The
+> installer now installs `nvidia-prime` alongside the driver, but it did not
+> before, and `mesa-utils` is not installed at all. On an older install:
+>
+> ```bash
+> sudo pacman -S --needed nvidia-prime mesa-utils
+> ```
+
 > [!NOTE]
 > Scope the change to the bleeding-edge entry only; leave your LTS entry untouched as a
 > fallback. The community `nomodeset` workaround also boots, but disables **all** KMS

@@ -144,12 +144,17 @@ detect_and_install_nvidia() {
     else
       NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-open-dkms nvidia-utils libva-nvidia-driver)
     fi
+    # prime-run lives here, and FAQ.md's remedy for the Optimus boot hang is
+    # written around having it. Nothing installed it.
+    NVIDIA_PACKAGES+=(nvidia-prime)
+    NVIDIA_LIB32_PACKAGES=(lib32-nvidia-utils)
     NVIDIA_INSTALLER=(sudo pacman -S --noconfirm)
     NVIDIA_UTILS_PKG="nvidia-utils"
     GPU_ARCH="turing_plus"
   # Maxwell/Pascal/Volta (GTX 9xx/10xx, Quadro P/M, MX, Titan X/Xp/V)
   elif echo "$NVIDIA" | grep -qE "GTX (9[0-9]{2}|10[0-9]{2})|GT 10[0-9]{2}|Quadro [PM][0-9]{3,4}|Quadro GV100|MX *[0-9]+|Titan (X|Xp|V)|Tesla V100"; then
-    NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils)
+    NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-580xx-dkms nvidia-580xx-utils nvidia-prime)
+    NVIDIA_LIB32_PACKAGES=(lib32-nvidia-580xx-utils)
     # The 580xx legacy series is not in any official Arch repository, so
     # installing it with `sudo pacman -S` could never have worked: every GTX
     # 9xx and 10xx machine on stock Arch got three "target not found" failures
@@ -162,6 +167,17 @@ detect_and_install_nvidia() {
   else
     echo -e "${YELLOW}No compatible NVIDIA driver found. See: https://wiki.archlinux.org/title/NVIDIA${NC}"
     return 0
+  fi
+
+  # 32-bit OpenGL, which is Steam and wine. Arch ships [multilib] commented out
+  # and hyprsimple never edits pacman.conf, so on a stock install these names do
+  # not resolve at all. Upstream gets away with listing them unconditionally
+  # because it ships its own pacman.conf with multilib turned on. Asking is
+  # cheaper than adding three more entries to FAILED_PACKAGES.
+  if pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then
+    NVIDIA_PACKAGES+=("${NVIDIA_LIB32_PACKAGES[@]}")
+  else
+    echo -e "${YELLOW}[multilib] is not enabled, so ${NVIDIA_LIB32_PACKAGES[*]} is being skipped. Enable it in /etc/pacman.conf if you want 32-bit OpenGL for Steam or wine.${NC}"
   fi
 
   echo -e "${YELLOW}Installing NVIDIA packages: ${NVIDIA_PACKAGES[*]}${NC}"
