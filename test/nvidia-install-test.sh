@@ -1,0 +1,278 @@
+#!/bin/bash
+# detect_and_install_nvidia had never been run by anything, and it installed
+# the legacy driver with the wrong package manager.
+#
+# The Maxwell/Pascal/Volta branch installs nvidia-580xx-dkms, nvidia-580xx-utils
+# and lib32-nvidia-580xx-utils. None of the three is in any official Arch
+# repository, and all three were passed to `sudo pacman -S`, so on stock Arch
+# every GTX 9xx and 10xx machine got three "target not found" failures. That
+# was survivable. What followed was not: install_packages records failures and
+# returns 0 regardless, so the function went on to append
+# __GLX_VENDOR_LIBRARY_NAME=nvidia to uwsm/env, rebuild the initramfs, and
+# print "NVIDIA setup complete". That variable points GLX at libGLX_nvidia.so.0
+# and, with no driver installed, every OpenGL application in the next session
+# fails. The installer's own advice is to re-run it, which reproduced the same
+# state.
+#
+# Both branches are driven here, both with the install working and with it
+# failing, against stubs. Nothing installs anything.
+
+set -uo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+failures=0
+pass() { printf 'ok - %s\n' "$1"; }
+fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
+check() {
+  if [[ $2 == "$3" ]]; then pass "$1"
+  else printf 'not ok - %s (want %s, got %s)\n' "$1" "$3" "$2" >&2; failures=$((failures + 1)); fi
+}
+
+# Take the function out of install.sh by name. install.sh cannot be sourced:
+# it installs a desktop from the top of the file down.
+FUNCS="$TMP/funcs.sh"
+sed -n '/^detect_and_install_nvidia() {/,/^}/p' "$REPO/install.sh" >"$FUNCS"
+sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
+
+# An extraction that quietly produced nothing would let every check below pass
+# for the wrong reason. This is the shape that has already cost this repository
+# five vacuous checks, so assert the extraction before using it.
+for marker in 'detect_and_install_nvidia() {' 'install_packages() {' \
+  'NVIDIA_DRIVER_PACKAGES' 'NVIDIA-MODULE' 'nvidia-580xx-dkms' \
+  '__GLX_VENDOR_LIBRARY_NAME'; do
+  if grep -qF -- "$marker" "$FUNCS"; then
+    pass "extracted source contains $marker"
+  else
+    fail "extracted source is missing $marker, so nothing below is testing install.sh"
+  fi
+done
+
+STUB="$TMP/bin"; mkdir -p "$STUB"
+LOG="$TMP/calls"
+
+cat >"$STUB/lspci" <<'STUBEOF'
+#!/bin/bash
+printf '00:02.0 VGA compatible controller: Intel Corporation UHD Graphics\n'
+printf '01:00.0 VGA compatible controller: NVIDIA Corporation %s\n' "$NVIDIA_MODEL"
+STUBEOF
+
+# INSTALLED lists the packages pacman should claim are present, so the test
+# says whether the driver landed rather than the stub deciding.
+cat >"$STUB/pacman" <<'STUBEOF'
+#!/bin/bash
+printf 'pacman %s\n' "$*" >>"$CALL_LOG"
+case "${1:-}" in
+  -Si) [[ " ${REPO_PACKAGES:-} " == *" $2 "* ]] && exit 0; exit 1 ;;
+  -Qq)
+    # NVIDIA-MODULE is a virtual provide, so answer it with the name of the
+    # package the test says is providing it, the way pacman does.
+    if [[ $2 == NVIDIA-MODULE ]]; then
+      [[ -n ${INSTALLED_MODULE_PKG:-} ]] || exit 1
+      printf '%s\n' "$INSTALLED_MODULE_PKG"; exit 0
+    fi
+    # nvidia-580xx-utils provides nvidia-utils, and -Qq resolves provides, so
+    # the stub has to as well or the gate looks broken when it is not.
+    if [[ $2 == nvidia-utils && " ${INSTALLED:-} " == *" nvidia-580xx-utils "* ]]; then exit 0; fi
+    [[ " ${INSTALLED:-} " == *" $2 "* ]] && exit 0; exit 1 ;;
+esac
+exit 0
+STUBEOF
+
+# multilib is a property of the machine's pacman.conf, so the test says whether
+# it is on rather than reading the real one.
+cat >"$STUB/pacman-conf" <<'STUBEOF'
+#!/bin/bash
+[[ ${MULTILIB:-on} == on ]] && printf 'core
+extra
+multilib
+' || printf 'core
+extra
+'
+STUBEOF
+
+# sudo runs what follows it, so `sudo pacman` reaches the pacman stub.
+cat >"$STUB/sudo" <<'STUBEOF'
+#!/bin/bash
+"$@"
+STUBEOF
+
+# The two installers a driver site can be handed. Each logs and reports whether
+# the test wants it to succeed.
+for helper in paru mkinitcpio; do
+  cat >"$STUB/$helper" <<STUBEOF
+#!/bin/bash
+printf '$helper %s\n' "\$*" >>"\$CALL_LOG"
+exit "\${INSTALL_RC:-0}"
+STUBEOF
+done
+chmod +x "$STUB"/*
+
+# A kernel whose pkgbase is known, so KERNEL_HEADERS is derived rather than
+# skipped. Without this the function returns early on any CI runner.
+MODULES="$TMP/modules/$(uname -r)"
+mkdir -p "$MODULES"
+printf 'linux\n' >"$MODULES/pkgbase"
+
+HOME_DIR="$TMP/home"
+
+# Run the function with one scenario's worth of environment.
+run_nvidia() {
+  rm -rf "$HOME_DIR"; mkdir -p "$HOME_DIR/.config/uwsm"
+  : >"$LOG"
+  HOME="$HOME_DIR" CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" \
+    HYPRSIMPLE_MODULES_DIR="$TMP/modules" \
+    NVIDIA_MODEL="$1" INSTALLED="$2" INSTALL_RC="${3:-0}" \
+    REPO_PACKAGES="${4:-}" MULTILIB="${5:-on}" \
+    INSTALLED_MODULE_PKG="${6:-}" \
+    bash -c '
+      set -uo pipefail
+      RED=""; GREEN=""; YELLOW=""; NC=""
+      AUR_HELPER="paru"
+      DOTFILES_DIR="'"$REPO"'"
+      FAILED_PACKAGES=()
+      source "'"$FUNCS"'"
+      detect_and_install_nvidia
+    ' >"$TMP/out" 2>&1
+}
+
+env_file() { cat "$HOME_DIR/.config/uwsm/env" 2>/dev/null; }
+
+# --- the legacy branch reaches the AUR helper, not pacman -------------------
+
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-580xx-utils"
+check "a GTX 1060 is recognised as the legacy generation" \
+  "$(grep -c 'nvidia-580xx-dkms' "$LOG")" "1"
+check "and the legacy driver is installed with the AUR helper" \
+  "$(grep -c '^paru .*nvidia-580xx-dkms' "$LOG")" "1"
+check "and not with pacman, which cannot resolve those names" \
+  "$(grep -c '^pacman -S .*nvidia-580xx' "$LOG")" "0"
+
+# --- a failed install must not write the env vars ---------------------------
+
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "" 1
+check "with the legacy driver missing no GLX vendor is exported" \
+  "$(env_file | grep -c '__GLX_VENDOR_LIBRARY_NAME')" "0"
+check "and the initramfs is not rebuilt" "$(grep -c '^mkinitcpio' "$LOG")" "0"
+check "and the failure is named" \
+  "$(grep -c 'No NVIDIA userspace driver is installed' "$TMP/out")" "1"
+check "and it does not claim the setup completed" \
+  "$(grep -c 'NVIDIA setup complete' "$TMP/out")" "0"
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "" 1
+check "with the current driver missing no GLX vendor is exported either" \
+  "$(env_file | grep -c '__GLX_VENDOR_LIBRARY_NAME')" "0"
+check "and that failure is reported too" \
+  "$(grep -c 'No NVIDIA userspace driver is installed' "$TMP/out")" "1"
+
+# --- a successful install still writes the right block ----------------------
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils"
+check "a working Turing+ install exports the direct backend" \
+  "$(env_file | grep -c 'NVD_BACKEND=direct')" "1"
+check "and rebuilds the initramfs" "$(grep -c '^mkinitcpio -P' "$LOG")" "1"
+check "and reports the architecture it chose" \
+  "$(grep -c 'arch: turing_plus' "$TMP/out")" "1"
+check "and Turing+ still goes through pacman" \
+  "$(grep -c '^pacman -S .*nvidia-open-dkms' "$LOG")" "1"
+
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-580xx-utils"
+check "a working legacy install exports the egl backend" \
+  "$(env_file | grep -c 'NVD_BACKEND=egl')" "1"
+check "and never exports the direct backend" \
+  "$(env_file | grep -c 'NVD_BACKEND=direct')" "0"
+
+# A derivative that ships a prebuilt module for this kernel must be preferred
+# over the DKMS build.
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "linux-nvidia-open"
+check "a prebuilt kernel module is preferred over DKMS" \
+  "$(grep -c '^pacman -S .*linux-nvidia-open' "$LOG")" "1"
+check "and DKMS is then not installed" \
+  "$(grep -c 'nvidia-open-dkms' "$LOG")" "0"
+
+# --- 32-bit OpenGL is gated on multilib, and prime-run is always installed ---
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "" on
+check "with multilib on, Turing+ installs the 32-bit driver" \
+  "$(grep -c 'lib32-nvidia-utils' "$LOG")" "1"
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "" off
+check "with multilib off it is skipped rather than failed" \
+  "$(grep -c 'lib32-nvidia-utils' "$LOG")" "0"
+check "and the skip is explained" \
+  "$(grep -c 'multilib\] is not enabled' "$TMP/out")" "1"
+check "and the rest of the driver still installs" \
+  "$(grep -c '^pacman -S .*nvidia-open-dkms' "$LOG")" "1"
+
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-580xx-utils" 0 "" off
+check "the legacy branch skips its 32-bit driver too" \
+  "$(grep -c 'lib32-nvidia-580xx-utils' "$LOG")" "0"
+check "and still installs the legacy driver itself" \
+  "$(grep -c '^paru .*nvidia-580xx-dkms' "$LOG")" "1"
+
+for gen in "AD107M [GeForce RTX 4050 Max-Q]:nvidia-utils" "GP106 [GeForce GTX 1060 6GB]:nvidia-580xx-utils"; do
+  run_nvidia "${gen%%:*}" "${gen##*:}"
+  check "nvidia-prime is installed for ${gen%% *}, since FAQ.md's fix needs prime-run" \
+    "$(grep -c 'nvidia-prime' "$LOG")" "1"
+done
+
+# --- a driver the distribution already installed is left alone --------------
+
+# CachyOS installs an NVIDIA driver whether or not the machine has the GPU, and
+# these packages collide with it rather than upgrade it: nvidia-580xx-dkms
+# conflicts with NVIDIA-MODULE and nvidia-580xx-utils conflicts with
+# nvidia-utils, so under --noconfirm the whole transaction fails.
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-utils" 0 "" on "linux-cachyos-lts-nvidia-open"
+check "an existing driver means the conflicting module is not installed" \
+  "$(grep -c 'nvidia-580xx-dkms' "$LOG")" "0"
+check "and the conflicting userspace driver is not installed either" \
+  "$(grep -c 'nvidia-580xx-utils' "$LOG")" "0"
+check "and neither is its 32-bit half" \
+  "$(grep -c 'lib32-nvidia-580xx-utils' "$LOG")" "0"
+check "but the additions still are" "$(grep -c 'nvidia-prime' "$LOG")" "1"
+check "and the driver that is already there is named" \
+  "$(grep -c 'linux-cachyos-lts-nvidia-open already provides' "$TMP/out")" "1"
+check "and the env vars are still written, because a driver is present" \
+  "$(env_file | grep -c 'NVD_BACKEND=egl')" "1"
+check "and the user is told what to remove if the GPU does not work" \
+  "$(grep -c 'remove linux-cachyos-lts-nvidia-open' "$TMP/out")" "1"
+
+run_nvidia "AD107M [GeForce RTX 4050 Max-Q]" "nvidia-utils" 0 "" on "linux-cachyos-nvidia-open"
+check "Turing+ leaves an existing driver alone too" \
+  "$(grep -c 'nvidia-open-dkms' "$LOG")" "0"
+check "and still writes the direct backend" \
+  "$(env_file | grep -c 'NVD_BACKEND=direct')" "1"
+
+# With no driver present the full stack is installed, which is the check that
+# stops the branch above from being a way to install nothing at all.
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "nvidia-580xx-utils" 0 "" on ""
+check "with no driver present the legacy stack is installed in full" \
+  "$(grep -c '^paru .*nvidia-580xx-dkms.*nvidia-580xx-utils' "$LOG")" "1"
+
+# The env gate asks for nvidia-utils, which the legacy package provides, so one
+# question covers both generations.
+run_nvidia "GP106 [GeForce GTX 1060 6GB]" "" 1 "" on ""
+check "a legacy install that failed writes no env vars" \
+  "$(env_file | grep -c '__GLX_VENDOR_LIBRARY_NAME')" "0"
+check "and says no userspace driver is installed" \
+  "$(grep -c 'No NVIDIA userspace driver is installed' "$TMP/out")" "1"
+
+# --- no NVIDIA at all -------------------------------------------------------
+
+cat >"$STUB/lspci" <<'STUBEOF'
+#!/bin/bash
+printf '00:02.0 VGA compatible controller: Intel Corporation UHD Graphics\n'
+STUBEOF
+chmod +x "$STUB/lspci"
+run_nvidia "" ""
+check "a machine with no NVIDIA GPU installs nothing" \
+  "$(grep -c 'nvidia' "$LOG")" "0"
+check "and says so" "$(grep -c 'No NVIDIA GPU detected' "$TMP/out")" "1"
+
+if (( failures > 0 )); then
+  printf '\n%s check(s) failed\n' "$failures" >&2
+  exit 1
+fi
+printf '\nall checks passed\n'

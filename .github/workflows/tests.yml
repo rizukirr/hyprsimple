@@ -127,6 +127,9 @@ jobs:
       - name: screenshot-and-battery-test
         run: bash test/screenshot-and-battery-test.sh
 
+      - name: nvidia-install-test
+        run: bash test/nvidia-install-test.sh
+
       - name: hw-predicate-test
         run: bash test/hw-predicate-test.sh
 

@@ -118,7 +118,11 @@ detect_and_install_nvidia() {
 
   # Derive the kernel package base from the running kernel's modules dir
   # (works for stock Arch and custom kernels like linux-cachyos-lts).
-  KERNEL_BASE="$(cat "/usr/lib/modules/$(uname -r)/pkgbase" 2>/dev/null || true)"
+  # Overridable so the suite can arrange both answers. A test that can only
+  # ever see the kernel this machine is running has only tested one of them,
+  # and on a CI runner with no pkgbase file at all it would test neither.
+  MODULES_DIR="${HYPRSIMPLE_MODULES_DIR:-/usr/lib/modules}"
+  KERNEL_BASE="$(cat "$MODULES_DIR/$(uname -r)/pkgbase" 2>/dev/null || true)"
   if [[ -z $KERNEL_BASE ]]; then
     echo -e "${YELLOW}Could not detect kernel package base; skipping NVIDIA driver install. Install '<kernel>-headers' and an NVIDIA driver manually: https://wiki.archlinux.org/title/NVIDIA${NC}"
     return 0
@@ -135,23 +139,81 @@ detect_and_install_nvidia() {
 
   # Turing+ (GTX 16xx, RTX 20xx-50xx, RTX Pro, Quadro RTX, datacenter)
   if echo "$NVIDIA" | grep -qE "GTX 16[0-9]{2}|RTX [2-5][0-9]{3}|RTX PRO [0-9]{4}|Quadro RTX|RTX A[0-9]{4}|A[1-9][0-9]{2}|H[1-9][0-9]{2}|T4|L[0-9]+"; then
+    # The driver stack is kept apart from the additions, because a machine that
+    # already has a driver must be given the second without the first.
     if [[ -n $NVIDIA_OPEN_PREBUILT ]]; then
-      NVIDIA_PACKAGES=("$NVIDIA_OPEN_PREBUILT" nvidia-utils libva-nvidia-driver)
+      NVIDIA_DRIVER_PACKAGES=("$NVIDIA_OPEN_PREBUILT" nvidia-utils)
     else
-      NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-open-dkms nvidia-utils libva-nvidia-driver)
+      NVIDIA_DRIVER_PACKAGES=("$KERNEL_HEADERS" nvidia-open-dkms nvidia-utils)
     fi
+    # prime-run lives in nvidia-prime, and FAQ.md's remedy for the Optimus boot
+    # hang is written around having it. Nothing installed it.
+    NVIDIA_EXTRA_PACKAGES=(libva-nvidia-driver nvidia-prime)
+    NVIDIA_LIB32_PACKAGES=(lib32-nvidia-utils)
+    NVIDIA_INSTALLER=(sudo pacman -S --noconfirm)
     GPU_ARCH="turing_plus"
   # Maxwell/Pascal/Volta (GTX 9xx/10xx, Quadro P/M, MX, Titan X/Xp/V)
   elif echo "$NVIDIA" | grep -qE "GTX (9[0-9]{2}|10[0-9]{2})|GT 10[0-9]{2}|Quadro [PM][0-9]{3,4}|Quadro GV100|MX *[0-9]+|Titan (X|Xp|V)|Tesla V100"; then
-    NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils)
+    NVIDIA_DRIVER_PACKAGES=("$KERNEL_HEADERS" nvidia-580xx-dkms nvidia-580xx-utils)
+    NVIDIA_EXTRA_PACKAGES=(nvidia-prime)
+    NVIDIA_LIB32_PACKAGES=(lib32-nvidia-580xx-utils)
+    # The 580xx legacy series is not in any official Arch repository, so
+    # installing it with `sudo pacman -S` could never have worked: every GTX
+    # 9xx and 10xx machine on stock Arch got three "target not found" failures
+    # and nothing else. Some derivatives do ship these in a repo, and an AUR
+    # helper prefers the repo copy where one exists, so the helper is the right
+    # installer on both.
+    NVIDIA_INSTALLER=("$AUR_HELPER" -S --noconfirm)
     GPU_ARCH="maxwell_pascal_volta"
   else
     echo -e "${YELLOW}No compatible NVIDIA driver found. See: https://wiki.archlinux.org/title/NVIDIA${NC}"
     return 0
   fi
 
+  # Distributions built on Arch often ship a working driver already: CachyOS
+  # installs one whether or not the machine has an NVIDIA GPU. These packages do
+  # not upgrade that, they collide with it. nvidia-580xx-dkms conflicts with
+  # NVIDIA-MODULE, which every driver provides, and nvidia-580xx-utils conflicts
+  # with nvidia-utils, so on such a machine the transaction cannot resolve at
+  # all and --noconfirm turns that into a hard failure. --needed does not help,
+  # because the collision is between different package names.
+  #
+  # A driver that is already there is the distribution's choice and probably
+  # matches its kernel better than a guess from an lspci string does, so leave
+  # it alone and install only what is additive.
+  NVIDIA_PACKAGES=("${NVIDIA_EXTRA_PACKAGES[@]}")
+  INSTALLED_MODULE="$(pacman -Qq NVIDIA-MODULE 2>/dev/null | head -1)"
+  if [[ -n $INSTALLED_MODULE ]]; then
+    echo -e "${GREEN}$INSTALLED_MODULE already provides the NVIDIA kernel module, so the driver stack is being left as it is. Installing only ${NVIDIA_EXTRA_PACKAGES[*]}.${NC}"
+    echo -e "${YELLOW}If the GPU does not work after this, that driver is the one to change: remove $INSTALLED_MODULE, then re-run ./install.sh to get ${NVIDIA_DRIVER_PACKAGES[*]} instead.${NC}"
+  else
+    NVIDIA_PACKAGES=("${NVIDIA_DRIVER_PACKAGES[@]}" "${NVIDIA_PACKAGES[@]}")
+    # 32-bit OpenGL, which is Steam and wine. Arch ships [multilib] commented
+    # out and hyprsimple never edits pacman.conf, so on a stock install these
+    # names do not resolve either. Upstream lists them unconditionally because
+    # it ships its own pacman.conf with multilib turned on.
+    if pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then
+      NVIDIA_PACKAGES+=("${NVIDIA_LIB32_PACKAGES[@]}")
+    else
+      echo -e "${YELLOW}[multilib] is not enabled, so ${NVIDIA_LIB32_PACKAGES[*]} is being skipped. Enable it in /etc/pacman.conf if you want 32-bit OpenGL for Steam or wine.${NC}"
+    fi
+  fi
+
   echo -e "${YELLOW}Installing NVIDIA packages: ${NVIDIA_PACKAGES[*]}${NC}"
-  install_packages sudo pacman -S --noconfirm -- "${NVIDIA_PACKAGES[@]}"
+  install_packages "${NVIDIA_INSTALLER[@]}" -- "${NVIDIA_PACKAGES[@]}"
+
+  # install_packages collects failures into FAILED_PACKAGES and returns 0 either
+  # way, so ask what actually landed. Writing the block below with no driver
+  # present is worse than writing nothing: __GLX_VENDOR_LIBRARY_NAME=nvidia
+  # points GLX at libGLX_nvidia.so.0, and with that file absent every OpenGL
+  # application in the next session fails. nvidia-utils is the name to ask for
+  # in every case: the legacy nvidia-580xx-utils provides it, and -Qq resolves
+  # provides, so one question covers both generations and the driver a
+  # distribution installed under some third name.
+  if ! pacman -Qq nvidia-utils &>/dev/null; then
+    echo -e "${YELLOW}No NVIDIA userspace driver is installed, so the NVIDIA environment variables and the initramfs rebuild are being skipped. Leaving them out keeps OpenGL working. Install the packages listed above by hand, then re-run ./install.sh.${NC}"
+    return 0
+  fi
 
   # Append NVIDIA env vars to uwsm/env
   if [[ $GPU_ARCH = "turing_plus" ]]; then
