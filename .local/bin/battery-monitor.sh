@@ -45,11 +45,18 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
   done
 
   if [[ -n $crossed ]]; then
-    brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
-
-    # Once per crossing. Falling into a lower band writes a new value here and
-    # so notifies again, which is the escalation this file was always for.
+    # Once per crossing, for the dimming as well as the message. Falling into a
+    # lower band writes a new value here and so acts again, which is the
+    # escalation this file was always for.
+    #
+    # The dimming used to sit outside this check and so ran on every tick. The
+    # timer fires every 30 seconds, so from the moment the battery passed 20%
+    # the screen was forced back to 5% twice a minute and could not be turned
+    # up: raise it to read something, and half a minute later it was dark
+    # again. Dimming hard and early is deliberate. Pinning it there, against
+    # the user, was not.
     if [[ ! -f "$FLAG_FILE" ]] || [[ $(cat "$FLAG_FILE" 2>/dev/null) != "$crossed" ]]; then
+      brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
       notify-send -u critical "Battery Low" "Battery at ${BATTERY_LEVEL}%, brightness reduced to ${LOW_BATTERY_BRIGHTNESS}%"
       echo "$crossed" >"$FLAG_FILE"
     fi
