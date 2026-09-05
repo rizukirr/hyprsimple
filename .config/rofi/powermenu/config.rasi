@@ -1,3 +1,6 @@
+/* This file is yours. hyprsimple copies it once and never touches it again,
+   so anything you change here stays changed. */
+
 configuration {
     show-icons:                 false;
 }

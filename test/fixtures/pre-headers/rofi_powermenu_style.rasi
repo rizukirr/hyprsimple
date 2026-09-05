@@ -1,7 +1,3 @@
-/* This file is yours, with one exception: the line naming
-   images/wallpaper.<ext> is rewritten on every theme switch so it matches the
-   wallpaper's actual format. Everything else here is kept. */
-
 /*****----- Global Properties -----*****/
 @import                          "powermenu/config.rasi"
 @import                          "powermenu/color.rasi"

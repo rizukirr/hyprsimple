@@ -1,7 +1,4 @@
 {
-    // This file is yours. hyprsimple copies it once and never touches it again,
-    // so anything you change here stays changed, and a module hyprsimple adds
-    // later will not appear here on its own.
     "layer": "top", // Waybar at top layer
     "position": "top", // Waybar position (top|bottom|left|right)
     // clock module (incl. themed calendar colors) is generated per-theme; see theme-clock.jsonc

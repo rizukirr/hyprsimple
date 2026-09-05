@@ -1,6 +1,3 @@
-# This file is yours. hyprsimple copies it once and never touches it again,
-# so anything you change here stays changed.
-
 "$schema" = 'https://starship.rs/config-schema.json'
 
 palette = 'catppuccin_mocha'
