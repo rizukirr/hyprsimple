@@ -137,6 +137,92 @@ else
     "$(probe 'notification_height = 0')" "1"
 fi
 
+# --- the correction reaches a machine that already exists --------------------
+#
+# Fixing the shipped file was only half of it. Everything under ~/.config is
+# copied once and never overwritten, so #91's correction reached new installs
+# and nothing else, and every machine installed before it still named
+# Yaru-gray. Measured on a live install after that update landed: the shipped
+# file read Yaru-dark and the home copy still read Yaru-gray.
+
+MIGRATION="$REPO/migrations/1788645000.sh"
+check "the migration that carries it exists" \
+  "$([[ -f $MIGRATION ]] && echo yes || echo no)" "yes"
+check "and it sorts after every migration written before it" \
+  "$(basename "$MIGRATION" .sh)" \
+  "$(for m in "$REPO/migrations"/*.sh; do basename "$m" .sh; done | sort -n | tail -1)"
+
+MHOME="$TMP/fakehome"
+mk() {
+  rm -rf "${TMP:?}/fakehome"
+  mkdir -p "$MHOME/.config/hypr/themes/vantablack"
+  [[ -n ${1:-} ]] && printf '%s\n' "$1" >"$MHOME/.config/hypr/themes/vantablack/icons.theme"
+  return 0
+}
+run_migration() { HOME="$MHOME" PATH="$TMP/mbin:$PATH" bash "$MIGRATION" >"$TMP/mout" 2>&1; }
+named() { tr -d '[:space:]' <"$MHOME/.config/hypr/themes/vantablack/icons.theme" 2>/dev/null; }
+
+# gsettings is stubbed to record rather than to touch the running desktop. A
+# suite must not repaint the machine it runs on.
+mkdir -p "$TMP/mbin"
+cat >"$TMP/mbin/gsettings" <<EOF
+#!/bin/bash
+printf '%s\n' "\$*" >>"$TMP/gsettings.log"
+EOF
+chmod +x "$TMP/mbin/gsettings"
+
+mk 'Yaru-gray'
+run_migration
+check "the value that does not exist is replaced" "$(named)" "Yaru-dark"
+check "and the replacement is one Yaru ships" \
+  "$(printf '%s\n' "${YARU_VARIANTS[@]}" | grep -cx "$(named)")" "1"
+check "and it says so" "$(grep -c 'Yaru-gray does not exist' "$TMP/mout")" "1"
+
+mk 'Yaru-dark'
+run_migration
+check "a home already corrected is left as it is" "$(named)" "Yaru-dark"
+# Every migration prints its own title line, so silence here means that line
+# and nothing after it.
+check "and reports nothing beyond its title, having done nothing" \
+  "$(grep -vc 'Give vantablack an icon theme' "$TMP/mout" || true)" "0"
+
+mk 'Papirus-Dark'
+run_migration
+check "a value the user chose is not overwritten" "$(named)" "Papirus-Dark"
+check "and they are told it was left alone" \
+  "$(grep -c 'left alone' "$TMP/mout")" "1"
+
+rm -rf "${TMP:?}/fakehome"; mkdir -p "$MHOME/.config/hypr/themes"
+run_migration
+check "a home without vantablack is left alone and says so" \
+  "$(grep -c 'nothing to do' "$TMP/mout")" "1"
+
+# Rewriting the file is enough for the next theme switch. If vantablack is the
+# theme in force, gsettings still holds Yaru-gray and nothing else would
+# correct it until the user switched away and back.
+rm -f "$TMP/gsettings.log"
+mk 'Yaru-gray'
+mkdir -p "$MHOME/.config/hypr/themes/vantablack/generated"
+printf 'return {}\n' >"$MHOME/.config/hypr/themes/vantablack/generated/hyprland-colors.lua"
+ln -sf "$MHOME/.config/hypr/themes/vantablack/generated/hyprland-colors.lua" \
+  "$MHOME/.config/hypr/theme-active.lua"
+run_migration
+check "with vantablack active the change is applied now" \
+  "$(grep -c 'icon-theme Yaru-dark' "$TMP/gsettings.log" 2>/dev/null || true)" "1"
+
+# And not applied when some other theme is in force, which would repaint a
+# desktop the user is not looking at.
+rm -f "$TMP/gsettings.log"
+mk 'Yaru-gray'
+mkdir -p "$MHOME/.config/hypr/themes/rosepine/generated"
+printf 'return {}\n' >"$MHOME/.config/hypr/themes/rosepine/generated/hyprland-colors.lua"
+ln -sf "$MHOME/.config/hypr/themes/rosepine/generated/hyprland-colors.lua" \
+  "$MHOME/.config/hypr/theme-active.lua"
+run_migration
+check "the file is still fixed for next time" "$(named)" "Yaru-dark"
+check "but another theme's desktop is not repainted" \
+  "$([[ -f $TMP/gsettings.log ]] && echo called || echo untouched)" "untouched"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
