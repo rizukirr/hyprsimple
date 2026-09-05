@@ -419,9 +419,38 @@ setup_network() {
   echo -e "${YELLOW}Setting up Network...${NC}"
   # Prevent boot hanging on network
   sudo systemctl disable systemd-networkd-wait-online.service 2>/dev/null
-  # Symlink systemd-resolved
-  sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-  echo -e "${GREEN}Network configured${NC}"
+
+  # Both overridable so the suite can arrange a machine without resolved without
+  # touching this one's DNS.
+  local resolv_conf="${HYPRSIMPLE_RESOLV_CONF:-/etc/resolv.conf}"
+  local resolved_stub="${HYPRSIMPLE_RESOLVED_STUB:-/run/systemd/resolve/stub-resolv.conf}"
+
+  # This used to repoint /etc/resolv.conf at the stub unconditionally. Nothing
+  # here installs or enables systemd-resolved, and when it is not running that
+  # path does not exist, so the link dangled and the machine had no DNS at all:
+  # not just afterwards, but for the rest of this script, which still has a
+  # release tag to fetch and two packages to install. setup-dns.sh already
+  # refuses to touch DNS when resolved is not running. This did the more
+  # destructive version of the same thing with no check.
+  if ! systemctl is-active --quiet systemd-resolved; then
+    echo -e "${YELLOW}systemd-resolved is not running, enabling it...${NC}"
+    sudo systemctl enable --now systemd-resolved 2>/dev/null || true
+  fi
+
+  # enable --now returns once the unit is active, which is not quite the same
+  # moment the stub appears.
+  local waited=0
+  while [[ ! -e $resolved_stub ]] && (( waited < 30 )); do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+
+  if [[ -e $resolved_stub ]]; then
+    sudo ln -sf "$resolved_stub" "$resolv_conf"
+    echo -e "${GREEN}Network configured${NC}"
+  else
+    echo -e "${YELLOW}systemd-resolved is not running and could not be started, so $resolv_conf is being left alone. Pointing it at a stub that is not there would leave this machine with no DNS.${NC}"
+  fi
 }
 
 setup_printer() {
