@@ -94,6 +94,9 @@ jobs:
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
+      - name: btop-theme-test
+        run: bash test/btop-theme-test.sh
+
       - name: config-ownership-test
         run: bash test/config-ownership-test.sh
 

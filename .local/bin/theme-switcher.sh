@@ -93,9 +93,31 @@ else
 fi
 
 # 8. Update btop theme
+#
+# Copying the theme into place was never enough: btop only reads the file its
+# own config names, and nothing set that. hyprsimple installs btop, install.sh
+# creates the themes directory, every theme renders a btop.theme and every
+# switch copied one here, and btop.conf still said color_theme = "Default",
+# which is what btop writes for itself on first run. The themed btop has never
+# worked on any install.
+#
+# btop names a theme by its filename without the extension, so the file written
+# below is selected as "current".
 if [[ -f "$GEN/btop.theme" ]]; then
   mkdir -p "$HOME/.config/btop/themes"
   cp "$GEN/btop.theme" "$HOME/.config/btop/themes/current.theme"
+
+  BTOP_CONF="$HOME/.config/btop/btop.conf"
+  if [[ ! -f $BTOP_CONF ]]; then
+    # btop fills in every key it does not find, so naming the theme is enough.
+    printf 'color_theme = "current"\n' >"$BTOP_CONF"
+  elif grep -q '^color_theme = ' "$BTOP_CONF"; then
+    # Replaced rather than appended: btop reads the file top to bottom and a
+    # second assignment would win, and the file would grow a line per switch.
+    sed -i 's|^color_theme = .*|color_theme = "current"|' "$BTOP_CONF"
+  else
+    printf 'color_theme = "current"\n' >>"$BTOP_CONF"
+  fi
 fi
 
 # 9. Wallpaper (copy so hyprpaper detects change)
