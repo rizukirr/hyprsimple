@@ -69,7 +69,7 @@ check "no shipped theme has a rofi directory, which is what made the link dangle
 # --- the migration removes what earlier installs already have ----------------
 
 mk_home() {
-  rm -rf "$TMP/home"
+  rm -rf "${TMP:?}/home"
   mkdir -p "$TMP/home/.config/rofi/launcher" "$TMP/home/.config/rofi/powermenu"
   mkdir -p "$TMP/home/.config/hypr/themes/deep-sea"
   # The real directories carry real files, as they do on a live install.
