@@ -723,9 +723,16 @@ ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
 # migration, the same guarantee dunstrc.d and hypr/hyprsimple already give.
 ln -sfn "$HYPRSIMPLE_PATH/default/rofi" "$HOME/.config/rofi/hyprsimple"
 
-# One-time setup: symlink rofi launcher/powermenu dirs to the default theme
-ln -sfn "$THEME_DIR/rofi/launcher" "$HOME/.config/rofi/launcher"
-ln -sfn "$THEME_DIR/rofi/powermenu" "$HOME/.config/rofi/powermenu"
+# There were two `ln -sfn "$THEME_DIR/rofi/<type>" ~/.config/rofi/<type>` lines
+# here, meant to point the rofi directories at the active theme. They did
+# neither thing. ~/.config/rofi/launcher is a real directory by then, copied
+# from .config/rofi above, and `ln -s` given an existing directory writes the
+# link inside it, so the result was ~/.config/rofi/launcher/launcher. And no
+# theme has ever shipped a rofi/ directory, so the target did not exist either
+# way and both links dangled from the moment they were made.
+#
+# theme-switcher.sh is what actually themes rofi: it writes images/ and patches
+# style.rasi inside those real directories. Nothing was ever reading the links.
 
 # Enable live wallpaper by default (theme-switcher reads this when writing hyprpaper.conf)
 touch "$CACHE_DIR/live_wallpaper_enabled"
