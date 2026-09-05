@@ -118,7 +118,11 @@ detect_and_install_nvidia() {
 
   # Derive the kernel package base from the running kernel's modules dir
   # (works for stock Arch and custom kernels like linux-cachyos-lts).
-  KERNEL_BASE="$(cat "/usr/lib/modules/$(uname -r)/pkgbase" 2>/dev/null || true)"
+  # Overridable so the suite can arrange both answers. A test that can only
+  # ever see the kernel this machine is running has only tested one of them,
+  # and on a CI runner with no pkgbase file at all it would test neither.
+  MODULES_DIR="${HYPRSIMPLE_MODULES_DIR:-/usr/lib/modules}"
+  KERNEL_BASE="$(cat "$MODULES_DIR/$(uname -r)/pkgbase" 2>/dev/null || true)"
   if [[ -z $KERNEL_BASE ]]; then
     echo -e "${YELLOW}Could not detect kernel package base; skipping NVIDIA driver install. Install '<kernel>-headers' and an NVIDIA driver manually: https://wiki.archlinux.org/title/NVIDIA${NC}"
     return 0
@@ -140,10 +144,20 @@ detect_and_install_nvidia() {
     else
       NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-open-dkms nvidia-utils libva-nvidia-driver)
     fi
+    NVIDIA_INSTALLER=(sudo pacman -S --noconfirm)
+    NVIDIA_UTILS_PKG="nvidia-utils"
     GPU_ARCH="turing_plus"
   # Maxwell/Pascal/Volta (GTX 9xx/10xx, Quadro P/M, MX, Titan X/Xp/V)
   elif echo "$NVIDIA" | grep -qE "GTX (9[0-9]{2}|10[0-9]{2})|GT 10[0-9]{2}|Quadro [PM][0-9]{3,4}|Quadro GV100|MX *[0-9]+|Titan (X|Xp|V)|Tesla V100"; then
     NVIDIA_PACKAGES=("$KERNEL_HEADERS" nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils)
+    # The 580xx legacy series is not in any official Arch repository, so
+    # installing it with `sudo pacman -S` could never have worked: every GTX
+    # 9xx and 10xx machine on stock Arch got three "target not found" failures
+    # and nothing else. Some derivatives do ship these in a repo, and an AUR
+    # helper prefers the repo copy where one exists, so the helper is the right
+    # installer on both.
+    NVIDIA_INSTALLER=("$AUR_HELPER" -S --noconfirm)
+    NVIDIA_UTILS_PKG="nvidia-580xx-utils"
     GPU_ARCH="maxwell_pascal_volta"
   else
     echo -e "${YELLOW}No compatible NVIDIA driver found. See: https://wiki.archlinux.org/title/NVIDIA${NC}"
@@ -151,7 +165,18 @@ detect_and_install_nvidia() {
   fi
 
   echo -e "${YELLOW}Installing NVIDIA packages: ${NVIDIA_PACKAGES[*]}${NC}"
-  install_packages sudo pacman -S --noconfirm -- "${NVIDIA_PACKAGES[@]}"
+  install_packages "${NVIDIA_INSTALLER[@]}" -- "${NVIDIA_PACKAGES[@]}"
+
+  # install_packages collects failures into FAILED_PACKAGES and returns 0 either
+  # way, so ask what actually landed. Writing the block below with no driver
+  # present is worse than writing nothing: __GLX_VENDOR_LIBRARY_NAME=nvidia
+  # points GLX at libGLX_nvidia.so.0, and with that file absent every OpenGL
+  # application in the next session fails. -Qq resolves provides, which is what
+  # is wanted here, since a package providing the driver is a driver.
+  if ! pacman -Qq "$NVIDIA_UTILS_PKG" &>/dev/null; then
+    echo -e "${YELLOW}$NVIDIA_UTILS_PKG is not installed, so the NVIDIA environment variables and the initramfs rebuild are being skipped. Leaving them out keeps OpenGL working. Install the packages listed above by hand, then re-run ./install.sh.${NC}"
+    return 0
+  fi
 
   # Append NVIDIA env vars to uwsm/env
   if [[ $GPU_ARCH = "turing_plus" ]]; then
