@@ -160,21 +160,26 @@ run_migration() {
     bash "$MIGRATION" >"$TMP/mout" 2>&1
 }
 
-# A previous shipped version, taken from git rather than retyped. Written
-# straight to a file: a command substitution strips the trailing newline, which
-# changes the checksum and makes the comparison below meaningless.
-git -C "$REPO" show "HEAD:.config/hypr/hyprland.lua" >"$TMP/prev.lua" 2>/dev/null || true
-if [[ ! -s $TMP/prev.lua ]]; then
-  fail "could not read the previous hyprland.lua from git, so the migration is untested"
+# The version this replaces, as a committed fixture. Not read from git history:
+# CI checks out shallow, so `git show HEAD:` there hands back the current file
+# and the migration check would compare it against itself and pass.
+PREV="$REPO/test/fixtures/hypr/hyprland.lua.pre-softload"
+if [[ ! -s $PREV ]]; then
+  fail "the pre-fix fixture is missing, so the migration is untested"
 else
-  prev_sum=$(md5sum "$TMP/prev.lua" | cut -d' ' -f1)
+  prev_sum=$(md5sum "$PREV" | cut -d' ' -f1)
+  if cmp -s "$PREV" "$ENTRY"; then
+    fail "the fixture is identical to the current entrypoint, so it is not a previous version"
+  else
+    pass "the fixture differs from the current entrypoint, as a previous version must"
+  fi
   if grep -q "$prev_sum" "$MIGRATION"; then
     pass "the migration lists the checksum of the version it replaces"
   else
     fail "the migration does not list $prev_sum, so it will not update an existing install"
   fi
 
-  mk_migration_home_from_file "$TMP/prev.lua"
+  mk_migration_home_from_file "$PREV"
   run_migration
   check "an untouched entrypoint is replaced" \
     "$(cmp -s "$TMP/mhome/.config/hypr/hyprland.lua" "$ENTRY" && echo yes || echo no)" "yes"
