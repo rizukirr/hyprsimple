@@ -97,6 +97,67 @@ missing_str=""
 (( ${#missing[@]} > 0 )) && missing_str="$(printf '%s ' "${missing[@]}")"
 check "every alias target exists in .local/bin" "$missing_str" ""
 
+# ---- and everything that target runs has to be installed ------------------
+#
+# "the alias target exists" is not the same as "the alias works". search.sh and
+# search_by_keyword.sh, reached by `ffile` and `fany` in all three shells, both
+# preview with bat, and nothing in packages.txt or aur-packages.txt installed it
+# or pulled it in. Verified against the transitive closure of both lists: 633
+# packages, and bat in none of them. Both aliases shipped with a dead preview
+# pane on every install.
+#
+# The map is explicit rather than derived, because a command name and its
+# package name agree only sometimes, and because pacman is not on the CI runner
+# so nothing here can ask the system what provides what.
+
+declare -A PROVIDED_BY=(
+  [bat]=bat [fzf]=fzf [rg]=ripgrep [nvim]=neovim [lsd]=lsd [yazi]=yazi
+  [zoxide]=zoxide [starship]=starship [jq]=jq [git]=git [lazygit]=lazygit
+  [iw]=iw [notify-send]=libnotify [hyprctl]=hyprland
+)
+
+# nmcli is deliberately absent from that map. wifi.sh chooses its backend by
+# which service is running and says so plainly when neither is, and hotspot.sh
+# opens with `which nmcli >/dev/null 2>&1 || return 1`. NetworkManager is an
+# optional backend here, not a missing dependency, and listing it would force
+# one choice on machines already running iwd or networkd.
+
+# Only the scripts an alias exposes. Those are the ones a user runs by name,
+# and the ones where a missing dependency is a broken command rather than a
+# degraded internal.
+mapfile -t alias_targets < <(grep -hoE "\.local/bin/[a-zA-Z0-9_.-]+\.sh" \
+  "$BIN/bashrc.sh" "$BIN/zsh.sh" "$BIN/fish.fish" | sed 's|.*/||' | LC_ALL=C sort -u)
+
+if (( ${#alias_targets[@]} < 3 )); then
+  fail "found ${#alias_targets[@]} alias targets, which is too few to be right"
+else
+  pass "checked ${#alias_targets[@]} scripts that an alias exposes"
+fi
+
+unlisted=()
+found_any=0
+for script in "${alias_targets[@]}"; do
+  [[ -f $BIN/$script ]] || continue
+  for cmd in "${!PROVIDED_BY[@]}"; do
+    grep -qE "(^|[^a-zA-Z0-9_./-])$cmd([^a-zA-Z0-9_-]|$)" "$BIN/$script" || continue
+    found_any=$((found_any + 1))
+    pkg="${PROVIDED_BY[$cmd]}"
+    grep -qxF "$pkg" "$REPO/packages.txt" "$REPO/aur-packages.txt" && continue
+    unlisted+=("$script needs $cmd from $pkg")
+  done
+done
+
+# A scan that matched nothing would pass this silently.
+if (( found_any < 3 )); then
+  fail "matched only $found_any known commands across those scripts, so the scan is not working"
+else
+  pass "matched $found_any known command uses to check"
+fi
+
+unlisted_str=""
+(( ${#unlisted[@]} > 0 )) && unlisted_str="$(printf '%s; ' "${unlisted[@]}")"
+check "every command an aliased script runs is in a package list" "$unlisted_str" ""
+
 # ---- a usage line has to name something that exists -----------------------
 #
 # search_by_keyword.sh printed "Usage sk [keyword]". There has never been an sk,
