@@ -87,7 +87,7 @@ start_screenrecording() {
   # The recorder is backgrounded, so a bad argument or a missing shared library
   # ends it immediately and silently: no file, no indicator, no message. Give it
   # a moment and say so if it is already gone.
-  sleep 0.4
+  sleep "${HYPRSIMPLE_RECORDER_START_WAIT:-0.4}"
   if ! kill -0 "$pid" 2>/dev/null; then
     notify-send "Screen recording failed to start ($recorder)" -u critical -t 5000
     exit 1

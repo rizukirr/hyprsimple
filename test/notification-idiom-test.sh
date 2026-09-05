@@ -55,7 +55,17 @@ STUBEOF
 chmod +x "$STUB/notify-send"
 
 # Stand-ins for the tools each script queries. None of them may notify.
-for tool in wpctl brightnessctl hyprshot pkill upower pw-cli slurp; do
+#
+# pactl, wf-recorder and wl-screenrec are here for a second reason. This suite
+# runs screen-record.sh in internal-audio mode, and used to get no further than
+# "No monitor source found" because the monitor lookup went through pw-cli,
+# stubbed below, and the lookup was broken anyway. When that lookup was fixed to
+# use pactl, the real pactl answered, the real wf-recorder started, and this
+# suite recorded the screen three times per sweep. A suite that runs
+# screen-record.sh must not be able to reach a real recorder, whatever the
+# script does next.
+for tool in wpctl brightnessctl hyprshot pkill upower pw-cli slurp pactl \
+  wf-recorder wl-screenrec; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"
   chmod +x "$STUB/$tool"
 done

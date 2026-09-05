@@ -44,14 +44,32 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 LOG="$TMP/calls"
 NLOG="$TMP/notifications"
 
+# The stubs have to outlive the script's liveness check and nothing more. An
+# earlier version slept five seconds, which left four processes named
+# wf-recorder on the machine after one run. screen-record.sh and
+# waybar-screenrecording.sh both ask `pgrep -x wf-recorder` whether a recording
+# is in progress, so those leftovers made two unrelated suites report a
+# recording that was not happening. Each stub records its own pid and the trap
+# kills exactly those, so nothing here can reach a real recorder.
+PIDFILE="$TMP/stub-pids"
+: >"$PIDFILE"
 for rec in wf-recorder wl-screenrec; do
   cat >"$STUB/$rec" <<STUBEOF
 #!/bin/bash
 printf '$rec %s\\n' "\$*" >>"\$CALL_LOG"
-# Long enough that the liveness check sees a running process.
-exec sleep 5
+printf '%s\\n' "\$\$" >>"\$STUB_PIDS"
+exec sleep 2
 STUBEOF
 done
+
+kill_stubs() {
+  local pid
+  while read -r pid; do
+    [[ -n $pid ]] && kill "$pid" 2>/dev/null
+  done <"$PIDFILE"
+  : >"$PIDFILE"
+}
+trap 'kill_stubs; rm -rf "${TMP:?}"' EXIT
 
 cat >"$STUB/notify-send" <<'STUBEOF'
 #!/bin/bash
@@ -109,9 +127,11 @@ SOURCES=$(printf '0\t%s.monitor\tPipeWire\ts16le\tSUSPENDED\n1\t%s\tPipeWire\ts1
 run_record() {
   : >"$LOG"; : >"$NLOG"
   set_gpu "$1"
-  CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" \
+  CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
     DEFAULT_SINK="${4-$SINK}" SOURCE_LIST="${5-$SOURCES}" \
+    HYPRSIMPLE_RECORDER_START_WAIT=0.05 \
     PATH="$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" "$2" "$3" >/dev/null 2>&1
+  kill_stubs
 }
 
 # --- the old detection really does find nothing -----------------------------
@@ -178,6 +198,15 @@ chmod +x "$STUB/wf-recorder"
 run_record nvidia region none
 check "a recorder that exits at once is reported rather than ignored" \
   "$(grep -c 'failed to start' "$NLOG")" "1"
+
+# This suite once left four processes named wf-recorder running, which made
+# waybar-refresh-test and notification-idiom-test see a recording in progress.
+# Assert the cleanup rather than trust it.
+leaked=0
+while read -r pid; do
+  [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null && leaked=$((leaked + 1))
+done <"$PIDFILE"
+check "no stub recorder is left running" "$leaked" "0"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
