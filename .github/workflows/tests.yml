@@ -94,6 +94,9 @@ jobs:
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
+      - name: keyboard-backlight-test
+        run: bash test/keyboard-backlight-test.sh
+
       - name: notify-bar-test
         run: bash test/notify-bar-test.sh
 
