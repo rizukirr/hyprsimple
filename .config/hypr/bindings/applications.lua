@@ -2,9 +2,10 @@
 -- touches it again, so anything you bind here stays bound, and a binding
 -- hyprsimple adds later will not appear here on its own.
 --
--- vars.<name> reads from ~/.config/hypr/vars.lua, falling back to hyprsimple's
--- defaults. A name hyprsimple does not set answers with a notification saying
--- so, rather than taking the rest of this file down with it.
+-- Names looked up through the vars table come from your own overrides file in
+-- ~/.config/hypr/, falling back to hyprsimple's defaults. One that hyprsimple
+-- does not set answers with a notification saying so, rather than taking the
+-- rest of this file down with it.
 
 local vars = require("default.hypr.vars")
 local home = os.getenv("HOME")
