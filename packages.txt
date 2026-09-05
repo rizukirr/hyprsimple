@@ -66,6 +66,7 @@ swayimg
 
 # CLI Tools
 fzf
+bat
 vi
 less
 zoxide
