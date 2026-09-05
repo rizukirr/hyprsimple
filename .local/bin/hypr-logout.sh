@@ -23,8 +23,23 @@
 CLOSE_TIMEOUT_MS="${HYPRSIMPLE_LOGOUT_TIMEOUT_MS:-8000}"
 POLL_MS=100
 
+# Prints how many windows are open, or "unknown" when Hyprland's IPC does not
+# answer.
+#
+# This used to end `| jq 'length' 2>/dev/null || echo 0`. That fallback could
+# never run. A pipeline's exit status is its last command's, and jq handed an
+# empty stream prints nothing and exits 0, so with hyprctl unavailable the
+# count came back empty rather than 0. `[[ "" == 0 ]]` is false, so a logout
+# with no reachable IPC waited out the whole timeout and then announced windows
+# that had not closed, on a session that had none open.
 window_count() {
-  hyprctl clients -j 2>/dev/null | jq 'length' 2>/dev/null || echo 0
+  local count
+  count=$(hyprctl clients -j 2>/dev/null | jq 'length' 2>/dev/null)
+  if [[ $count =~ ^[0-9]+$ ]]; then
+    printf '%s' "$count"
+  else
+    printf 'unknown'
+  fi
 }
 
 hyprctl clients -j 2>/dev/null | jq -r '.[].address' 2>/dev/null | while read -r addr; do
@@ -34,14 +49,19 @@ done
 
 waited=0
 while (( waited < CLOSE_TIMEOUT_MS )); do
-  [[ $(window_count) == 0 ]] && break
+  count=$(window_count)
+  # Nothing left to wait for, or no way to find out. Waiting on a question that
+  # cannot be answered just delays the logout by the length of the timeout.
+  [[ $count == 0 || $count == unknown ]] && break
   sleep "0.$(printf '%03d' "$POLL_MS")"
   waited=$((waited + POLL_MS))
 done
 
-if [[ $(window_count) != 0 ]]; then
+remaining=$(window_count)
+if [[ $remaining != 0 && $remaining != unknown ]]; then
   # Said out loud rather than silently waiting the full timeout again: this is
   # the case where something did not close and is about to be stopped anyway.
+  # Not said when the count is unknown, which reports on windows nobody counted.
   notify-send "Logging out" "Some windows did not close in time" -t 2000 2>/dev/null
 fi
 

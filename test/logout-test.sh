@@ -121,6 +121,50 @@ fi
 check "the session is stopped anyway" "$(grep -c '^uwsm stop' "$LOG")" "1"
 check "and the user is told why" "$(grep -c 'did not close in time' "$LOG")" "1"
 
+# --- an IPC that does not answer ---------------------------------------------
+#
+# The count came from
+#
+#   hyprctl clients -j 2>/dev/null | jq 'length' 2>/dev/null || echo 0
+#
+# and the `|| echo 0` could never fire: a pipeline's status is its last
+# command's, and jq on an empty stream prints nothing and exits 0. So the count
+# was empty rather than 0, `[[ "" == 0 ]]` was false, and a logout with no
+# reachable compositor sat through the full timeout and then blamed windows
+# that were never counted.
+#
+# Reproduced with an hyprctl that fails the way a missing socket does.
+cat >"$STUB/hyprctl" <<'STUBEOF'
+#!/bin/bash
+printf 'hyprctl %s\n' "$*" >>"$CALL_LOG"
+case "$*" in
+  "clients -j")
+    echo "Couldn't connect to the socket. (3)" >&2
+    exit 3
+    ;;
+  "dispatch closewindow"*) : >"$STATE/closed" ;;
+esac
+STUBEOF
+chmod +x "$STUB/hyprctl"
+
+run_logout 1 8000
+elapsed=$(cat "$TMP/elapsed")
+if (( elapsed < 3000 )); then
+  pass "an unreachable compositor does not cost the full timeout (${elapsed}ms)"
+else
+  fail "waited ${elapsed}ms with no compositor to wait for"
+fi
+check "the session is still stopped" "$(grep -c '^uwsm stop' "$LOG")" "1"
+check "and no window is blamed, none having been counted" \
+  "$(grep -c 'did not close' "$LOG")" "0"
+
+# The reading itself, separately from what the script does with it, because the
+# empty string and the number zero behave identically in every check above.
+count=$(CALL_LOG=/dev/null STATE="$TMP/state" PATH="$STUB:/usr/bin:/bin" bash -c '
+  source /dev/stdin <<<"$(sed -n "/^window_count()/,/^}/p" "$1")"
+  window_count' _ "$SCRIPT")
+check "and the count says unknown rather than coming back empty" "$count" "unknown"
+
 # --- the old shape is gone ---------------------------------------------------
 
 code_of() { sed 's/#.*//' "$1"; }
