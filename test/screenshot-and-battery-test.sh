@@ -49,6 +49,54 @@ done
 # one mode where freezing matters never froze.
 check "no screenshot mode passes a flag hyprshot does not know" \
   "$(grep -c -- '--freze' "$BIN/screenshot.sh")" "0"
+
+# hyprshot notifies unless told not to, so a mode that also notifies here sent
+# two messages for one keypress. Measured before the fix, with a hyprshot stub
+# notifying the way the real one does: two notifications, "Image copied to the
+# clipboard" and "Copied to clipboard".
+cat >"$STUB/hyprshot" <<'STUBEOF'
+#!/bin/bash
+printf '%s|%s
+' "$#" "$*" >>"${CALL_LOG:?}"
+# The real hyprshot notifies unless --silent is passed.
+for a in "$@"; do [[ $a == --silent ]] && exit 0; done
+notify-send "Screenshot saved" "Image copied to the clipboard"
+STUBEOF
+chmod +x "$STUB/hyprshot"
+NLOG_SHOT="$TMP/shot-notifications"
+cat >"$STUB/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf '%s
+' "$*" >>"${NOTIFY_LOG:?}"
+STUBEOF
+chmod +x "$STUB/notify-send"
+
+for mode in clipboard window region monitor; do
+  : >"$LOG"; : >"$NLOG_SHOT"
+  CALL_LOG="$LOG" NOTIFY_LOG="$NLOG_SHOT" HOME="$SPACED" PATH="$STUB:$PATH"     bash "$BIN/screenshot.sh" "$mode" >/dev/null 2>&1
+  check "screenshot $mode notifies exactly once" \
+    "$(wc -l <"$NLOG_SHOT" | tr -d ' ')" "1"
+done
+
+# A mode that is not one of the four used to fall past every branch and exit 0.
+: >"$LOG"; : >"$NLOG_SHOT"
+CALL_LOG="$LOG" NOTIFY_LOG="$NLOG_SHOT" HOME="$SPACED" PATH="$STUB:$PATH" \
+  bash "$BIN/screenshot.sh" clipbaord >"$TMP/shot-out" 2>"$TMP/shot-err"
+check "an unknown mode exits non-zero" "$?" "1"
+check "and takes no screenshot" "$(wc -l <"$LOG" | tr -d ' ')" "0"
+check "and puts its usage on stderr" "$(grep -c 'Usage:' "$TMP/shot-err")" "1"
+check "and nothing on stdout" "$(wc -c <"$TMP/shot-out" | tr -d ' ')" "0"
+
+# The original hyprshot stub, restored for anything after this point.
+cat >"$STUB/hyprshot" <<'STUBEOF'
+#!/bin/bash
+printf '%s|%s
+' "$#" "$*" >>"${CALL_LOG:?}"
+STUBEOF
+chmod +x "$STUB/hyprshot"
+printf '#!/bin/bash
+exit 0
+' >"$STUB/notify-send"; chmod +x "$STUB/notify-send"
 check "region freezes the screen" \
   "$(grep -c -- '-m region --freeze' "$BIN/screenshot.sh")" "1"
 
