@@ -136,6 +136,9 @@ jobs:
       - name: setup-network-test
         run: bash test/setup-network-test.sh
 
+      - name: hybrid-gpu-env-test
+        run: bash test/hybrid-gpu-env-test.sh
+
       - name: nvidia-install-test
         run: bash test/nvidia-install-test.sh
 

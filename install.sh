@@ -215,6 +215,35 @@ detect_and_install_nvidia() {
     return 0
   fi
 
+  # On a hybrid machine the desktop is rendered by the integrated GPU:
+  # detect_and_setup_multi_gpu below prefers Intel, then AMD, then NVIDIA, and
+  # points AQ_DRM_DEVICES at whichever it picks. Exporting
+  # __GLX_VENDOR_LIBRARY_NAME=nvidia on top of that sends every OpenGL
+  # application to the discrete card anyway, so frames are rendered on the dGPU
+  # and copied back to the iGPU that owns the display, and the dGPU never
+  # powers down. Measured on an Optimus laptop with this block in place,
+  # glxinfo reported "NVIDIA GeForce RTX 4050 Laptop GPU"; with the same three
+  # variables unset, "Mesa Intel(R) Graphics (RPL-P)". Choosing the discrete
+  # card per application is what prime-run is for.
+  #
+  # Upstream writes this block unconditionally and has no equivalent of
+  # detect_and_setup_multi_gpu, so there it is consistent with the rest of the
+  # configuration. Here it contradicted it.
+  #
+  # The same two lspci forms detect_and_setup_multi_gpu uses, so the two
+  # functions cannot disagree about what this machine is.
+  local other_gpu
+  other_gpu=$(lspci -D | grep -iE "VGA.*Intel" | head -1 | cut -d' ' -f1 || true)
+  [[ -z $other_gpu ]] &&
+    other_gpu=$(lspci -D -d ::0300 | grep -i "AMD" | head -1 | cut -d' ' -f1 || true)
+
+  if [[ -n $other_gpu ]]; then
+    echo -e "${GREEN}An integrated GPU is present at $other_gpu, so it will drive the desktop and the NVIDIA environment variables are being left out. Setting them would push every OpenGL application onto the discrete card.${NC}"
+    echo -e "${GREEN}Run a single program on the NVIDIA GPU with: prime-run <program>${NC}"
+    echo -e "${GREEN}NVIDIA setup complete (arch: $GPU_ARCH, offload only)${NC}"
+    return 0
+  fi
+
   # Append NVIDIA env vars to uwsm/env
   if [[ $GPU_ARCH = "turing_plus" ]]; then
     cat >>"$HOME/.config/uwsm/env" <<'EOF'

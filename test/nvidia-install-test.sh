@@ -53,9 +53,16 @@ done
 STUB="$TMP/bin"; mkdir -p "$STUB"
 LOG="$TMP/calls"
 
+# Whether an integrated GPU is present decides more than which driver is
+# installed: on a hybrid machine detect_and_install_nvidia deliberately leaves
+# the environment block out, because the desktop renders on the iGPU. The
+# checks below are about the driver and the env block, so they describe a
+# machine whose only card is NVIDIA. hybrid-gpu-env-test.sh covers the other
+# answer.
 cat >"$STUB/lspci" <<'STUBEOF'
 #!/bin/bash
-printf '00:02.0 VGA compatible controller: Intel Corporation UHD Graphics\n'
+[[ ${IGPU:-none} == intel ]] &&
+  printf '00:02.0 VGA compatible controller: Intel Corporation UHD Graphics\n'
 printf '01:00.0 VGA compatible controller: NVIDIA Corporation %s\n' "$NVIDIA_MODEL"
 STUBEOF
 
@@ -126,7 +133,7 @@ run_nvidia() {
     HYPRSIMPLE_MODULES_DIR="$TMP/modules" \
     NVIDIA_MODEL="$1" INSTALLED="$2" INSTALL_RC="${3:-0}" \
     REPO_PACKAGES="${4:-}" MULTILIB="${5:-on}" \
-    INSTALLED_MODULE_PKG="${6:-}" \
+    INSTALLED_MODULE_PKG="${6:-}" IGPU="${7:-none}" \
     bash -c '
       set -uo pipefail
       RED=""; GREEN=""; YELLOW=""; NC=""
@@ -266,7 +273,7 @@ cat >"$STUB/lspci" <<'STUBEOF'
 printf '00:02.0 VGA compatible controller: Intel Corporation UHD Graphics\n'
 STUBEOF
 chmod +x "$STUB/lspci"
-run_nvidia "" ""
+run_nvidia "" "" 0 "" on "" intel
 check "a machine with no NVIDIA GPU installs nothing" \
   "$(grep -c 'nvidia' "$LOG")" "0"
 check "and says so" "$(grep -c 'No NVIDIA GPU detected' "$TMP/out")" "1"
