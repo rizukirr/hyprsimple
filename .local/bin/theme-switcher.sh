@@ -166,10 +166,31 @@ elif [[ -f "$THEME_PATH/icon-theme" ]]; then
   gsettings set org.gnome.desktop.interface icon-theme "$(cat "$THEME_PATH/icon-theme")"
 fi
 
+# Replace one export in uwsm/env rather than appending another. The file is
+# read once at login, so a second export of the same name would win silently
+# and the file would grow a line per theme switch.
+set_session_env() {
+  local name="$1" value="$2"
+  local file="$HOME/.config/uwsm/env"
+  [[ -f $file ]] || return 0
+  local tmp="$file.tmp.$$"
+  grep -v "^export $name=" "$file" >"$tmp" || true
+  printf 'export %s=%s\n' "$name" "$value" >>"$tmp"
+  mv "$tmp" "$file"
+}
+
 if [[ -f "$THEME_PATH/cursor-theme" ]]; then
   CURSOR="$(cat "$THEME_PATH/cursor-theme")"
   gsettings set org.gnome.desktop.interface cursor-theme "$CURSOR"
   [[ -z "$THEME_SWITCHER_NO_RELOAD" ]] && hyprctl setcursor "$CURSOR" 24
+
+  # gsettings reaches GTK and `hyprctl setcursor` reaches Hyprland, but only
+  # until logout. XCURSOR_THEME is what survives a login and what XWayland, SDL
+  # and Qt read, and nothing here ever wrote it: install.sh wrote it once, and
+  # only if the theme it installed with declared a cursor. The default theme is
+  # deep-sea, which does not, so on a fresh install it was never set at all,
+  # and switching to a theme that does declare one did not set it either.
+  set_session_env XCURSOR_THEME "$CURSOR"
 fi
 
 # 11. Reload Services (skipped during install via THEME_SWITCHER_NO_RELOAD=1)

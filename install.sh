@@ -729,7 +729,6 @@ fi
 DEFAULT_THEME="deep-sea"
 echo ""
 echo -e "${YELLOW}Initializing Theme Manager (Default: ${DEFAULT_THEME})...${NC}"
-THEME_DIR="$HOME/.config/hypr/themes/$DEFAULT_THEME"
 CACHE_DIR="$HOME/.cache"
 mkdir -p "$CACHE_DIR"
 mkdir -p "$HOME/.config/btop/themes"
@@ -769,11 +768,10 @@ touch "$CACHE_DIR/live_wallpaper_enabled"
 # Apply the default theme via theme-switcher.sh (skip runtime reloads — Hyprland isn't running yet)
 THEME_SWITCHER_NO_RELOAD=1 bash "$HOME/.local/bin/theme-switcher.sh" "$DEFAULT_THEME"
 
-# Install-only: persist cursor theme into uwsm/env so it's available on next login
-if [[ -f "$THEME_DIR/cursor-theme" ]]; then
-  CURSOR="$(cat "$THEME_DIR/cursor-theme")"
-  echo "export XCURSOR_THEME=$CURSOR" >> "$HOME/.config/uwsm/env"
-fi
+# The cursor theme is persisted by theme-switcher.sh, which the line above just
+# ran. It used to be done here instead, which meant it happened only at install
+# time and only for whichever theme was the default, so switching themes later
+# never updated it.
 echo -e "${GREEN}Theme initialized${NC}"
 
 mkdir -p ~/Videos
