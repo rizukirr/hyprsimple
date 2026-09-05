@@ -94,6 +94,9 @@ jobs:
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
+      - name: live-wallpaper-persistence-test
+        run: bash test/live-wallpaper-persistence-test.sh
+
       - name: bluetooth-toggle-test
         run: bash test/bluetooth-toggle-test.sh
 
