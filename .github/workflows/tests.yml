@@ -88,6 +88,9 @@ jobs:
       - name: waybar-refresh-test
         run: bash test/waybar-refresh-test.sh
 
+      - name: broken-override-test
+        run: bash test/broken-override-test.sh
+
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
