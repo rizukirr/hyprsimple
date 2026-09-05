@@ -97,6 +97,9 @@ jobs:
       - name: live-wallpaper-persistence-test
         run: bash test/live-wallpaper-persistence-test.sh
 
+      - name: logout-test
+        run: bash test/logout-test.sh
+
       - name: bluetooth-toggle-test
         run: bash test/bluetooth-toggle-test.sh
 
