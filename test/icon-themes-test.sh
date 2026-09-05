@@ -37,9 +37,11 @@ check() {
 
 # The variants Yaru actually ships, recorded here rather than fetched: a suite
 # must not need the network, and this is the list that made Yaru-gray a bug.
-YARU_VARIANTS="Yaru Yaru-bark Yaru-blue Yaru-dark Yaru-magenta Yaru-mate \
-Yaru-olive Yaru-prussiangreen Yaru-purple Yaru-red Yaru-sage Yaru-viridian \
-Yaru-wartybrown Yaru-yellow"
+YARU_VARIANTS=(
+  Yaru Yaru-bark Yaru-blue Yaru-dark Yaru-magenta Yaru-mate Yaru-olive
+  Yaru-prussiangreen Yaru-purple Yaru-red Yaru-sage Yaru-viridian
+  Yaru-wartybrown Yaru-yellow
+)
 
 # --- every named icon theme comes from a package we install ------------------
 
@@ -54,7 +56,7 @@ for t in "$REPO/.config/hypr/themes"/*/; do
   case "$icon" in
     Yaru*)
       grep -qx 'yaru-icon-theme' "$REPO/aur-packages.txt" || unpackaged+=("$name:$icon")
-      printf '%s\n' $YARU_VARIANTS | grep -qx "$icon" || unknown+=("$name:$icon")
+      printf '%s\n' "${YARU_VARIANTS[@]}" | grep -qx "$icon" || unknown+=("$name:$icon")
       ;;
     Papirus*)
       grep -qx 'papirus-icon-theme' "$REPO/packages.txt" || unpackaged+=("$name:$icon")
