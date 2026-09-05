@@ -127,6 +127,9 @@ jobs:
       - name: screenshot-and-battery-test
         run: bash test/screenshot-and-battery-test.sh
 
+      - name: rofi-theme-link-test
+        run: bash test/rofi-theme-link-test.sh
+
       - name: setup-network-test
         run: bash test/setup-network-test.sh
 
