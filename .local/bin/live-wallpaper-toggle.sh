@@ -56,6 +56,22 @@ turn_on() {
 }
 
 case "$ACTION" in
+  apply)
+    # Put hyprpaper in whatever state the flag already records, without
+    # changing that state. This is what autostart wants at login.
+    #
+    # It used to run "on" there, which turned live wallpaper back on every
+    # single login. Turning it off with SUPER+CTRL+W lasted until the next one,
+    # and so did picking a wallpaper with SUPER+W, because that clears the same
+    # flag to pin the choice. A toggle whose state is reset at every login is
+    # not a toggle.
+    if [[ -f "$FLAG" ]]; then
+      write_hyprpaper_conf "$BG_DIR" 30
+    else
+      write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
+    fi
+    systemctl --user restart hyprpaper.service 2>/dev/null || true
+    ;;
   on)
     # Skip if already on
     [[ -f "$FLAG" ]] && exit 0
