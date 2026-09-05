@@ -94,6 +94,9 @@ jobs:
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
+      - name: notify-bar-test
+        run: bash test/notify-bar-test.sh
+
       - name: icon-themes-test
         run: bash test/icon-themes-test.sh
 
