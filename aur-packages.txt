@@ -1,4 +1,5 @@
 # AUR Packages
+yaru-icon-theme
 wl-mirror
 wl-screenrec-git
 muslimtify

@@ -64,6 +64,8 @@ alsa-utils
 ffmpeg
 swayimg
 
+papirus-icon-theme
+
 # CLI Tools
 fzf
 bat
