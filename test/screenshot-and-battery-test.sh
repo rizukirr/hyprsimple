@@ -54,7 +54,14 @@ check "region freezes the screen" \
 
 # --- battery ---------------------------------------------------------------
 
-printf '#!/bin/bash\nexit 0\n' >"$STUB/brightnessctl"; chmod +x "$STUB/brightnessctl"
+# The dimming is logged rather than swallowed. It used to be `exit 0`, which is
+# why nothing noticed that it ran on every tick instead of once per crossing.
+BLOG="$TMP/brightness"
+cat >"$STUB/brightnessctl" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"${BRIGHT_LOG:?}"
+STUBEOF
+chmod +x "$STUB/brightnessctl"
 NLOG="$TMP/notifications"
 cat >"$STUB/notify-send" <<'STUBEOF'
 #!/bin/bash
@@ -75,11 +82,12 @@ STUBEOF
 FLAG=/tmp/battery-notification-flag
 run_battery() {
   battery_at "$1"
-  NOTIFY_LOG="$NLOG" PATH="$STUB:$PATH" bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
+  NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
+    bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 }
 
 # 9% is at or below 20, 15 and 10. The old loop notified once for each.
-rm -f "$FLAG"; : >"$NLOG"
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"
 run_battery 9
 check "one reading crossing three thresholds notifies once" \
   "$(grep -c 'Battery Low' "$NLOG")" "1"
@@ -87,24 +95,67 @@ check "the notification names the level the battery is at" \
   "$(grep -c 'Battery at 9%' "$NLOG")" "1"
 
 # 2% is at or below all five.
-rm -f "$FLAG"; : >"$NLOG"
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"
 run_battery 2
 check "one reading crossing five thresholds still notifies once" \
   "$(grep -c 'Battery Low' "$NLOG")" "1"
 
 # Falling into a lower band must notify again. This is the half that a naive
 # once-ever flag would break, so it is asserted rather than assumed.
-rm -f "$FLAG"; : >"$NLOG"
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"
 run_battery 9
 run_battery 4
 check "falling into a lower band notifies again" \
   "$(grep -c 'Battery Low' "$NLOG")" "2"
 
 # Staying in the same band must not.
-: >"$NLOG"
+: >"$NLOG"; : >"$BLOG"
 run_battery 4
 check "a second reading in the same band does not notify again" \
   "$(grep -c 'Battery Low' "$NLOG")" "0"
+
+# The dimming has to follow the same rule as the message, and did not. The
+# timer fires every 30 seconds, so a battery sitting below 20% had its screen
+# forced back to 5% twice a minute: raise it to read something and half a
+# minute later it was dark again. Four ticks in one band produced four sets.
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"
+run_battery 9
+run_battery 9
+run_battery 9
+run_battery 9
+check "four readings in one band dim the screen once, not four times" \
+  "$(grep -c 'set 5%' "$BLOG")" "1"
+check "and notify once" "$(grep -c 'Battery Low' "$NLOG")" "1"
+
+# Falling further still has to act, or the fix above would be a way to dim
+# never rather than once.
+run_battery 4
+check "falling into a lower band dims again" \
+  "$(grep -c 'set 5%' "$BLOG")" "2"
+
+# Charging clears the flag, so the next discharge dims again.
+cat >"$STUB/upower" <<'STUBEOF'
+#!/bin/bash
+[[ $1 == -e ]] && { echo /org/freedesktop/UPower/devices/BAT0; exit 0; }
+echo "    percentage:          80%"
+echo "    state:               charging"
+STUBEOF
+chmod +x "$STUB/upower"
+NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
+  bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
+check "charging clears the flag" \
+  "$([[ -f $FLAG ]] && echo present || echo gone)" "gone"
+: >"$BLOG"
+run_battery 9
+check "and the next discharge dims once more" \
+  "$(grep -c 'set 5%' "$BLOG")" "1"
+
+# Above every threshold nothing happens at all.
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"
+run_battery 55
+check "a healthy battery is left alone" "$(wc -l <"$BLOG" | tr -d ' ')" "0"
+check "and says nothing" "$(wc -l <"$NLOG" | tr -d ' ')" "0"
+
 rm -f "$FLAG"
 
 if (( failures > 0 )); then
