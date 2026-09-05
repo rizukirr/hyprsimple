@@ -42,21 +42,17 @@ fi
 # A home with the six override files, a stand-in for the install tree, and a
 # theme overlay that records whether it was reached.
 build_home() {
-  rm -rf "${TMP:?}/home"
-  mkdir -p "$TMP/home/.config/hypr/bindings" "$TMP/home/install/default/hypr"
+  rm -rf "${TMP:?}/fakehome"
+  mkdir -p "$TMP/fakehome/.config/hypr/bindings" "$TMP/fakehome/install/default/hypr"
   for m in monitors looknfeel input windows autostart; do
-    printf 'return {}\n' >"$TMP/home/.config/hypr/$m.lua"
+    printf 'return {}\n' >"$TMP/fakehome/.config/hypr/$m.lua"
   done
-  printf 'return {}\n' >"$TMP/home/.config/hypr/bindings/applications.lua"
-  # The install side only has to be requireable.
-  cat >"$TMP/home/install/default/hypr/hyprsimple.lua" <<'LUAEOF'
-return {}
-LUAEOF
-  mkdir -p "$TMP/home/install/default/hypr"
+  printf 'return {}\n' >"$TMP/fakehome/.config/hypr/bindings/applications.lua"
+  # The install side only has to be requireable, and to record that it ran.
   printf 'DEFAULTS_LOADED = true\nreturn {}\n' \
-    >"$TMP/home/install/default/hypr/hyprsimple.lua"
+    >"$TMP/fakehome/install/default/hypr/hyprsimple.lua"
   # The theme overlay, which the old code could never reach after a failure.
-  printf 'THEME_LOADED = true\n' >"$TMP/home/.config/hypr/theme-active.lua"
+  printf 'THEME_LOADED = true\n' >"$TMP/fakehome/.config/hypr/theme-active.lua"
 }
 
 # Runs the real entrypoint with hl stubbed, and prints what happened.
@@ -81,7 +77,7 @@ print("DEFAULTS_LOADED=" .. tostring(DEFAULTS_LOADED))
 -- would report a failure.
 for _, fn in ipairs(calls) do fn() end
 LUAEOF
-  HOME="$TMP/home" HYPRSIMPLE_PATH="$TMP/home/install" \
+  HOME="$TMP/fakehome" HYPRSIMPLE_PATH="$TMP/fakehome/install" \
     lua "$TMP/run.lua" 2>&1
 }
 
@@ -98,7 +94,7 @@ check "and nothing is reported" "$(printf '%s' "$out" | grep -c 'did not load')"
 # --- a syntax error in one override -----------------------------------------
 
 build_home
-printf 'local x = {\n' >"$TMP/home/.config/hypr/windows.lua"
+printf 'local x = {\n' >"$TMP/fakehome/.config/hypr/windows.lua"
 out=$(run_entry)
 check "a typo in one override no longer aborts the entrypoint" \
   "$(printf '%s' "$out" | grep -c 'ENTRYPOINT ABORTED')" "0"
@@ -112,7 +108,7 @@ check "and the report names the file" \
 # --- a deleted override ------------------------------------------------------
 
 build_home
-rm "$TMP/home/.config/hypr/windows.lua"
+rm "$TMP/fakehome/.config/hypr/windows.lua"
 out=$(run_entry)
 check "a deleted override does not abort the entrypoint either" \
   "$(printf '%s' "$out" | grep -c 'ENTRYPOINT ABORTED')" "0"
@@ -123,8 +119,8 @@ check "and it is reported" "$(printf '%s' "$out" | grep -c 'did not load')" "1"
 # --- more than one broken at a time -----------------------------------------
 
 build_home
-printf 'local x = {\n' >"$TMP/home/.config/hypr/windows.lua"
-rm "$TMP/home/.config/hypr/input.lua"
+printf 'local x = {\n' >"$TMP/fakehome/.config/hypr/windows.lua"
+rm "$TMP/fakehome/.config/hypr/input.lua"
 out=$(run_entry)
 check "two broken overrides are both reported" \
   "$(printf '%s' "$out" | grep -c 'did not load')" "2"
@@ -134,7 +130,7 @@ check "and the theme overlay still loads" \
 # A single quote in the error text must not break the shell command the report
 # is built into.
 build_home
-printf "local x = 'unterminated\n" >"$TMP/home/.config/hypr/windows.lua"
+printf "local x = 'unterminated\n" >"$TMP/fakehome/.config/hypr/windows.lua"
 out=$(run_entry)
 check "an error containing a quote produces a single-quoted command" \
   "$(printf '%s' "$out" | grep -c "^EXEC notify-send -u critical 'hyprsimple: a config file did not load' '")" "1"
