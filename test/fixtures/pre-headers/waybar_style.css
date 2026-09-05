@@ -1,7 +1,3 @@
-/* This file is yours. hyprsimple copies it once and never touches it again,
-   so anything you change here stays changed. The theme's colours arrive
-   through the @import below, which is rewritten on every theme switch, so
-   leave that line alone and put your own rules after it. */
 @import "theme-active.css";
 
 * {

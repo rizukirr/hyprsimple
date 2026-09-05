@@ -1,7 +1,4 @@
-/* This file is yours. hyprsimple copies it once and never touches it again,
-   so anything you change here stays changed. */
-
-@import "hyprsimple/confirm.rasi"
+@import "hyprsimple/keybindings/style.rasi"
 
 /* hyprsimple's default is imported above. Anything you set below wins,
    property by property, and anything you leave out keeps the default.

@@ -1,7 +1,3 @@
-# This file is yours: it sets what the battery monitor runs. hyprsimple copies it once
-# and never touches it again. Run `systemctl --user daemon-reload` after
-# editing.
-
 [Unit]
 Description=Battery Monitor Service
 After=graphical-session.target

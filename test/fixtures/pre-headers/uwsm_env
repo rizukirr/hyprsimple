@@ -1,8 +1,3 @@
-# Your session environment, read once at login. hyprsimple copies this file
-# once and never touches it again, with two exceptions it manages by name:
-# XCURSOR_THEME, rewritten by theme-switcher.sh, and the NVIDIA block install.sh
-# adds on a machine whose only GPU is NVIDIA. Everything else here is yours.
-
 # Cursor (size only, theme set by install.sh based on active theme)
 export XCURSOR_SIZE=24
 export HYPRCURSOR_SIZE=24

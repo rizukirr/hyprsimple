@@ -91,6 +91,9 @@ jobs:
       - name: named-paths-test
         run: bash test/named-paths-test.sh
 
+      - name: config-ownership-test
+        run: bash test/config-ownership-test.sh
+
       - name: cursor-theme-test
         run: bash test/cursor-theme-test.sh
 

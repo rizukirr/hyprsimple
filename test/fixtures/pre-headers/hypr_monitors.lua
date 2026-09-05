@@ -1,6 +1,3 @@
--- Your monitor layout. hyprsimple copies this file once and never touches it
--- again, so anything you set here stays set.
-
 -- See https://wiki.hypr.land/Configuring/Basics/Monitors/
 -- List current monitors and resolutions: hyprctl monitors all
 
