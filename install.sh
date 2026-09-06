@@ -498,6 +498,27 @@ setup_firewall() {
     # Allow LocalSend (LAN file sharing)
     sudo ufw allow 53317/tcp
     sudo ufw allow 53317/udp
+
+    # `ufw enable` normally asks
+    #
+    #   Command may disrupt existing ssh connections. Proceed with operation (y|n)?
+    #
+    # and --force is exactly what skips that question. Skipping it is right for
+    # a local install, where there is no ssh session to disrupt, and wrong when
+    # this installer is itself running over one: "deny incoming" blocks the
+    # next connection, so the machine becomes unreachable the moment the
+    # session ends, and the one warning that would have said so was suppressed.
+    #
+    # SSH_CONNECTION is set by sshd for the session it serves, so this fires
+    # only when the installer is running over the connection it would cut. A
+    # local install is unchanged, and nobody's chosen posture is widened: the
+    # port is opened only for a machine that is already being reached on it.
+    if [[ -n ${SSH_CONNECTION-} ]]; then
+      echo -e "${YELLOW}Installing over SSH, so ssh is kept reachable.${NC}"
+      echo -e "${YELLOW}Close it later with: sudo ufw delete allow ssh${NC}"
+      sudo ufw allow ssh
+    fi
+
     sudo ufw --force enable
     echo -e "${GREEN}Firewall enabled (deny incoming, allow outgoing, LocalSend allowed)${NC}"
   else
