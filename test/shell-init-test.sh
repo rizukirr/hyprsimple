@@ -158,6 +158,124 @@ unlisted_str=""
 (( ${#unlisted[@]} > 0 )) && unlisted_str="$(printf '%s; ' "${unlisted[@]}")"
 check "every command an aliased script runs is in a package list" "$unlisted_str" ""
 
+# ---- an alias must not change what a command means ------------------------
+#
+# All three shells carried
+#
+#   alias grep='rg --color=auto'
+#
+# and rg is not a drop in for grep. It does not claim to be. Its -r is
+# --replace, not --recursive, so
+#
+#   grep -r hello .
+#
+# searched for the regex . and replaced every character it matched:
+#
+#   sub/a.txt:hellohellohellohellohellohellohello    exit 0
+#
+# rg also skips anything .gitignore excludes and every hidden file, so a plain
+# grep inside a repository silently missed files grep would have found. Both
+# failures look like results, which is the kind worth a check.
+#
+# Aliases are interactive only, so no script was affected. Every person typing
+# grep at a prompt was.
+#
+# The fix is no alias, not a corrected one. grep is grep and rg is rg, so the
+# checks below run grep through each shell's init file and require it to behave
+# exactly as it does with no init file at all.
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "${TMP:?}"' EXIT
+
+# A file inside a directory, which exercises -r, and gitignored, which is what
+# rg declines to read.
+PROBEHOME="$TMP/probehome"
+mkdir -p "$PROBEHOME"
+
+FIX="$TMP/fixture"
+mkdir -p "$FIX/sub"
+printf 'hello world\n' >"$FIX/sub/a.txt"
+( cd "$FIX" && git init -q . && printf 'sub/\n' >.gitignore ) >/dev/null 2>&1
+
+# Runs one grep through the shell's own init file, so the alias under test is
+# the shipped text rather than a copy of it. The timeout is the check that a
+# self-referential alias does not recurse forever.
+#
+# Written to a script and run from it, not passed to -c. A shell parses a -c
+# string in one go, so an alias defined partway through it does not apply to a
+# command already parsed on the same line, and the first version of this ran
+# the real grep in bash and zsh no matter what the init file said. It passed
+# against the rg alias, which is how it was caught. Aliases defined by an
+# earlier line of a script do apply to later lines, so this measures the thing.
+# fish runs the user's config.fish even for a script, and on a hyprsimple
+# machine that sources the installed copy of the file under test. So the probe
+# was reading the shipped file and the installed one at once, and while the
+# shipped file still defined a grep alias it masked the installed one and the
+# check passed on the overlap rather than on the repository. --no-config, and
+# a home of its own for all three, which the suites are required to have
+# anyway.
+run_in_shell() {
+  local shell="$1" body="$2"
+  local script="$TMP/probe.$shell"
+  {
+    [[ $shell == bash ]] && printf 'shopt -s expand_aliases\n'
+    printf 'source %q\n' "$3"
+    printf '%s\n' "$body"
+  } >"$script"
+  case "$shell" in
+    fish) HOME="$PROBEHOME" timeout 20 fish --no-config "$script" 2>/dev/null ;;
+    *)    HOME="$PROBEHOME" timeout 20 "$shell" "$script" 2>/dev/null ;;
+  esac
+}
+
+grep_through() {
+  local init
+  case "$1" in
+    bash) init="$BIN/bashrc.sh" ;;
+    zsh)  init="$BIN/zsh.sh" ;;
+    fish) init="$BIN/fish.fish" ;;
+  esac
+  run_in_shell "$1" "cd $(printf '%q' "$FIX"); grep -r hello . --exclude-dir=.git" "$init"
+}
+
+# The probe has to be able to fail. If the alias never reached the grep line,
+# every check below would pass on the real grep and say nothing about the
+# shipped file.
+for shell in bash zsh fish; do
+  command -v "$shell" >/dev/null 2>&1 || continue
+  printf 'alias grep=%s\n' "'printf \"ALIAS REACHED\\n\" #'" >"$TMP/canary.$shell"
+  check "$shell: an alias in a sourced file reaches a later line, so this probe works" \
+    "$(run_in_shell "$shell" 'grep whatever' "$TMP/canary.$shell")" "ALIAS REACHED"
+done
+
+for shell in bash zsh fish; do
+  if ! command -v "$shell" >/dev/null 2>&1; then
+    fail "$shell is not installed, so its aliases cannot be checked"
+    continue
+  fi
+  out=$(grep_through "$shell"); rc=$?
+  check "$shell: grep -r still recurses and finds the file" \
+    "$out" "./sub/a.txt:hello world"
+  check "$shell: and returns rather than recursing into itself" "$rc" "0"
+done
+
+# The static half, so the reason stays visible even where a shell is missing.
+# grep carries no alias at all now, not a corrected one: an alias that only
+# adds a colour flag still puts a name between the user and the tool, and the
+# next person to edit that line is the one this check is for.
+aliased=0
+while read -r n; do aliased=$((aliased + n)); done < <(
+  grep -cE "^[[:space:]]*alias grep=" \
+    "$BIN/bashrc.sh" "$BIN/zsh.sh" "$BIN/fish.fish" | cut -d: -f2
+)
+check "no shell aliases grep to anything, rg included" "$aliased" "0"
+
+# Both remain installed. Neither is being dropped, only untangled.
+check "rg is still a package hyprsimple installs" \
+  "$(grep -cx 'ripgrep' "$REPO/packages.txt")" "1"
+check "and grep comes from base, so it is there to be left alone" \
+  "$(command -v grep >/dev/null 2>&1 && echo yes || echo no)" "yes"
+
 # ---- a usage line has to name something that exists -----------------------
 #
 # search_by_keyword.sh printed "Usage sk [keyword]". There has never been an sk,

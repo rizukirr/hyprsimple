@@ -50,9 +50,21 @@ shopt -s histappend
 shopt -s checkwinsize
 PS1='[\u@\h \W]\$ '
 
-# better ls and grep
+# lsd reads ls flags, so ls stays ls with nicer output.
+#
+# grep has no alias at all. It used to be aliased to rg, which is not a drop in
+# for it and does not claim to be. Its -r is --replace, not --recursive, so
+#
+#   grep -r hello .
+#
+# searched for the regex . and replaced every character it matched, printing
+# hellohellohellohello... and exiting 0. rg also skips anything .gitignore
+# excludes and every hidden file, so a plain grep inside a repository quietly
+# missed files grep would have found. Both failures look like results.
+#
+# grep is grep and rg is rg. Both are installed, and each keeps the flags its
+# own documentation describes.
 alias ls='lsd'
-alias grep='rg --color=auto'
 alias ffile='~/.local/bin/search.sh'
 alias fany='~/.local/bin/search_by_keyword.sh'
 
