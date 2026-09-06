@@ -181,6 +181,48 @@ for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*
   fi
 done
 
+# ---- The three links install-owned defaults arrive through ----------------
+#
+# hyprlock, hypridle and xdph read ~/.config/hypr/hyprsimple; the rofi stubs
+# import ~/.config/rofi/hyprsimple; dunst reads the drop-in symlinked into
+# dunstrc.d. install.sh makes all three and nothing ever re-made them, so a
+# link deleted, or left pointing at an old HYPRSIMPLE_PATH, stayed broken
+# through every update.
+#
+# It stays broken quietly. hyprlang ignores a `source =` naming a file that is
+# not there, and rofi ignores a missing @import, both without a word: measured
+# with hyprsunset and `rofi -dump-theme`, each exits 0 and says nothing. So a
+# missing hypr link leaves hypridle.conf with no listeners at all, which means
+# the screen stops dimming, locking and suspending on idle, and nothing
+# anywhere says why.
+#
+# Re-asserted here every run, which is what the helper scripts above already
+# get.
+ensure_link() {
+  local target="$1" link="$2" name="$3"
+
+  if [[ -L $link ]]; then
+    # Right target already, including the case where it is simply intact.
+    [[ $(readlink "$link") == "$target" ]] && return 0
+  elif [[ -e $link ]]; then
+    # A real file or directory someone put there. Replacing it would throw
+    # their work away, and `ln -sfn` onto an existing directory writes the link
+    # *inside* it, which is the accident install.sh once shipped.
+    echo -e "${YELLOW}$link is not a symlink, so hyprsimple's $name defaults are not reaching it.${NC}"
+    echo "  Move it aside and run hyprsimple-update again to restore the link."
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$link")"
+  ln -sfn "$target" "$link"
+  echo -e "${GREEN}Relinked:${NC} $link"
+}
+
+ensure_link "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple" hypr
+ensure_link "$HYPRSIMPLE_PATH/default/rofi" "$HOME/.config/rofi/hyprsimple" rofi
+ensure_link "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" \
+  "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf" dunst
+
 # ---- Packages ------------------------------------------------------------
 
 install_missing_packages() {
