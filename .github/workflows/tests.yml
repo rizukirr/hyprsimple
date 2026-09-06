@@ -232,6 +232,9 @@ jobs:
       - name: window-rules-test
         run: bash test/window-rules-test.sh
 
+      - name: install-backup-test
+        run: bash test/install-backup-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
