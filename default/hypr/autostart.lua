@@ -34,6 +34,30 @@ end)
 -- there, which is one source of truth rather than two, and it exits quietly
 -- when there is no external display. That matters because this also fires for
 -- the built-in panel at startup.
+local mirror_script = os.getenv("HOME") .. "/.local/bin/monitor-mirror-toggle.sh"
+
 hl.on("monitor.added", function()
-  hl.exec_cmd(os.getenv("HOME") .. "/.local/bin/monitor-mirror-toggle.sh on quiet")
+  hl.exec_cmd(mirror_script .. " on quiet")
+end)
+
+-- A mirror set through hyprctl eval is a runtime setting, and a reload re-runs
+-- monitors.lua, whose hl.monitor call covers every output, so the mirror was
+-- lost. theme-switcher.sh reloads on every theme switch, which meant changing
+-- theme un-mirrored a projector in the middle of a presentation and said
+-- nothing about it.
+--
+-- restore re-applies it only when it was asked for, so this is a no-op on the
+-- ordinary reload. It runs here rather than from a require in the config,
+-- because the config applies monitors.lua after hyprsimple's own modules and
+-- would overwrite anything set earlier.
+hl.on("config.reloaded", function()
+  hl.exec_cmd(mirror_script .. " restore")
+end)
+
+-- And when the external display goes, the request to mirror it goes with it.
+-- Otherwise the next reload would try to mirror onto a monitor that is not
+-- there. This is the one hotplug case omarchy handles, in its
+-- omarchy-hyprland-monitor-watch.
+hl.on("monitor.removed", function()
+  hl.exec_cmd(mirror_script .. " recover")
 end)

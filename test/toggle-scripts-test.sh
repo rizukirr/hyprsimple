@@ -72,12 +72,14 @@ run() { CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" bash "$@"; }
 
 mirrored() { MONITORS_JSON="$FIX/monitors-mirrored.json" MONITORS_TXT="$FIX/monitors-mirrored.txt"; }
 extended() { MONITORS_JSON="$FIX/monitors-extended.json" MONITORS_TXT="$FIX/monitors-mirrored.txt"; }
+MIRROR_FLAG="$TMP/monitor_mirror_enabled"
 mirror_run() {
   : >"$LOG"
   CALL_LOG="$LOG" MONITORS_JSON="$MONITORS_JSON" MONITORS_TXT="$MONITORS_TXT" \
-    HYPRCTL_EVAL_REPLY="${HYPRCTL_EVAL_REPLY:-ok}" \
+    HYPRCTL_EVAL_REPLY="${HYPRCTL_EVAL_REPLY:-ok}" HYPRSIMPLE_MIRROR_FLAG="$MIRROR_FLAG" \
     PATH="$STUB:/usr/bin:/bin" bash "$BIN/monitor-mirror-toggle.sh" "$@" >/dev/null 2>&1
 }
+flag_state() { [[ -f $MIRROR_FLAG ]] && echo set || echo clear; }
 
 # The call has to be eval. Hyprland refuses `keyword` outright when the config
 # is lua, which hyprsimple's has been since the config split, so every one of
@@ -132,7 +134,63 @@ AUTOSTART="$REPO/default/hypr/autostart.lua"
 check "autostart registers a monitor.added handler" \
   "$(grep -c 'hl.on("monitor.added"' "$AUTOSTART")" "1"
 check "and it runs the mirror script quietly" \
-  "$(grep -c 'monitor-mirror-toggle.sh on quiet' "$AUTOSTART")" "1"
+  "$(grep -c 'mirror_script .. " on quiet"' "$AUTOSTART")" "1"
+
+# --- mirroring survives a config reload --------------------------------------
+#
+# hyprctl eval sets a monitor at runtime, and a reload re-runs monitors.lua,
+# whose hl.monitor call covers every output, so the mirror was dropped.
+# theme-switcher.sh reloads on every theme switch, which un-mirrored a
+# projector mid-presentation and said nothing.
+
+rm -f "$MIRROR_FLAG"
+extended; mirror_run restore
+check "restore does nothing when mirroring was never asked for" \
+  "$(grep -c 'eval hl.monitor' "$LOG")" "0"
+check "and leaves the flag alone" "$(flag_state)" "clear"
+
+extended; mirror_run on quiet
+check "asking for mirroring records that it was asked for" "$(flag_state)" "set"
+
+extended; mirror_run restore
+check "so a reload re-applies it" \
+  "$(grep -c 'mirror = "eDP-1"' "$LOG")" "1"
+check "without saying anything, a reload not being a keypress" \
+  "$(grep -c '^notify-send' "$LOG")" "0"
+
+extended; mirror_run off quiet
+check "turning it off forgets it" "$(flag_state)" "clear"
+extended; mirror_run restore
+check "and a later reload leaves the display extended" \
+  "$(grep -c 'eval hl.monitor' "$LOG")" "0"
+
+# --- unplugging forgets the request ------------------------------------------
+#
+# Otherwise the next reload tries to mirror onto a monitor that is not there.
+
+extended; mirror_run on quiet
+mirrored; mirror_run recover
+check "recover keeps the request while the display is still connected" \
+  "$(flag_state)" "set"
+
+MONITORS_JSON="$FIX/monitors-internal-only.json" MONITORS_TXT="$FIX/monitors-mirrored.txt"
+mirror_run recover
+check "and drops it once the display has gone" "$(flag_state)" "clear"
+check "while changing nothing about the remaining display" \
+  "$(grep -c 'eval hl.monitor' "$LOG")" "0"
+
+check "autostart registers the reload and removal handlers too" \
+  "$(grep -cE 'hl.on\("(config.reloaded|monitor.removed)"' "$AUTOSTART")" "2"
+check "and wires them to restore and recover" \
+  "$(grep -cE 'mirror_script \.\. " (restore|recover)"' "$AUTOSTART")" "2"
+
+# An unknown mode is still refused, now that there are five of them.
+extended
+mirror_run sideways
+check "an unknown mode exits non-zero rather than doing something" \
+  "$( CALL_LOG=$LOG MONITORS_JSON=$MONITORS_JSON MONITORS_TXT=$MONITORS_TXT \
+      HYPRSIMPLE_MIRROR_FLAG=$MIRROR_FLAG PATH="$STUB:/usr/bin:/bin" \
+      bash "$BIN/monitor-mirror-toggle.sh" sideways >/dev/null 2>&1; echo $? )" "2"
 
 # --- live-wallpaper-toggle.sh -----------------------------------------------
 

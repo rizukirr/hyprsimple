@@ -3,11 +3,13 @@
 # Toggle between extended and mirror mode
 # Auto-detects primary (built-in) and external monitors
 #
-# Usage: monitor-mirror-toggle.sh [on|off|toggle] [quiet]
-#   on     - force mirror mode
-#   off    - force extended mode
-#   toggle - flip current mode (default)
-#   quiet  - say nothing, for a caller that is not a keypress
+# Usage: monitor-mirror-toggle.sh [on|off|toggle|restore|recover] [quiet]
+#   on      - force mirror mode
+#   off     - force extended mode
+#   toggle  - flip current mode (default)
+#   restore - re-apply mirroring if it was asked for, after a config reload
+#   recover - forget mirroring once the external display has gone
+#   quiet   - say nothing, for a caller that is not a keypress
 #
 # "on quiet" is what the monitor.added handler in default/hypr/autostart.lua
 # runs, so plugging in an external display (a projector) mirrors the laptop
@@ -31,15 +33,44 @@ notify() {
 }
 
 case "$MODE" in
-on | off | toggle) ;;
+on | off | toggle | restore | recover) ;;
 *)
-  echo "Usage: $(basename "$0") [on|off|toggle]" >&2
+  echo "Usage: $(basename "$0") [on|off|toggle|restore|recover] [quiet]" >&2
   exit 2
   ;;
 esac
 
+# Whether mirroring is wanted, which is a different question from whether it is
+# in force right now.
+#
+# hyprctl eval applies a monitor at runtime, and a runtime monitor does not
+# survive hyprctl reload: the reload re-runs monitors.lua, whose hl.monitor call
+# covers every output, and the mirror is gone. theme-switcher.sh reloads on
+# every theme switch, so changing theme un-mirrored a projector mid
+# presentation and said nothing.
+#
+# The intent is recorded here instead and re-applied on config.reloaded. It
+# sits beside live_wallpaper_enabled, which records the same kind of thing the
+# same way.
+FLAG="${HYPRSIMPLE_MIRROR_FLAG:-${XDG_CACHE_HOME:-$HOME/.cache}/monitor_mirror_enabled}"
+
 PRIMARY=$(hyprctl monitors -j | jq -r '.[] | select(.name | test("^eDP")) | .name' | head -1)
 EXTERNAL=$(hyprctl monitors -j | jq -r '.[] | select(.name | test("^eDP") | not) | .name' | head -1)
+
+# recover runs when a display is unplugged, so it has to work with no external
+# monitor present. That is the state the checks below refuse, hence its place
+# above them.
+if [[ $MODE == recover ]]; then
+  [[ -n $EXTERNAL ]] || rm -f "$FLAG"
+  exit 0
+fi
+
+# restore does nothing unless mirroring was asked for, and is never a keypress.
+if [[ $MODE == restore ]]; then
+  [[ -f $FLAG ]] || exit 0
+  MODE=on
+  QUIET=quiet
+fi
 
 if [[ -z $EXTERNAL ]]; then
   notify "Monitor Mode" "No external monitor detected"
@@ -76,11 +107,14 @@ apply_monitor() {
 
 mirror_on() {
   apply_monitor "hl.monitor({ output = \"$EXTERNAL\", mode = \"preferred\", position = \"auto\", scale = 1, mirror = \"$PRIMARY\" })" || return 1
+  mkdir -p "$(dirname "$FLAG")"
+  : >"$FLAG"
   notify "Monitor Mode" "Mirror mode enabled"
 }
 
 mirror_off() {
   apply_monitor "hl.monitor({ output = \"$EXTERNAL\", mode = \"preferred\", position = \"auto\", scale = 1 })" || return 1
+  rm -f "$FLAG"
   notify "Monitor Mode" "Extended display enabled"
 }
 
