@@ -39,6 +39,12 @@ LOG="$TMP/calls"
 
 # One hyprctl stub for every script here. It answers from files the test names,
 # so a case is set up by pointing at a fixture rather than by editing the stub.
+# `keyword` answers the way Hyprland answers a lua config, which is by refusing.
+# The old stub returned 0 for every unmatched call, so `hyprctl keyword monitor`
+# looked like it worked here while failing on every real install, and these
+# checks passed against a script that had never mirrored anything. A fixture
+# that resembles the real thing without being it is the failure class
+# suite-hygiene-test.sh exists for, and this is one.
 cat >"$STUB/hyprctl" <<'STUBEOF'
 #!/bin/bash
 printf 'hyprctl %s\n' "$*" >>"$CALL_LOG"
@@ -46,6 +52,8 @@ case "$*" in
   "monitors -j") cat "$MONITORS_JSON" ;;
   "monitors") cat "$MONITORS_TXT" ;;
   "hyprpaper listactive") cat "$LISTACTIVE" ;;
+  keyword*) echo "keyword can't work with non-legacy parsers. Use eval." ;;
+  eval*) printf '%s\n' "${HYPRCTL_EVAL_REPLY:-ok}" ;;
   *) exit 0 ;;
 esac
 STUBEOF
@@ -62,26 +70,69 @@ run() { CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" bash "$@"; }
 
 # --- monitor-mirror-toggle.sh -----------------------------------------------
 
-: >"$LOG"
-MONITORS_JSON="$FIX/monitors-mirrored.json" MONITORS_TXT="$FIX/monitors-mirrored.txt" \
-  run "$BIN/monitor-mirror-toggle.sh" toggle >/dev/null 2>&1
-check "an already mirrored display toggles back to extended" \
-  "$(grep -c 'keyword monitor HDMI-A-1,preferred,auto,1$' "$LOG")" "1"
-check "and does not re-issue the mirror keyword" \
-  "$(grep -c 'mirror,eDP-1' "$LOG")" "0"
+mirrored() { MONITORS_JSON="$FIX/monitors-mirrored.json" MONITORS_TXT="$FIX/monitors-mirrored.txt"; }
+extended() { MONITORS_JSON="$FIX/monitors-extended.json" MONITORS_TXT="$FIX/monitors-mirrored.txt"; }
+mirror_run() {
+  : >"$LOG"
+  CALL_LOG="$LOG" MONITORS_JSON="$MONITORS_JSON" MONITORS_TXT="$MONITORS_TXT" \
+    HYPRCTL_EVAL_REPLY="${HYPRCTL_EVAL_REPLY:-ok}" \
+    PATH="$STUB:/usr/bin:/bin" bash "$BIN/monitor-mirror-toggle.sh" "$@" >/dev/null 2>&1
+}
 
-: >"$LOG"
-MONITORS_JSON="$FIX/monitors-extended.json" MONITORS_TXT="$FIX/monitors-mirrored.txt" \
-  run "$BIN/monitor-mirror-toggle.sh" toggle >/dev/null 2>&1
+# The call has to be eval. Hyprland refuses `keyword` outright when the config
+# is lua, which hyprsimple's has been since the config split, so every one of
+# these used to be issued and rejected while the script announced success.
+mirrored; mirror_run toggle
+check "an already mirrored display toggles back to extended" \
+  "$(grep -c 'eval hl.monitor({ output = "HDMI-A-1", mode = "preferred", position = "auto", scale = 1 })' "$LOG")" "1"
+check "and does not ask for a mirror while doing it" \
+  "$(grep -c 'mirror = ' "$LOG")" "0"
+
+extended; mirror_run toggle
 check "an extended display toggles into mirror" \
-  "$(grep -c 'keyword monitor HDMI-A-1,preferred,auto,1,mirror,eDP-1' "$LOG")" "1"
+  "$(grep -c 'eval hl.monitor({ output = "HDMI-A-1", mode = "preferred", position = "auto", scale = 1, mirror = "eDP-1" })' "$LOG")" "1"
+
+check "and never uses keyword, which this config cannot accept" \
+  "$(grep -c 'hyprctl keyword' "$LOG")" "0"
 
 # The two forced modes must ignore the current state entirely.
-: >"$LOG"
-MONITORS_JSON="$FIX/monitors-mirrored.json" MONITORS_TXT="$FIX/monitors-mirrored.txt" \
-  run "$BIN/monitor-mirror-toggle.sh" on >/dev/null 2>&1
+mirrored; mirror_run on
 check "on forces mirror even when already mirrored" \
-  "$(grep -c 'mirror,eDP-1' "$LOG")" "1"
+  "$(grep -c 'mirror = "eDP-1"' "$LOG")" "1"
+
+# --- quiet has to be quiet ---------------------------------------------------
+#
+# It suppressed the two error notifications and neither of the success ones, so
+# the hotplug handler it exists for would have popped a notification on every
+# plug.
+extended; mirror_run on
+check "a keypress says what it did" "$(grep -c '^notify-send' "$LOG")" "1"
+extended; mirror_run on quiet
+check "and quiet says nothing at all" "$(grep -c '^notify-send' "$LOG")" "0"
+check "while still making the change" "$(grep -c 'eval hl.monitor' "$LOG")" "1"
+extended; mirror_run toggle quiet
+check "quiet covers the toggle path too" "$(grep -c '^notify-send' "$LOG")" "0"
+
+# --- a refusal is reported, not announced as success -------------------------
+
+extended
+HYPRCTL_EVAL_REPLY="some error from hyprland" mirror_run on
+check "a rejected change does not claim mirror mode is on" \
+  "$(grep -c 'Mirror mode enabled' "$LOG")" "0"
+check "and says so instead" \
+  "$(grep -c 'Hyprland rejected the change' "$LOG")" "1"
+unset HYPRCTL_EVAL_REPLY
+
+# --- the hotplug handler that makes on and quiet reachable -------------------
+#
+# monitor-mirror-toggle.sh documented this handler as its caller from the day
+# on|off|quiet were added, and it was never written, so a projector did nothing
+# until a keypress.
+AUTOSTART="$REPO/default/hypr/autostart.lua"
+check "autostart registers a monitor.added handler" \
+  "$(grep -c 'hl.on("monitor.added"' "$AUTOSTART")" "1"
+check "and it runs the mirror script quietly" \
+  "$(grep -c 'monitor-mirror-toggle.sh on quiet' "$AUTOSTART")" "1"
 
 # --- live-wallpaper-toggle.sh -----------------------------------------------
 
