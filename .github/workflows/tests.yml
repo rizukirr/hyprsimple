@@ -235,6 +235,9 @@ jobs:
       - name: install-backup-test
         run: bash test/install-backup-test.sh
 
+      - name: firewall-test
+        run: bash test/firewall-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
