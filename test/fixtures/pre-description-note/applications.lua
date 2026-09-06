@@ -26,11 +26,6 @@ hl.bind("SUPER + A", hl.dsp.exec_cmd(vars.menu),        { description = "App Lau
 --
 --   hl.bind("SUPER + O", hl.dsp.exec_cmd("obsidian"),       { description = "Notes" })
 --   hl.bind("SUPER + S", hl.dsp.exec_cmd("android-studio"), { description = "Android Studio" })
---
--- Give every bind a description. The key works without one, so this is easy to
--- skip, and SUPER + / reads its list from Hyprland rather than from this file:
--- a bind with no description has nothing to show there but the key itself.
--- Naming it is what puts it in the list beside everything else.
 
 hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | rofi --show dmenu | cliphist decode | wl-copy'"),  { description = "Clipboard Manager" })
 hl.bind("SUPER + M", hl.dsp.exec_cmd("sh -c '" .. vars.colorPicker .. " | wl-copy'"),                           { description = "Color Picker" })

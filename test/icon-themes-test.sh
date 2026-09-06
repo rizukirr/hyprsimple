@@ -148,9 +148,13 @@ fi
 MIGRATION="$REPO/migrations/1788645000.sh"
 check "the migration that carries it exists" \
   "$([[ -f $MIGRATION ]] && echo yes || echo no)" "yes"
-check "and it sorts after every migration written before it" \
-  "$(basename "$MIGRATION" .sh)" \
-  "$(for m in "$REPO/migrations"/*.sh; do basename "$m" .sh; done | sort -n | tail -1)"
+# This used to assert the migration was the highest numbered one in the
+# repository, which was true the day it was written and false the moment
+# anything was added after it. Ordering across all migrations is checked once,
+# in migration-naming-test.sh, rather than re-asserted by each migration's own
+# suite. What matters here is only that this name can be ordered at all.
+check "its name is a ten digit timestamp, so it globs in order" \
+  "$(basename "$MIGRATION" .sh | grep -cE '^[0-9]{10}$')" "1"
 
 MHOME="$TMP/fakehome"
 mk() {
