@@ -1,0 +1,16 @@
+# This file is yours: it sets what the battery monitor runs. hyprsimple copies it once
+# and never touches it again. Run `systemctl --user daemon-reload` after
+# editing.
+
+[Unit]
+Description=Battery Monitor Service
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/battery-monitor.sh
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+[Install]
+WantedBy=default.target

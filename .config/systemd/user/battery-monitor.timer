@@ -6,10 +6,30 @@
 Description=Battery Monitor Timer
 Requires=battery-monitor.service
 
+# Tied to the graphical session, not to the user manager.
+#
+# This used to be WantedBy=timers.target with OnBootSec and Persistent, which
+# starts the timer as soon as the user manager does, before any compositor
+# exists. Measured on a login: the service ran at 11:54:23 and Hyprland was
+# selected in the same second, after it. With a low battery that meant
+# battery-monitor.sh dimmed the panel to 5% at the greeter, and its
+# notify-send activated dunst over D-Bus into a session with no Wayland
+# display, where dunst aborted on "Couldn't initialize X11 output" five times
+# and burned its start limit.
+#
+# battery-monitor.service already said After=graphical-session.target, which
+# is ordering only and does nothing when that target is not part of the same
+# job. Being wanted by the target is what makes it wait.
+After=graphical-session.target
+PartOf=graphical-session.target
+
 [Timer]
-OnBootSec=30s
+# Relative to the timer starting rather than to boot, since it now starts with
+# the session. Persistent is gone with OnBootSec: it exists to catch up a run
+# missed while powered off, and a battery reading from before the machine was
+# on is not worth acting on.
+OnActiveSec=30s
 OnUnitActiveSec=30s
-Persistent=true
 
 [Install]
-WantedBy=timers.target
+WantedBy=graphical-session.target
