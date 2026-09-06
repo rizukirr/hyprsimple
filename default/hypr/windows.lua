@@ -43,8 +43,33 @@ hl.window_rule({
 	tag = "-default-opacity",
 })
 
--- Hide the "<app> is sharing your screen" notification bar
-hl.window_rule({ match = { title = ".*is sharing.*" }, workspace = "special silent" })
+-- Hide the "<site> is sharing your screen" bar a browser shows while a call
+-- has your screen.
+--
+-- The pattern used to be ".*is sharing.*", which is a workspace rule and so is
+-- applied when a window opens. Any window whose title happened to contain
+-- those two words was moved to a hidden workspace and appeared not to open at
+-- all. Measured: a terminal titled "How Netflix is sharing your data" went
+-- straight to special:special and was gone.
+--
+-- The six titles a chromium browser can give this bar, read out of Brave's own
+-- en-US.pak, are
+--
+--   $1 is sharing your screen.            $1 is sharing a window.
+--   $1 is sharing your screen and audio.  $1 is sharing a window and audio.
+--   $1 is sharing a Brave tab.            $1 is sharing a Brave tab and audio.
+--
+-- so the object and the full stop are what tell the bar apart from prose. All
+-- six still match. "is sharing your data" and "is sharing a document" no
+-- longer do.
+--
+-- Narrowing rather than widening on purpose: if some browser words this
+-- differently the bar reappears, which is visible and harmless, where the old
+-- pattern lost you a window with no explanation.
+hl.window_rule({
+	match = { title = ".*is sharing (your screen|a window|a [A-Za-z]+ tab)( and audio)?\\..*" },
+	workspace = "special silent",
+})
 
 -- Force chromium-based browsers into a tile (chromium --app bug workaround)
 hl.window_rule({ match = { tag = "chromium-based-browser" }, tile = true })
