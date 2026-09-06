@@ -217,6 +217,9 @@ jobs:
       - name: migration-naming-test
         run: bash test/migration-naming-test.sh
 
+      - name: readme-keybindings-test
+        run: bash test/readme-keybindings-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

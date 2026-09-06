@@ -17,22 +17,22 @@ hl.bind(
 
 -- Move the whole workspace to another monitor (external display / presentations)
 hl.bind(
-	"SUPER + SHIFT + ALT + LEFT",
+	"SUPER + CTRL + LEFT",
 	hl.dsp.workspace.move({ monitor = "l" }),
 	{ description = "Move Workspace to Left Monitor" }
 )
 hl.bind(
-	"SUPER + SHIFT + ALT + RIGHT",
+	"SUPER + CTRL + RIGHT",
 	hl.dsp.workspace.move({ monitor = "r" }),
 	{ description = "Move Workspace to Right Monitor" }
 )
 hl.bind(
-	"SUPER + SHIFT + ALT + UP",
+	"SUPER + CTRL + UP",
 	hl.dsp.workspace.move({ monitor = "u" }),
 	{ description = "Move Workspace to Up Monitor" }
 )
 hl.bind(
-	"SUPER + SHIFT + ALT + DOWN",
+	"SUPER + CTRL + DOWN",
 	hl.dsp.workspace.move({ monitor = "d" }),
 	{ description = "Move Workspace to Down Monitor" }
 )
