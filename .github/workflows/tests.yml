@@ -214,6 +214,9 @@ jobs:
       - name: debug-report-test
         run: bash test/debug-report-test.sh
 
+      - name: migration-naming-test
+        run: bash test/migration-naming-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
