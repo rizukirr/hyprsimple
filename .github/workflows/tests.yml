@@ -229,6 +229,9 @@ jobs:
       - name: default-links-test
         run: bash test/default-links-test.sh
 
+      - name: window-rules-test
+        run: bash test/window-rules-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
