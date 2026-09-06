@@ -66,6 +66,35 @@ or_note() {
   if [[ -n $out ]]; then printf '%s\n' "$out"; else printf '%s\n' "$1"; fi
 }
 
+# Prints at most twice its argument: that many lines from each end, with a note
+# between them saying how many were left out.
+#
+# The two sections below used to end in tail alone, which keeps the most recent
+# lines and drops the beginning. The beginning is where a failure at boot or at
+# session start lives, so on a machine with a noisy background service that is
+# the wrong half to keep. Measured here: a Waydroid container put over 300
+# lines of its own init and libprocessgroup errors into this boot's journal,
+# more than the whole cap, so anything Hyprland had said at startup was already
+# gone by the time the report was written.
+#
+# Both ends, and the gap is named rather than left to be inferred from a jump
+# in the timestamps.
+head_tail_excerpt() {
+  local keep="$1" total tmp
+  tmp=$(mktemp) || { cat; return; }
+  cat >"$tmp"
+  total=$(wc -l <"$tmp")
+  if (( total <= keep * 2 )); then
+    cat "$tmp"
+  else
+    head -n "$keep" "$tmp"
+    printf '\n... %s lines omitted from the middle of this section ...\n\n' \
+      "$((total - keep * 2))"
+    tail -n "$keep" "$tmp"
+  fi
+  rm -f "$tmp"
+}
+
 hyprsimple_version() {
   local version branch
   version=$(cat "$HYPRSIMPLE_PATH/version" 2>/dev/null || echo "unknown")
@@ -126,7 +155,7 @@ hyprsimple_version() {
   fi
 
   section "JOURNAL (this boot, warnings and errors)"
-  journalctl -b -p 4..1 --no-pager 2>/dev/null | tail -n 300 | or_note "(unavailable)"
+  journalctl -b -p 4..1 --no-pager 2>/dev/null | head_tail_excerpt 150 | or_note "(unavailable)"
 
   section "DMESG"
   # dmesg is readable without sudo where kernel.dmesg_restrict is 0, so it is
@@ -137,16 +166,19 @@ hyprsimple_version() {
   if [[ $NO_SUDO == "true" ]]; then
     echo "(skipped - --no-sudo)"
   elif out=$(dmesg 2>&1); then
-    printf '%s\n' "$out" | tail -n 200 | or_note "(empty)"
+    printf '%s\n' "$out" | head_tail_excerpt 100 | or_note "(empty)"
   elif out=$(sudo dmesg 2>&1); then
-    printf '%s\n' "$out" | tail -n 200 | or_note "(empty)"
+    printf '%s\n' "$out" | head_tail_excerpt 100 | or_note "(empty)"
   else
     echo "(unavailable - $(printf '%s' "$out" | head -n 1))"
   fi
 
   section "HYPRSIMPLE INSTALL LOG"
   if [[ -f $INSTALL_LOG ]]; then
-    tail -n 400 "$INSTALL_LOG"
+    # Same treatment. The end of an install log is where it failed, the start
+    # is what it decided about this machine, and tail kept only the first of
+    # those two.
+    head_tail_excerpt 200 <"$INSTALL_LOG"
   else
     echo "(no install log at $INSTALL_LOG)"
   fi
