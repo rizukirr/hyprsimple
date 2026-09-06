@@ -835,15 +835,32 @@ echo "Log saved to $INSTALL_LOG"
 echo ""
 echo "Next steps:"
 echo "1. Log out and log back in to Hyprland"
-echo "2. Customize ~/.config/hypr/monitors.conf for your setup"
+echo "2. Customize ~/.config/hypr/monitors.lua for your setup"
 echo "3. Update later with: hyprsimple-update"
 echo ""
 
 read -rp "Logout to take effect? (y/n) " logout
 if [ "$logout" == "y" ]; then
-    echo "Logging out..."
-    hyprctl dispatch exit
+  echo "Logging out..."
+  # hyprsimple's own logout, the same one SUPER + X and the power menu run. It
+  # closes windows and waits for them before stopping the session.
+  #
+  # This was `hyprctl dispatch exit`, which tears the compositor down at once.
+  # A browser still flushing its profile is killed, which is the single thing
+  # hypr-logout.sh was written to prevent, and the installer was the one place
+  # still doing it. It is also the wrong call under uwsm, which wants its
+  # session stopped rather than its compositor shot: `uwsm stop`, which
+  # hypr-logout.sh ends with.
+  #
+  # An install run from a TTY has no session to leave. Saying so beats
+  # hyprctl printing a socket error and the script exiting as though it worked.
+  if pgrep -x Hyprland >/dev/null 2>&1; then
+    "$HOME/.local/bin/hypr-logout.sh"
+  else
+    echo "No Hyprland session is running here, so there is nothing to log out of."
+    echo "Log in to Hyprland to pick up the changes."
+  fi
 else
-    echo "Exiting..."
-    exit
+  echo "Exiting..."
+  exit
 fi

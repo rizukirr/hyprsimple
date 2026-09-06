@@ -118,6 +118,89 @@ if command -v lua >/dev/null 2>&1; then
   fi
 fi
 
+# --- and the last thing an install says -------------------------------------
+#
+# The closing message told every new user
+#
+#   2. Customize ~/.config/hypr/monitors.conf for your setup
+#
+# and there has been no monitors.conf since the config became lua. The one
+# instruction an installer leaves you with named a file that is not there.
+#
+# Every ~/.config path the installer names is checked, not just that one, since
+# the same drift can happen to any of them. Paths under a directory hyprsimple
+# creates rather than ships are exempted by name.
+
+INSTALL="$REPO/install.sh"
+# Comments stripped before any of this counts anything. install.sh explains in
+# comments what it used to do, naming both the dangling
+# ~/.config/rofi/launcher/launcher link it no longer makes and the
+# `hyprctl dispatch exit` it no longer runs, and an unanchored grep reads those
+# explanations as code. Three of these checks failed that way first.
+code_of() { sed 's/#.*//' "$1"; }
+INSTALL_CODE="$TMP/install.code"
+code_of "$INSTALL" >"$INSTALL_CODE"
+check "stripping comments leaves install.sh's code behind" \
+  "$(grep -c '^install_packages()' "$INSTALL_CODE")" "1"
+GENERATED="uwsm/env uwsm/env-hyprland btop/themes rofi/hyprsimple hypr/hyprsimple
+  dunst/dunstrc.d hypr/theme-active.lua hypr/theme-hyprlock.conf"
+
+# Both spellings. install.sh writes "$HOME/.config/..." in code and ~/.config/...
+# in the text it prints, and reading only the printed form found a single path,
+# which is not enough for the check below to mean anything.
+mapfile -t named < <(
+  {
+    # shellcheck disable=SC2088  # a grep pattern, not a path to expand
+    grep -oE '~/\.config/[A-Za-z0-9_./-]+' "$INSTALL_CODE"
+    grep -oE '\$HOME/\.config/[A-Za-z0-9_./-]+' "$INSTALL_CODE"
+  } | sed 's|~/\.config/||; s|\$HOME/\.config/||; s|[./]*$||' | LC_ALL=C sort -u
+)
+if (( ${#named[@]} < 3 )); then
+  fail "found ${#named[@]} config paths in install.sh, so this is not reading it"
+else
+  pass "checked ${#named[@]} config paths the installer names"
+fi
+
+absent=()
+for rel in "${named[@]}"; do
+  # Written by the installer or by a theme switch rather than shipped. Matched
+  # as a prefix: the exempt entries name directories, and the paths found
+  # include files inside them, such as the dunst drop-in symlink.
+  exempt=0
+  for gen in $GENERATED; do
+    [[ $rel == "$gen" || $rel == "$gen"/* ]] && { exempt=1; break; }
+  done
+  (( exempt )) && continue
+  [[ -e $REPO/.config/$rel ]] && continue
+  absent+=("$rel")
+done
+absent_str=""
+(( ${#absent[@]} > 0 )) && absent_str="$(printf '%s ' "${absent[@]}")"
+check "and every one of them is a file hyprsimple ships" "$absent_str" ""
+
+# The specific one, by name, so the reason stays readable.
+check "the closing message names monitors.lua" \
+  "$(grep -c 'hypr/monitors.lua for your setup' "$INSTALL_CODE")" "1"
+check "and no longer monitors.conf, which has not existed since the lua split" \
+  "$(grep -c 'monitors.conf' "$INSTALL_CODE")" "0"
+
+# --- and it leaves the session the way hyprsimple leaves it ------------------
+#
+# The prompt at the end ran `hyprctl dispatch exit`, which tears the compositor
+# down at once. A browser still flushing its profile is killed, which is the
+# single thing hypr-logout.sh exists to prevent, and the installer was the last
+# place still doing it. It is also the wrong call under uwsm, which wants its
+# session stopped rather than its compositor shot.
+
+check "the installer logs out through hyprsimple's own logout" \
+  "$(grep -c 'hypr-logout.sh' "$INSTALL_CODE")" "1"
+check "and not by shooting the compositor" \
+  "$(grep -c 'hyprctl dispatch exit' "$INSTALL_CODE")" "0"
+check "and says so rather than erroring when there is no session" \
+  "$(grep -c 'pgrep -x Hyprland' "$INSTALL_CODE")" "1"
+check "the script it calls is one the installer has already copied" \
+  "$([[ -f $BIN/hypr-logout.sh ]] && echo yes || echo no)" "yes"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
