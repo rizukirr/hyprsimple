@@ -223,6 +223,9 @@ jobs:
       - name: keybinding-viewer-test
         run: bash test/keybinding-viewer-test.sh
 
+      - name: ghostty-theme-test
+        run: bash test/ghostty-theme-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
