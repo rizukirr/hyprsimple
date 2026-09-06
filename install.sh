@@ -640,14 +640,39 @@ done
 echo ""
 echo -e "${YELLOW}Copying configuration files...${NC}"
 
-# Backup function: moves any existing target (file, dir, or symlink) to <target>.backup.
-# Always copy-based; no symlink-install paths exist anymore.
+# Move an existing target (file, dir, or symlink) aside before writing over it.
+#
+# This began with `rm -rf "$1.backup"`, which destroyed the thing the backup
+# existed for. The first install moves your own config to <target>.backup. A
+# second install, run months later to repair something, deleted that and put
+# hyprsimple's own previous copy there instead. Demonstrated on a fixture:
+# after two installs the original was gone, with zero copies left anywhere, and
+# .backup held hyprsimple v1.
+#
+# The first backup is the one worth keeping, because it is the only one holding
+# what was there before hyprsimple ever ran. Anything after it gets a
+# timestamped name, so nothing is ever destroyed.
+#
+# hyprsimple-muslimtify.sh already learned this and says so in its own backup
+# function. install.sh is where it costs the most.
 backup_if_exists() {
-  if [ -e "$1" ] || [ -L "$1" ]; then
-    echo -e "${YELLOW}Backing up existing $1 to $1.backup${NC}"
-    rm -rf "$1.backup"
-    mv "$1" "$1.backup"
+  local target="$1" source="${2-}"
+  [ -e "$target" ] || [ -L "$target" ] || return 0
+
+  # Nothing worth preserving when what is there is already what is about to be
+  # written. Without this, re-running the installer files a timestamped backup
+  # of hyprsimple's own unchanged scripts every time.
+  if [ -n "$source" ] && [ -f "$source" ] && [ -f "$target" ] && cmp -s "$source" "$target"; then
+    return 0
   fi
+
+  local backup="$target.backup"
+  if [ -e "$backup" ] || [ -L "$backup" ]; then
+    backup="$target.backup.$(date +%s)"
+  fi
+
+  echo -e "${YELLOW}Backing up existing $target to $backup${NC}"
+  mv "$target" "$backup"
 }
 
 # Copy .config directories and files
@@ -655,7 +680,7 @@ for item in "$DOTFILES_DIR/.config"/*; do
   basename_item=$(basename "$item")
 
   target="$HOME/.config/$basename_item"
-  backup_if_exists "$target"
+  backup_if_exists "$target" "$item"
 
   if [ -d "$item" ]; then
     cp -r "$item" "$target"
@@ -674,7 +699,7 @@ mkdir -p "$HOME/.local/bin"
 for script in "$DOTFILES_DIR/.local/bin"/*.sh "$DOTFILES_DIR/.local/bin"/*.fish; do
   if [ -f "$script" ]; then
     target="$HOME/.local/bin/$(basename "$script")"
-    backup_if_exists "$target"
+    backup_if_exists "$target" "$script"
     cp "$script" "$target"
     chmod +x "$target"
     echo -e "${GREEN}Copied:${NC} $(basename "$script")"
@@ -690,7 +715,7 @@ if [ -d "$DOTFILES_DIR/.local/share" ]; then
     if [ -e "$item" ]; then
       basename_item=$(basename "$item")
       target="$HOME/.local/share/$basename_item"
-      backup_if_exists "$target"
+      backup_if_exists "$target" "$item"
       cp -r "$item" "$target"
       echo -e "${GREEN}Copied:${NC} .local/share/$basename_item"
     fi
