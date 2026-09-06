@@ -56,8 +56,21 @@ fi
 # 5. Update Ghostty theme
 GHOSTTY_CONFIG="$HOME/.config/ghostty/config"
 if [[ -f "$GHOSTTY_CONFIG" ]]; then
-  # Remove old color/palette/theme lines, keep non-color settings
-  grep -vE '^(background|foreground|cursor-color|cursor-text|selection-background|selection-foreground|palette|theme) =' "$GHOSTTY_CONFIG" > "$GHOSTTY_CONFIG.tmp"
+  # Remove old color/palette/theme lines, keep non-color settings.
+  #
+  # The whitespace is matched the way ghostty matches it, not the way
+  # hyprsimple happens to write it. This pattern required exactly "key = ", so
+  # a line written any other way ghostty accepts survived every theme switch:
+  #
+  #   theme=gruvbox        kept, and "theme = kanagawa" appended after it
+  #   theme  =  gruvbox    kept
+  #     theme = gruvbox    kept
+  #
+  # All three validate, checked with `ghostty +validate-config`. The header of
+  # the shipped config promises these lines are removed and rewritten, so
+  # someone who set their own theme was told it would be replaced and instead
+  # kept a dead line they could no longer see taking effect.
+  grep -vE '^[[:space:]]*(background|foreground|cursor-color|cursor-text|selection-background|selection-foreground|palette|theme)[[:space:]]*=' "$GHOSTTY_CONFIG" > "$GHOSTTY_CONFIG.tmp"
 
   if [[ -f "$THEME_PATH/ghostty-theme" ]]; then
     # Use Ghostty's built-in theme
