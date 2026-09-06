@@ -76,6 +76,7 @@ cat >"$STUB/journalctl" <<'STUBEOF'
 #!/bin/bash
 case "$(cat "$STATE/journal-mode" 2>/dev/null)" in
   ok)   printf 'a real journal line\n' ;;
+  long) seq 1 1000 | sed 's/^/journal line /' ;;
   *)    echo "journalctl: no journal" >&2; exit 1 ;;
 esac
 STUBEOF
@@ -196,6 +197,57 @@ check "with no password prompt, sudo never being called" \
 report --no-sudo
 check "--no-sudo still skips the section by name" \
   "$(section_body DMESG)" "(skipped - --no-sudo)"
+
+# --- a long section keeps both ends ------------------------------------------
+#
+# The journal and dmesg sections ended in tail, which keeps the most recent
+# lines and drops the beginning. The beginning is where a failure at boot or at
+# session start lives, so on a machine with a noisy background service that is
+# the wrong half to keep. Measured on this one: a Waydroid container put over
+# 300 lines of its own init and libprocessgroup errors into a single boot's
+# journal, more than the whole 300 line cap, so anything Hyprland said at
+# startup was gone before the report was written.
+#
+# The helper is exercised directly as well as through the report, because a
+# section long enough to truncate is awkward to arrange from a stub and the
+# boundary is where this kind of thing goes wrong.
+excerpt() {
+  bash -c "source <(sed -n '/^head_tail_excerpt()/,/^}/p' '$SCRIPT'); head_tail_excerpt $1"
+}
+
+check "input shorter than the cap is passed through whole" \
+  "$(seq 1 10 | excerpt 200 | wc -l)" "10"
+check "input exactly twice the cap is still whole" \
+  "$(seq 1 400 | excerpt 200 | wc -l)" "400"
+check "and says nothing about omitting anything, having omitted nothing" \
+  "$(seq 1 400 | excerpt 200 | grep -c 'omitted')" "0"
+
+long=$(seq 1 1000 | excerpt 200)
+check "one line over the cap does truncate" \
+  "$(seq 1 401 | excerpt 200 | grep -c 'omitted from the middle')" "1"
+check "the first line survives, which tail alone dropped" \
+  "$(printf '%s\n' "$long" | head -n 1)" "1"
+check "and so does the last" \
+  "$(printf '%s\n' "$long" | tail -n 1)" "1000"
+check "the gap is named rather than left silent" \
+  "$(printf '%s\n' "$long" | grep -c '600 lines omitted from the middle')" "1"
+check "and the whole excerpt stays bounded" \
+  "$(printf '%s\n' "$long" | wc -l)" "403"
+
+# Empty input still reaches or_note rather than being reported as a gap.
+check "empty input produces nothing for or_note to replace" \
+  "$(printf '' | excerpt 200 | wc -c)" "0"
+
+# And through the report itself, on a journal long enough to be cut.
+set_journalctl long
+report
+body=$(section_body 'JOURNAL (this boot, warnings and errors)')
+check "a long journal keeps its first line through the report" \
+  "$(printf '%s\n' "$body" | head -n 1)" "journal line 1"
+check "and its last" \
+  "$(printf '%s\n' "$body" | tail -n 1)" "journal line 1000"
+check "and says how many it left out" \
+  "$(printf '%s\n' "$body" | grep -c 'omitted from the middle')" "1"
 
 # --- the old shape is gone ---------------------------------------------------
 
