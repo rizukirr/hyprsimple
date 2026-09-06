@@ -1,0 +1,70 @@
+bindd
+	modmask: 64
+	submap: 
+	key: Q
+	keycode: 0
+	catchall: false
+	description: Close Window
+	dispatcher: __lua
+	arg: 5
+
+bindd
+	modmask: 64
+	submap: 
+	key: W
+	keycode: 0
+	catchall: false
+	description: Toggle Floating
+	dispatcher: __lua
+	arg: 7
+
+bindd
+	modmask: 64
+	submap: 
+	key: H
+	keycode: 0
+	catchall: false
+	description: Focus Left
+	dispatcher: __lua
+	arg: 9
+
+bindd
+	modmask: 64
+	submap: 
+	key: L
+	keycode: 0
+	catchall: false
+	description: Focus Right
+	dispatcher: __lua
+	arg: 11
+
+
+bindd
+	modmask: 64
+	submap: 
+	key: O
+	keycode: 0
+	catchall: false
+	description: 
+	dispatcher: __lua
+	arg: 99
+
+bind
+	modmask: 4
+	submap: 
+	key: F1
+	keycode: 0
+	catchall: false
+	description: 
+	dispatcher: exec
+	arg: kitty
+
+bindm
+	modmask: 64
+	submap: 
+	key: mouse:272
+	keycode: 0
+	catchall: false
+	description: Move Window
+	dispatcher: __lua
+	arg: 40

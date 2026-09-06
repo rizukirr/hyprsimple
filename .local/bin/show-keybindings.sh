@@ -29,10 +29,17 @@ hyprctl binds |
       if (key == "" && keycode != "" && keycode != "0") key = "code:" keycode
       if (key == "") return
       d = desc
-      # Lua-backed binds carry no readable dispatcher text, so skip undescribed ones.
+      # A non-lua bind has readable dispatcher text, so use that.
       if (d == "" && dispatcher != "__lua")
         d = dispatcher (arg != "" ? " " arg : "")
-      if (d == "") return
+      # A lua bind has none, and one with no description used to be dropped
+      # here. Every bind hyprsimple ships carries a description, so that only
+      # ever hid a key someone added themselves: it worked, and it was missing
+      # from the one list that is supposed to say what the keys are, with
+      # nothing anywhere to explain the gap. Listed with a note instead, which
+      # says both that the key is real and how to name it.
+      if (d == "")
+        d = "(no description; add { description = \"...\" } to the bind)"
       printf "%-30s  %s\n", modstr(modmask) keyname(key), d
     }
 
