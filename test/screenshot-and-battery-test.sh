@@ -206,6 +206,135 @@ check "and says nothing" "$(wc -l <"$NLOG" | tr -d ' ')" "0"
 
 rm -f "$FLAG"
 
+# --- the monitor waits for a session to notify -------------------------------
+#
+# battery-monitor.timer was WantedBy=timers.target, so it started with the user
+# manager, before any compositor. The service said
+# After=graphical-session.target, which is ordering only and does nothing when
+# that target is not part of the same job.
+#
+# Measured on a login: "Starting Battery Monitor Service..." at 11:54:23 and
+# "uwsm: Selected compositor ID" in the same second, after it. With a low
+# battery that means this script dims the panel to 5% at the greeter, and its
+# notify-send activates dunst over D-Bus into a session with no Wayland
+# display, where dunst aborts on "Couldn't initialize X11 output", is retried
+# five times and burns its start limit. The notification is lost and
+# dunst.service is left failed, which #106 made visible.
+
+UNITS="$REPO/.config/systemd/user"
+TIMER="$UNITS/battery-monitor.timer"
+SERVICE="$UNITS/battery-monitor.service"
+
+# Comments stripped before counting. The new timer explains in a comment what
+# it used to say, and an unanchored grep counts that explanation as the
+# setting, which is how this check first passed the wrong way round.
+unit_code() { sed 's/^[[:space:]]*#.*//' "$1"; }
+
+check "the timer is wanted by the graphical session" \
+  "$(unit_code "$TIMER" | grep -c '^WantedBy=graphical-session.target$')" "1"
+check "and not by timers.target, which starts with the user manager" \
+  "$(unit_code "$TIMER" | grep -c 'WantedBy=timers.target')" "0"
+check "stripping comments leaves the settings intact" \
+  "$(unit_code "$TIMER" | grep -c '^Requires=')" "1"
+check "and is part of the session, so it stops with it" \
+  "$(grep -c '^PartOf=graphical-session.target$' "$TIMER")" "1"
+check "the schedule counts from the session, not from boot" \
+  "$(grep -c '^OnActiveSec=' "$TIMER")" "1"
+check "so OnBootSec is gone" "$(unit_code "$TIMER" | grep -c '^OnBootSec=')" "0"
+check "and Persistent with it, there being no missed run worth catching up" \
+  "$(unit_code "$TIMER" | grep -c '^Persistent=')" "0"
+check "the service is part of the session too" \
+  "$(grep -c '^PartOf=graphical-session.target$' "$SERVICE")" "1"
+check "and has no Install section inviting it to be enabled on its own" \
+  "$(unit_code "$SERVICE" | grep -c '^\[Install\]')" "0"
+check "the timer still requires the service, or nothing would run" \
+  "$(grep -c '^Requires=battery-monitor.service$' "$TIMER")" "1"
+
+# systemd's own verdict, where it is available.
+if ! command -v systemd-analyze >/dev/null 2>&1; then
+  pass "systemd-analyze is not installed here, so its verdict is skipped"
+else
+  complaints=$(systemd-analyze --user verify "$TIMER" 2>&1 | grep -c . || true)
+  check "systemd accepts the timer with no complaint" "$complaints" "0"
+fi
+
+# install.sh must not start it during an install, where no session exists.
+check "install.sh enables the timer without starting it" \
+  "$(grep -c 'systemctl --user enable battery-monitor.timer$' "$REPO/install.sh")" "1"
+check "and no longer uses --now, which fired it with no compositor" \
+  "$(grep -c 'enable --now battery-monitor.timer' "$REPO/install.sh")" "0"
+
+# --- and the change reaches machines that already exist ----------------------
+
+MIGRATION="$REPO/migrations/1788702842.sh"
+check "a migration carries it" "$([[ -f $MIGRATION ]] && echo yes || echo no)" "yes"
+
+PRE="$REPO/test/fixtures/pre-session-timer"
+check "it records two checksums, one per unit" \
+  "$(grep -cE '^(TIMER|SERVICE)_SUM="[a-f0-9]{32}"$' "$MIGRATION")" "2"
+check "and the timer fixture is the version it records" \
+  "$(md5sum "$PRE/battery-monitor.timer" | cut -d' ' -f1)" \
+  "$(grep -oE '^TIMER_SUM="[a-f0-9]+"' "$MIGRATION" | cut -d'"' -f2)"
+check "and the service fixture likewise" \
+  "$(md5sum "$PRE/battery-monitor.service" | cut -d' ' -f1)" \
+  "$(grep -oE '^SERVICE_SUM="[a-f0-9]+"' "$MIGRATION" | cut -d'"' -f2)"
+check "and the fixture really is the old shape, or this proves nothing" \
+  "$(grep -c 'WantedBy=timers.target' "$PRE/battery-monitor.timer")" "1"
+
+BHOME="$TMP/battery-home"
+BSTUB="$TMP/battery-bin"; mkdir -p "$BSTUB"
+cat >"$BSTUB/systemctl" <<'STUBEOF'
+#!/bin/bash
+printf 'systemctl %s\n' "$*" >>"$SYSTEMCTL_LOG"
+case "$*" in
+  *"is-enabled battery-monitor.timer") exit "${TIMER_ENABLED_RC:-0}" ;;
+  *"is-active graphical-session.target") exit "${SESSION_RC:-0}" ;;
+esac
+exit 0
+STUBEOF
+chmod +x "$BSTUB/systemctl"
+
+setup_units() {
+  rm -rf "${TMP:?}/battery-home"; mkdir -p "$BHOME/.config/systemd/user"
+  cp "$PRE/battery-monitor.timer" "$PRE/battery-monitor.service" \
+    "$BHOME/.config/systemd/user/"
+}
+run_migration() {
+  : >"$TMP/systemctl.log"
+  SYSTEMCTL_LOG="$TMP/systemctl.log" HOME="$BHOME" HYPRSIMPLE_PATH="$REPO" \
+    PATH="$BSTUB:/usr/bin:/bin" "$@" bash "$MIGRATION" >"$TMP/mig-out" 2>&1
+}
+
+setup_units
+run_migration
+check "an unedited timer is replaced" \
+  "$(grep -c 'WantedBy=graphical-session.target' "$BHOME/.config/systemd/user/battery-monitor.timer")" "1"
+check "and the service with it" \
+  "$(grep -c 'PartOf=graphical-session.target' "$BHOME/.config/systemd/user/battery-monitor.service")" "1"
+check "the enabling symlink is moved, not left under timers.target" \
+  "$(grep -c 'disable battery-monitor.timer' "$TMP/systemctl.log")" "1"
+check "and re-enabled afterwards" \
+  "$(grep -c 'enable battery-monitor.timer' "$TMP/systemctl.log")" "1"
+check "with a daemon-reload, or systemd would still hold the old unit" \
+  "$(grep -c 'daemon-reload' "$TMP/systemctl.log")" "1"
+
+# A machine that turned the timer off keeps it off.
+setup_units
+run_migration env TIMER_ENABLED_RC=1
+check "a disabled timer is not enabled behind the user's back" \
+  "$(grep -c 'enable battery-monitor.timer' "$TMP/systemctl.log")" "0"
+check "but the units are still corrected" \
+  "$(grep -c 'WantedBy=graphical-session.target' "$BHOME/.config/systemd/user/battery-monitor.timer")" "1"
+
+# An edited unit is left alone and named.
+setup_units
+printf '[Unit]\nDescription=mine\n' >"$BHOME/.config/systemd/user/battery-monitor.timer"
+run_migration
+check "an edited unit is left as it is" \
+  "$(grep -c 'Description=mine' "$BHOME/.config/systemd/user/battery-monitor.timer")" "1"
+check "and named, so the user knows theirs still runs early" \
+  "$(grep -c 'battery-monitor.timer' "$TMP/mig-out")" "1"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1

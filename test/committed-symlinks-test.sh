@@ -86,8 +86,16 @@ check "no .wants or .target.wants directory is tracked, that is enable state" \
 
 check "install.sh enables the pipewire units" \
   "$(grep -c 'systemctl --user enable --now pipewire pipewire-pulse wireplumber' "$REPO/install.sh")" "1"
+# The battery timer is enabled without --now. It is wanted by
+# graphical-session.target, and the install runs from a TTY or another session
+# where that target is not up, so --now started a timer that would fire
+# battery-monitor.sh with no compositor: on a low battery that dims the panel
+# and sends a notification into a bus with no display. The symlink is what this
+# suite is about, and enable alone still writes it.
 check "install.sh enables the battery monitor timer" \
-  "$(grep -c 'systemctl --user enable --now battery-monitor.timer' "$REPO/install.sh")" "1"
+  "$(grep -c 'systemctl --user enable battery-monitor.timer$' "$REPO/install.sh")" "1"
+check "and does not start it there, where there is no session to notify" \
+  "$(grep -c 'enable --now battery-monitor.timer' "$REPO/install.sh")" "0"
 
 # ---- the migration --------------------------------------------------------
 

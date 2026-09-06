@@ -1,0 +1,15 @@
+# This file is yours: it sets how often the battery monitor runs. hyprsimple copies it once
+# and never touches it again. Run `systemctl --user daemon-reload` after
+# editing.
+
+[Unit]
+Description=Battery Monitor Timer
+Requires=battery-monitor.service
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

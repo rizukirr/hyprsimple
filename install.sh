@@ -721,7 +721,13 @@ systemctl --user enable --now pipewire pipewire-pulse wireplumber || true
 if [ -f "$HOME/.config/systemd/user/battery-monitor.timer" ]; then
   echo -e "${YELLOW}Enabling battery monitor timer...${NC}"
   systemctl --user daemon-reload
-  systemctl --user enable --now battery-monitor.timer
+  # enable, not enable --now. The timer is wanted by graphical-session.target,
+  # and the install runs from a TTY or another session where that target is not
+  # up, so --now started a timer that would fire battery-monitor.sh with no
+  # compositor: on a low battery that dims the panel and sends a notification
+  # into a bus with no display, which is the case this ordering exists to
+  # avoid. The session starts it.
+  systemctl --user enable battery-monitor.timer
   echo -e "${GREEN}Battery monitor enabled${NC}"
 fi
 
