@@ -48,6 +48,24 @@ section() {
   echo "========================================="
 }
 
+# Prints what it is given, or the note when that is empty.
+#
+# Every caller below used to be written `cmd | filter || echo "(note)"`, and
+# not one of those notes could ever appear: a pipeline's exit status is its
+# last command's, and sort and tail succeed on an empty stream whatever
+# happened upstream. So a section whose tool was missing, or whose sudo went
+# unanswered, came out blank, and a reader could not tell that from a section
+# with nothing to report. Measured on a live run where sudo had no terminal to
+# prompt from: the DMESG heading was followed by nothing at all.
+#
+# This is the shape that also had hypr-logout.sh wait out its whole timeout,
+# fixed in #96.
+or_note() {
+  local out
+  out=$(cat)
+  if [[ -n $out ]]; then printf '%s\n' "$out"; else printf '%s\n' "$1"; fi
+}
+
 hyprsimple_version() {
   local version branch
   version=$(cat "$HYPRSIMPLE_PATH/version" 2>/dev/null || echo "unknown")
@@ -69,15 +87,17 @@ hyprsimple_version() {
   state_dir="$HOME/.local/state/hyprsimple/migrations"
   if [[ -d $state_dir ]]; then
     echo "Applied:"
-    find "$state_dir" -maxdepth 1 -type f -printf '  %f\n' 2>/dev/null | sort || echo "  (none)"
+    find "$state_dir" -maxdepth 1 -type f -printf '  %f\n' 2>/dev/null | sort | or_note "  (none)"
     echo "Skipped after failure:"
-    find "$state_dir/skipped" -maxdepth 1 -type f -printf '  %f\n' 2>/dev/null | sort || echo "  (none)"
+    find "$state_dir/skipped" -maxdepth 1 -type f -printf '  %f\n' 2>/dev/null | sort | or_note "  (none)"
     echo "Pending:"
+    # Piped through the same helper as its two neighbours, which each said
+    # (none) and left this one printing a bare heading.
     for m in "$HYPRSIMPLE_PATH/migrations"/*.sh; do
       [[ -f $m ]] || continue
       name=$(basename "$m")
       [[ -f "$state_dir/$name" || -f "$state_dir/skipped/$name" ]] || echo "  $name"
-    done
+    done | or_note "  (none)"
   else
     echo "(no migration state - this install predates the migration system)"
   fi
@@ -106,13 +126,22 @@ hyprsimple_version() {
   fi
 
   section "JOURNAL (this boot, warnings and errors)"
-  journalctl -b -p 4..1 --no-pager 2>/dev/null | tail -n 300 || echo "(unavailable)"
+  journalctl -b -p 4..1 --no-pager 2>/dev/null | tail -n 300 | or_note "(unavailable)"
 
   section "DMESG"
+  # dmesg is readable without sudo where kernel.dmesg_restrict is 0, so it is
+  # tried first and the password prompt only happens on a machine that needs
+  # one. When neither works the reason is printed rather than a bare
+  # "(unavailable)": "a terminal is required to read the password" is the
+  # difference between a missing section and one worth asking about.
   if [[ $NO_SUDO == "true" ]]; then
     echo "(skipped - --no-sudo)"
+  elif out=$(dmesg 2>&1); then
+    printf '%s\n' "$out" | tail -n 200 | or_note "(empty)"
+  elif out=$(sudo dmesg 2>&1); then
+    printf '%s\n' "$out" | tail -n 200 | or_note "(empty)"
   else
-    sudo dmesg 2>/dev/null | tail -n 200 || echo "(unavailable)"
+    echo "(unavailable - $(printf '%s' "$out" | head -n 1))"
   fi
 
   section "HYPRSIMPLE INSTALL LOG"
@@ -125,8 +154,9 @@ hyprsimple_version() {
   section "EXPLICITLY INSTALLED PACKAGES"
   if command -v expac >/dev/null 2>&1; then
     # shellcheck disable=SC2046  # splitting is wanted: one argument per package
-    expac -Q '%n %v' $(pacman -Qqe) 2>/dev/null | sort
+    expac -Q '%n %v' $(pacman -Qqe) 2>/dev/null | sort | or_note "(unavailable)"
   else
+    # Not a pipeline, so this one's fallback always could fire.
     pacman -Qe 2>/dev/null || echo "(unavailable)"
   fi
 } >"$LOG_FILE" 2>&1

@@ -211,6 +211,9 @@ jobs:
       - name: wifi-test
         run: bash test/wifi-test.sh
 
+      - name: debug-report-test
+        run: bash test/debug-report-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
