@@ -190,7 +190,6 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 |-----|--------|
 | `SUPER + Q` | Kill active window |
 | `SUPER + W` | Toggle floating |
-| `SUPER + SHIFT + J` | Toggle split (dwindle) |
 | `SUPER + H / J / K / L` | Move focus left / down / up / right |
 | `SUPER + SHIFT + Arrow` | Resize window |
 | `SUPER + LMB drag` | Move window |
@@ -203,6 +202,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + [1-9, 0]` | Switch to workspace 1-10 |
 | `SUPER + SHIFT + [1-9, 0]` | Move window to workspace 1-10 |
 | `SUPER + SHIFT + S` | Move window to scratchpad |
+| `SUPER + CTRL + Arrow` | Move the whole workspace to the monitor in that direction |
 | `SUPER + Scroll` | Cycle through workspaces |
 
 ### Theming & Wallpaper
@@ -221,7 +221,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `Print` | Screenshot current monitor |
 | `SUPER + Print` | Screenshot active window |
 | `SUPER + ALT + Print` | Screenshot selected region |
-| `SUPER + CTRL + Print` | Screenshot region to clipboard |
+| `SUPER + CTRL + Print` | Screenshot current monitor to clipboard |
 
 ### Screen Recording
 
