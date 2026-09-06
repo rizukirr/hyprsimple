@@ -15,10 +15,16 @@ the contract:
   directly, like `hyprsimple-update` or `hyprsimple-debug`.
 - `hyprsimple-dev-` for contributor tooling, not something an end user needs.
 
-The directory matters too, separately from the prefix. `install.sh:437` copies
-everything in `.local/bin/` to the user's `~/.local/bin`, so anything there
-ships to every install. Scripts in `bin/` do not ship. They stay in the repo
-for contributors only.
+The directory matters too, separately from the prefix. `install.sh` copies
+everything in `.local/bin/` to the user's `~/.local/bin`, in the loop that
+begins `for script in "$DOTFILES_DIR/.local/bin"`, so anything there ships to
+every install. Scripts in `bin/` do not ship. They stay in the repo for
+contributors only.
+
+The anchor there is a line of code, not a line number. A line number in prose
+goes wrong the moment anything above it moves, and nothing announces that, so
+cite code you can grep for. `test/suite-hygiene-test.sh` checks that the quoted
+line is still in `install.sh` and that this file names no line numbers at all.
 
 ## Image policy
 
