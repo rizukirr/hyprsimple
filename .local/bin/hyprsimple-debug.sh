@@ -154,6 +154,54 @@ hyprsimple_version() {
     pacman -Qi hyprland 2>/dev/null | grep -E '^(Name|Version)' || true
   fi
 
+  section "SERVICES"
+  # The report asked systemd nothing at all, which on a systemd desktop leaves
+  # out the first thing anyone would look at. Found while reading this machine's
+  # journal: dunst.service had been activated over D-Bus before a Wayland
+  # display existed, aborted with "Couldn't initialize X11 output" five times,
+  # hit its start limit and been sitting in failed ever since. Notifications
+  # worked the whole time, because hyprsimple starts its own dunst from
+  # autostart, so nothing on screen said so and the report would not have
+  # either: the evidence was a handful of lines inside a journal section that
+  # is capped at 300 and shared with everything else on the machine.
+  #
+  # Names taken from what install.sh enables, so this list and that one are the
+  # same list.
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "(systemctl not available)"
+  else
+    echo "Failed user units:"
+    systemctl --user --failed --no-pager --plain --no-legend 2>/dev/null |
+      or_note "  (none)"
+
+    echo ""
+    echo "Failed system units:"
+    systemctl --failed --no-pager --plain --no-legend 2>/dev/null |
+      or_note "  (none)"
+
+    # is-active and is-enabled both answer for a unit that does not exist, so
+    # a missing one reads as inactive/not-found rather than as a blank line.
+    unit_state() {
+      printf '  %-36s %-10s %s\n' "$2" \
+        "$($1 is-active "$2" 2>&1)" "$($1 is-enabled "$2" 2>&1)"
+    }
+
+    echo ""
+    printf '  %-36s %-10s %s\n' "USER UNIT" "ACTIVE" "ENABLED"
+    for unit in hyprpaper.service hyprpolkitagent.service battery-monitor.timer \
+      pipewire.service pipewire-pulse.service wireplumber.service \
+      dunst.service xdg-desktop-portal-hyprland.service; do
+      unit_state "systemctl --user" "$unit"
+    done
+
+    echo ""
+    printf '  %-36s %-10s %s\n' "SYSTEM UNIT" "ACTIVE" "ENABLED"
+    for unit in bluetooth.service systemd-resolved.service thermald.service \
+      cups.service power-profiles-daemon.service; do
+      unit_state systemctl "$unit"
+    done
+  fi
+
   section "JOURNAL (this boot, warnings and errors)"
   journalctl -b -p 4..1 --no-pager 2>/dev/null | head_tail_excerpt 150 | or_note "(unavailable)"
 

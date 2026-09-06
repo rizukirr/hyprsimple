@@ -67,6 +67,37 @@ done
 # re-added per case rather than left as failing stubs.
 rm -f "$STUB/inxi" "$STUB/fastfetch" "$STUB/hyprctl" "$STUB/expac"
 
+# systemctl was not stubbed before the SERVICES section existed, so the report
+# under test would have queried the real user session: the maintainer's units
+# would decide whether the checks passed, and on a CI runner with no session
+# they would answer differently again. Answers come from files here.
+set_failed_user() { printf '%s' "$1" >"$TMP/failed-user"; }
+set_failed_system() { printf '%s' "$1" >"$TMP/failed-system"; }
+cat >"$STUB/systemctl" <<'STUBEOF'
+#!/bin/bash
+user=0
+[[ ${1:-} == "--user" ]] && { user=1; shift; }
+case "${1:-}" in
+  --failed)
+    if (( user )); then cat "$STATE/failed-user" 2>/dev/null
+    else cat "$STATE/failed-system" 2>/dev/null; fi
+    ;;
+  is-active)
+    case "$2" in
+      absent.service) echo inactive; exit 4 ;;
+      broken.service) echo failed; exit 3 ;;
+      *) echo active ;;
+    esac
+    ;;
+  is-enabled)
+    case "$2" in
+      absent.service) echo not-found; exit 4 ;;
+      *) echo enabled ;;
+    esac
+    ;;
+esac
+STUBEOF
+
 printf '#!/bin/bash\nexit 0\n' >"$STUB/lspci"; chmod +x "$STUB/lspci"
 printf '#!/bin/bash\necho "pacman $*"\n' >"$STUB/pacman"; chmod +x "$STUB/pacman"
 printf '#!/bin/bash\necho "git $*"\n' >"$STUB/git"; chmod +x "$STUB/git"
@@ -140,8 +171,11 @@ STATE="$TMP" HOME="$FAKEHOME" HYPRSIMPLE_PATH="$TMP/install" \
   PATH="$STUB:/usr/bin:/bin" bash "$SCRIPT" --print >"$TMP/out" 2>&1
 check "an empty applied list says (none)" \
   "$(grep -c '^Applied:$' "$TMP/out")" "1"
+# Counted inside the MIGRATIONS section, not across the report. The SERVICES
+# section says (none) too when nothing has failed, and a whole-file count
+# turned red the moment it was added, for no reason to do with migrations.
 check "and all three migration lists do, not just the two that had a fallback" \
-  "$(grep -c '^  (none)$' "$TMP/out")" "3"
+  "$(section_body MIGRATIONS | grep -c '^  (none)$')" "3"
 
 # And the lists still carry their contents when there are any, so the note is
 # not simply printed over real output.
@@ -154,7 +188,7 @@ check "an applied migration is still listed" \
 check "a pending one is still listed" \
   "$(grep -c '^  1700000002.sh$' "$TMP/out")" "1"
 check "and only the one remaining empty list says (none)" \
-  "$(grep -c '^  (none)$' "$TMP/out")" "1"
+  "$(section_body MIGRATIONS | grep -c '^  (none)$')" "1"
 
 # --- journal -----------------------------------------------------------------
 
@@ -248,6 +282,99 @@ check "and its last" \
   "$(printf '%s\n' "$body" | tail -n 1)" "journal line 1000"
 check "and says how many it left out" \
   "$(printf '%s\n' "$body" | grep -c 'omitted from the middle')" "1"
+
+# --- the report asks systemd ------------------------------------------------
+#
+# It asked systemd nothing, which on a systemd desktop leaves out the first
+# thing anyone would look at. Found on a live machine: dunst.service had been
+# activated over D-Bus before a Wayland display existed, aborted with
+# "Couldn't initialize X11 output" five times, hit its start limit and been
+# sitting in failed ever since. Notifications kept working, because hyprsimple
+# starts its own dunst from autostart, so nothing said so on screen and the
+# report would not have either.
+
+set_failed_user ""
+set_failed_system ""
+report
+body=$(section_body SERVICES)
+check "with nothing failed, the user list says so" \
+  "$(printf '%s\n' "$body" | grep -c '(none)')" "2"
+
+set_failed_user "dunst.service loaded failed failed Dunst notification daemon"
+set_failed_system ""
+report
+body=$(section_body SERVICES)
+check "a failed user unit is named" \
+  "$(printf '%s\n' "$body" | grep -c 'dunst.service loaded failed failed')" "1"
+check "and the system list still says none, so the two are not confused" \
+  "$(printf '%s\n' "$body" | grep -c '(none)')" "1"
+
+set_failed_user ""
+set_failed_system "thermald.service loaded failed failed Thermal Daemon"
+report
+body=$(section_body SERVICES)
+check "a failed system unit is named too" \
+  "$(printf '%s\n' "$body" | grep -c 'thermald.service loaded failed failed')" "1"
+
+# --- and reports the state of the units it depends on -------------------------
+
+set_failed_system ""
+report
+body=$(section_body SERVICES)
+check "the units hyprsimple enables are listed with their state" \
+  "$(printf '%s\n' "$body" | grep -c 'hyprpaper.service .*active .*enabled')" "1"
+check "including the system ones" \
+  "$(printf '%s\n' "$body" | grep -c 'bluetooth.service .*active .*enabled')" "1"
+
+# Every unit install.sh enables has to appear, or the section reports on a
+# different set of services from the one the installer sets up.
+missing=()
+for unit in hyprpaper.service hyprpolkitagent.service battery-monitor.timer \
+  pipewire.service wireplumber.service bluetooth.service \
+  systemd-resolved.service thermald.service; do
+  printf '%s\n' "$body" | grep -q "$unit" || missing+=("$unit")
+done
+missing_str=""
+(( ${#missing[@]} > 0 )) && missing_str="$(printf '%s ' "${missing[@]}")"
+check "and none of them is left out" "$missing_str" ""
+
+# --- a machine without systemctl ---------------------------------------------
+
+# Deleting the stub is not enough: the suite's PATH ends in /usr/bin, so the
+# real systemctl is still found and the report queries the live session. The
+# first version of this check did exactly that and came back holding this
+# machine's own failed dunst.service, which is both a wrong answer and a suite
+# reading the maintainer's session.
+#
+# A PATH with no systemctl anywhere on it instead, holding links to the
+# commands the report actually runs. The list is asserted below, so a report
+# that grows a new dependency fails here rather than silently taking this
+# branch for the wrong reason.
+MINI="$TMP/minibin"; mkdir -p "$MINI"
+# bash included: a variable assignment before a command is in effect while
+# the command itself is looked up, so the interpreter has to be on this PATH
+# too or the report is never started at all.
+for tool in bash mktemp cat date hostname uname find sort grep cut xargs wc head tail sed free git basename; do
+  src=$(command -v "$tool" 2>/dev/null) || continue
+  ln -sf "$src" "$MINI/$tool"
+done
+rm -f "$STUB/systemctl"
+linked=$(find "$MINI" -maxdepth 1 -type l | wc -l)
+if (( linked >= 15 )); then
+  pass "built a PATH of $linked commands with no systemctl on it"
+else
+  fail "linked only $linked commands, so the report would fail for the wrong reason"
+fi
+check "and systemctl really is unreachable there" \
+  "$(PATH="$STUB:$MINI" command -v systemctl >/dev/null 2>&1 && echo found || echo absent)" "absent"
+
+rm -rf "${TMP:?}/fakehome"; mkdir -p "$FAKEHOME"
+STATE="$TMP" HOME="$FAKEHOME" HYPRSIMPLE_PATH="$TMP/install" \
+  PATH="$STUB:$MINI" bash "$SCRIPT" --print >"$TMP/out" 2>&1
+check "a machine with no systemctl says so rather than printing a blank table" \
+  "$(section_body SERVICES)" "(systemctl not available)"
+check "and the rest of the report still came out" \
+  "$(grep -c '^HYPRSIMPLE$' "$TMP/out")" "1"
 
 # --- the old shape is gone ---------------------------------------------------
 
