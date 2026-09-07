@@ -72,11 +72,30 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
       # otherwise stop the real brightness ever being written and so lose the
       # restore silently.
       recorded=$(cat "$BRIGHTNESS_FILE" 2>/dev/null)
-      if [[ ! $recorded =~ ^[0-9]+$ ]]; then
-        current_brightness() { brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'; }
-        printf '%s\n' "$(current_brightness)" >"$BRIGHTNESS_FILE"
+      now=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%')
+
+      # A screen already at the dim level has no before value to read.
+      #
+      # hypridle dims to the same 5 after ten minutes idle, through
+      # brightnessctl -s and -r, and it gets there first: its timeout is ten
+      # minutes and the battery falls past a threshold whenever it does. A
+      # crossing during that idle used to record 5 as the brightness to go back
+      # to, and the guard on the restore rejects 5, so the screen stayed at 5
+      # when the charger went in. Traced end to end:
+      #
+      #   80, idle dims to 5, crossing records 5, user returns and hypridle
+      #   restores 80, next crossing dims to 5 again, charging restores nothing.
+      #
+      # Neither recording nor dimming here. The screen is where it needs to be
+      # already, and the value that would be recorded is another program's, not
+      # the user's. The next crossing after hypridle restores reads the real
+      # one.
+      if [[ $now != "$LOW_BATTERY_BRIGHTNESS" ]]; then
+        if [[ ! $recorded =~ ^[0-9]+$ ]]; then
+          printf '%s\n' "$now" >"$BRIGHTNESS_FILE"
+        fi
+        brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
       fi
-      brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
       notify-send -u critical "Battery Low" "Battery at ${BATTERY_LEVEL}%, brightness reduced to ${LOW_BATTERY_BRIGHTNESS}%"
       echo "$crossed" >"$FLAG_FILE"
     fi

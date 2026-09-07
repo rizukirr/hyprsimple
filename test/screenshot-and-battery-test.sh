@@ -308,6 +308,38 @@ run_at 9
 check "and so is a record that is not a number" \
   "$(cat "$BF" 2>/dev/null)" "80"
 
+# hypridle dims to the same level, and gets there first: its brightness
+# listener fires after ten minutes idle, and a battery falls past a threshold
+# whenever it does. A crossing during that idle used to read the screen at 5
+# and record 5 as the brightness to go back to, and the restore rejects 5, so
+# the charger went in and the screen stayed dark. This is the whole sequence.
+
+rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+printf '5' >"$LEVEL"                       # hypridle has dimmed it
+run_at 19
+check "a crossing while the screen is already dim records nothing" \
+  "$([[ -f $BF ]] && cat "$BF" || echo none)" "none"
+check "and issues no brightness command, because it is already there" \
+  "$(grep -c 'set 5%' "$BLOG")" "0"
+check "while still announcing the low battery" \
+  "$(grep -c 'Battery Low' "$NLOG")" "1"
+
+printf '80' >"$LEVEL"                      # hypridle restores on activity
+run_at 14
+check "the next crossing after that restore records the real brightness" \
+  "$(cat "$BF" 2>/dev/null)" "80"
+check "and dims" "$(level)" "5"
+
+run_at 40 charging
+check "so the charger puts the screen back rather than leaving it dark" \
+  "$(level)" "80"
+
+# The same shape when the user chose 5 themselves rather than hypridle.
+rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '5' >"$LEVEL"
+run_at 9
+check "a screen the user set to the dim level is not recorded either" \
+  "$([[ -f $BF ]] && cat "$BF" || echo none)" "none"
+
 # The script must not use the save slot hypridle uses for its idle dim, or the
 # two overwrite each other.
 # Comments stripped before counting. The script explains in a comment why it
@@ -322,6 +354,18 @@ check "and stripping comments leaves its real calls behind" \
   "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl set')" "2"
 check "while hypridle still uses that slot for idle" \
   "$(grep -c 'brightnessctl -s' "$REPO/default/hypr/hypridle/20-brightness.conf")" "1"
+
+# The premise of the checks above: hypridle really does dim to the same number
+# the battery monitor uses. If it ever dims to something else, those checks stop
+# describing a collision and this one says so.
+idle_level=$(grep -oE 'brightnessctl -s set [0-9]+' \
+  "$REPO/default/hypr/hypridle/20-brightness.conf" | grep -oE '[0-9]+$')
+monitor_level=$(sed 's/#.*//' "$BIN/battery-monitor.sh" |
+  grep -oE '^LOW_BATTERY_BRIGHTNESS=[0-9]+' | cut -d= -f2)
+check "and dims to the same level the battery monitor does, which is why they collide" \
+  "$idle_level" "$monitor_level"
+check "and that level was really read out of both files" \
+  "$([[ -n $idle_level && -n $monitor_level ]] && echo yes || echo no)" "yes"
 
 # Restore the plain stubs for anything after this point.
 cat >"$STUB/brightnessctl" <<'STUBEOF'
