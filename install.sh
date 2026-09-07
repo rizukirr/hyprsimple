@@ -969,7 +969,16 @@ echo "2. Customize ~/.config/hypr/monitors.lua for your setup"
 echo "3. Update later with: hyprsimple-update"
 echo ""
 
-read -rp "Logout to take effect? (y/n) " logout
+# Only ask when someone is there to answer, the same guard the prompt earlier
+# in this file carries. Under curl-pipe stdin is the script itself, and the line
+# this read would take as its answer is the `if` on the next line: the one that
+# tests the answer. Bash then carries on parsing from inside a block whose
+# opening it never saw.
+logout=""
+if [[ -t 0 ]]; then
+  read -rp "Logout to take effect? (y/n) " logout
+fi
+
 if [ "$logout" == "y" ]; then
   echo "Logging out..."
   # hyprsimple's own logout, the same one SUPER + X and the power menu run. It
