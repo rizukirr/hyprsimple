@@ -23,12 +23,23 @@ check "no script calls dunstify" \
 check "notification-dismiss.sh still uses dunstctl" \
   "$(grep -c 'dunstctl' "$REPO/.local/bin/notification-dismiss.sh")" "1"
 
-# The replace-by-id sites, named so a future edit that drops -r shows up here
-# rather than only on someone's screen.
-check "volume-notify still replaces by id" \
-  "$(grep -c -- '-r "\?\$NOTIFY_ID' "$REPO/.local/bin/volume-notify.sh")" "2"
-check "brightness-notify still replaces by id" \
-  "$(grep -c -- '-r "\?\$NOTIFY_ID' "$REPO/.local/bin/brightness-notify.sh")" "1"
+# Every notification these two send has to replace by id, so a run does not
+# stack a column of them up.
+#
+# Counted against how many they send rather than pinned to a number. The
+# numbers were 2 and 1, and adding a notification for "could not read the
+# level" made them 3 and 2, so a check meant to be about the idiom failed on a
+# change that obeyed it.
+for notifier in volume-notify.sh brightness-notify.sh; do
+  script="$REPO/.local/bin/$notifier"
+  sends=$(grep -c 'notify-send' "$script")
+  by_id=$(grep -c -- '-r "\?\$NOTIFY_ID' "$script")
+  if (( sends < 2 )); then
+    fail "$notifier sends $sends notifications, which is fewer than it has"
+  else
+    check "every notification $notifier sends replaces by id" "$by_id" "$sends"
+  fi
+done
 
 # Each converted line, reached by running its own script rather than by
 # replaying the command out of context. A stub notify-send first on PATH
@@ -329,6 +340,109 @@ if dunstctl count displayed >/dev/null 2>&1; then
 else
   printf 'skip - dunst not running, replacement behaviour not exercised\n'
 fi
+
+# --- a level that could not be read is said, not invented ---------------------
+#
+# brightness-notify.sh divided by `brightnessctl max` without looking at it. On
+# a machine brightnessctl has no device on, both reads come back empty and bash
+# reported "division by 0" on stderr, where a keybind sends it nowhere, then
+# showed "Brightness: %" with an empty bar.
+#
+# volume-notify.sh piped wpctl's output through awk, which prints 0 for a line
+# it cannot parse, so a failed read showed "Volume: 0%": a specific, wrong
+# number rather than a sign that nothing was read.
+#
+# The keybinds run each after a set that succeeded, so this is reached by
+# running the script directly, which the README documents, and by the default
+# sink going between the two calls, which is what a bluetooth headset
+# disconnecting looks like.
+
+FAILBIN="$STUB/failbin"; mkdir -p "$FAILBIN"
+printf '#!/bin/bash\nexit 1\n' >"$FAILBIN/brightnessctl"
+printf '#!/bin/bash\nexit 1\n' >"$FAILBIN/wpctl"
+cat >"$FAILBIN/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$NOTIFY_LOG"
+STUBEOF
+chmod +x "$FAILBIN"/*
+
+run_failing() {
+  : >"$LOG"
+  NOTIFY_LOG="$LOG" PATH="$FAILBIN:/usr/bin:/bin" bash "$BIN/$1" >"$STUB/stderr" 2>&1
+  printf '%s' "$?" >"$STUB/rc"
+}
+
+run_failing brightness-notify.sh
+check "brightness-notify says it could not read rather than showing a bar" \
+  "$(grep -c 'Could not read the current brightness' "$LOG")" "1"
+check "and shows no percentage at all" \
+  "$(grep -c 'Brightness: ' "$LOG")" "0"
+check "and prints no shell error" \
+  "$(grep -ci 'division by 0\|error token' "$STUB/stderr")" "0"
+check "and exits non-zero" \
+  "$([[ $(cat "$STUB/rc") != "0" ]] && echo nonzero || echo zero)" "nonzero"
+
+run_failing volume-notify.sh
+check "volume-notify says it could not read rather than claiming a level" \
+  "$(grep -c 'Could not read the current volume' "$LOG")" "1"
+check "and does not report zero, which is a real level it did not measure" \
+  "$(grep -c 'Volume: 0%' "$LOG")" "0"
+check "and exits non-zero" \
+  "$([[ $(cat "$STUB/rc") != "0" ]] && echo nonzero || echo zero)" "nonzero"
+
+# The case the exit status does not cover, which is the one that reaches a
+# user. `wpctl get-volume` on a node that is gone exits 0 and prints
+#
+#   Node '@DEFAULT_AUDIO_SINK@' not found
+#
+# on stdout, measured directly. The old parse was `awk '{print int($2*100)}'`,
+# which took $2 of that line and printed 0, so the notification said
+# "Volume: 0%" about a sink that was not there. A bluetooth headset
+# disconnecting between the set and the get looks exactly like this.
+GONEBIN="$STUB/gonebin"; mkdir -p "$GONEBIN"
+cp "$FAILBIN/notify-send" "$GONEBIN/notify-send"
+cat >"$GONEBIN/wpctl" <<'STUBEOF'
+#!/bin/bash
+echo "Node '@DEFAULT_AUDIO_SINK@' not found"
+exit 0
+STUBEOF
+chmod +x "$GONEBIN"/*
+
+: >"$LOG"
+NOTIFY_LOG="$LOG" PATH="$GONEBIN:/usr/bin:/bin" bash "$BIN/volume-notify.sh" >/dev/null 2>&1
+check "a sink that answers without a volume is not reported as zero" \
+  "$(grep -c 'Volume: 0%' "$LOG")" "0"
+check "and is reported as unreadable instead" \
+  "$(grep -c 'Could not read the current volume' "$LOG")" "1"
+
+# Anti-vacuity: with readers that answer, both still report the level. A script
+# that always said "could not read" would satisfy every check above.
+OKBIN="$STUB/okbin"; mkdir -p "$OKBIN"
+cp "$FAILBIN/notify-send" "$OKBIN/notify-send"
+printf '#!/bin/bash\n[[ $1 == get ]] && echo 30\n[[ $1 == max ]] && echo 100\nexit 0\n' >"$OKBIN/brightnessctl"
+printf '#!/bin/bash\necho "Volume: 0.55"\n' >"$OKBIN/wpctl"
+chmod +x "$OKBIN"/*
+
+: >"$LOG"
+NOTIFY_LOG="$LOG" PATH="$OKBIN:/usr/bin:/bin" bash "$BIN/brightness-notify.sh" >/dev/null 2>&1
+check "a readable brightness is still reported" "$(grep -c 'Brightness: 30%' "$LOG")" "1"
+
+: >"$LOG"
+NOTIFY_LOG="$LOG" PATH="$OKBIN:/usr/bin:/bin" bash "$BIN/volume-notify.sh" >/dev/null 2>&1
+check "a readable volume is still reported" "$(grep -c 'Volume: 55%' "$LOG")" "1"
+
+printf '#!/bin/bash\necho "Volume: 0.42 [MUTED]"\n' >"$OKBIN/wpctl"
+: >"$LOG"
+NOTIFY_LOG="$LOG" PATH="$OKBIN:/usr/bin:/bin" bash "$BIN/volume-notify.sh" >/dev/null 2>&1
+check "and muted is still reported as muted, not as a level" \
+  "$(grep -c 'Muted' "$LOG")" "1"
+
+# A volume of nought is a real reading and must still be shown as one.
+printf '#!/bin/bash\necho "Volume: 0.00"\n' >"$OKBIN/wpctl"
+: >"$LOG"
+NOTIFY_LOG="$LOG" PATH="$OKBIN:/usr/bin:/bin" bash "$BIN/volume-notify.sh" >/dev/null 2>&1
+check "a genuine zero volume is still shown, not treated as unreadable" \
+  "$(grep -c 'Volume: 0%' "$LOG")" "1"
 
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
