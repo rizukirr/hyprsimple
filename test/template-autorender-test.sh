@@ -39,6 +39,12 @@ mkdir -p "$INSTALL/.config/hypr/themes/templates" "$HOMEDIR/.local/bin" \
 
 cp "$REPO/.local/bin/theme-apply-templates.sh" "$HOMEDIR/.local/bin/"
 chmod +x "$HOMEDIR/.local/bin/theme-apply-templates.sh"
+# The update delivers the rendered output through this, shared with
+# theme-switcher.sh so the two cannot deliver different sets of files. A real
+# update copies it into ~/.local/bin itself, in the refresh step this fixture
+# stands in for.
+cp "$REPO/.local/bin/hyprsimple-theme-deliver.sh" "$HOMEDIR/.local/bin/"
+chmod +x "$HOMEDIR/.local/bin/hyprsimple-theme-deliver.sh"
 printf '#!/bin/sh\nexit 0\n' >"$HOMEDIR/.local/bin/hyprsimple-migrate.sh"
 chmod +x "$HOMEDIR/.local/bin/hyprsimple-migrate.sh"
 printf 'background = "#2d353b"\nforeground = "#d3c6aa"\n' \
@@ -92,6 +98,22 @@ check "a newly shipped template reaches an existing theme with no migration" \
   "$(grep -c 'X #2d353b' "$HOMEDIR/.config/hypr/themes/solo/generated/brand-new" 2>/dev/null)" "1"
 
 check "the update still exits 0" "$(cat "$TMP/rc")" "0"
+
+# A missing delivery helper must not take the update down with it.
+#
+# This script runs under set -e, so sourcing a file that is not there aborts
+# everything after it, including the migrations and the reload. The update is
+# also what installs that file, so the run that would have repaired a missing
+# one is exactly the run that would have died.
+mv "$HOMEDIR/.local/bin/hyprsimple-theme-deliver.sh" "$TMP/deliver.aside"
+printf 'Y {{ background }}\n' >"$INSTALL/.config/hypr/themes/templates/needs-deliver.tpl"
+run_update
+check "with the delivery helper missing, the update still exits 0" "$(cat "$TMP/rc")" "0"
+check "and says the render was not delivered rather than failing silently" \
+  "$(grep -c 'not delivered' "$TMP/out")" "1"
+check "and still finished the run, so the reload at the end was reached" \
+  "$(grep -c 'hyprsimple is up to date' "$TMP/out")" "1"
+mv "$TMP/deliver.aside" "$HOMEDIR/.local/bin/hyprsimple-theme-deliver.sh"
 
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2

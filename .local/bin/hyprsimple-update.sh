@@ -280,6 +280,7 @@ TEMPLATES_DIR="$HYPRSIMPLE_PATH/.config/hypr/themes/templates"
 STAMP_DIR="$HOME/.local/state/hyprsimple"
 STAMP="$STAMP_DIR/templates.stamp"
 RENDERER="$HOME/.local/bin/theme-apply-templates.sh"
+DELIVER="$HOME/.local/bin/hyprsimple-theme-deliver.sh"
 
 if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
   # `|| true` on both: under set -e an assignment whose command substitution
@@ -314,16 +315,29 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
       # have no ghostty-theme file and so depend on the generated one, and
       # every theme depends on the generated btop.theme.
       gen="${active%/*}"
-      source "$HOME/.local/bin/hyprsimple-theme-deliver.sh"
-      deliver_theme_configs "${gen%/*}"
 
-      # And restarted, or the freshly written colours sit on disk unread.
-      # waybar reads its stylesheet at startup and dunst its drop-ins at load,
-      # so delivering without this is the same invisibility in a new place.
-      # Both are no-ops when the program is not running. ghostty is reloaded
-      # inside the delivery itself, over its own dbus interface.
-      "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running || true
-      "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running || true
+      # Tested for rather than sourced blind. This script runs under set -e, so
+      # sourcing a file that is not there aborts the whole update, and the
+      # update would fail on the run that was meant to install that very file.
+      # The refresh above copies it in, so this is only reachable when the
+      # refresh was skipped or something removed it by hand.
+      if [[ -r $DELIVER ]]; then
+        # shellcheck source=/dev/null
+        source "$DELIVER"
+        deliver_theme_configs "${gen%/*}"
+
+        # And restarted, or the freshly written colours sit on disk unread.
+        # waybar reads its stylesheet at startup and dunst its drop-ins at
+        # load, so delivering without this is the same invisibility in a new
+        # place. Both are no-ops when the program is not running. ghostty is
+        # reloaded inside the delivery itself, over its own dbus interface.
+        "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running || true
+        "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running || true
+      else
+        # Said rather than skipped quietly. Rendered output that never reaches
+        # the program it was for is the bug this whole block exists to prevent.
+        echo -e "${YELLOW}Themes were re-rendered but not delivered: $DELIVER is missing. Switch theme once to apply them.${NC}"
+      fi
     fi
 
     mkdir -p "$STAMP_DIR"
