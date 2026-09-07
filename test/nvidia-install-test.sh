@@ -36,11 +36,16 @@ check() {
 FUNCS="$TMP/funcs.sh"
 sed -n '/^detect_and_install_nvidia() {/,/^}/p' "$REPO/install.sh" >"$FUNCS"
 sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
+# set_env_block is extracted too. detect_and_install_nvidia calls it now
+# instead of `cat >>`, and a function that is not extracted is simply absent
+# here: the block is never written and every check about the env file fails for
+# a reason that has nothing to do with what it is testing.
+sed -n '/^set_env_block() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 
 # An extraction that quietly produced nothing would let every check below pass
 # for the wrong reason. This is the shape that has already cost this repository
 # five vacuous checks, so assert the extraction before using it.
-for marker in 'detect_and_install_nvidia() {' 'install_packages() {' \
+for marker in 'detect_and_install_nvidia() {' 'set_env_block() {' 'install_packages() {' \
   'NVIDIA_DRIVER_PACKAGES' 'NVIDIA-MODULE' 'nvidia-580xx-dkms' \
   '__GLX_VENDOR_LIBRARY_NAME'; do
   if grep -qF -- "$marker" "$FUNCS"; then

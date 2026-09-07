@@ -101,6 +101,72 @@ echo ""
 #  Hardware Detection Functions
 # ======================================
 
+# Write a named block of exports into a uwsm env file, replacing one an earlier
+# run wrote rather than adding a second.
+#
+# All three callers were `cat >>`, which is right on a first install and wrong
+# on every one after it. Re-running the installer is a documented step: the
+# failed-packages message tells you to install the missing ones by hand and
+# re-run this script, so a second run is expected rather than unusual. Two runs
+# left
+#
+#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
+#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
+#
+# and a block more on each run after that. uwsm reads the file once at login
+# and the last export of a name wins, so nothing breaks visibly, which is
+# exactly how it could pile up unnoticed.
+#
+# theme-switcher.sh already replaces rather than appends for XCURSOR_THEME, and
+# says why. This is the same rule for the file the installer owns.
+#
+# Blocks written before this change carry no markers, so the export names
+# inside the new block are stripped from the file as well. Without that a
+# second install would leave the old copy sitting above the new one, which is
+# the thing being fixed.
+set_env_block() {
+  local file="$1" name="$2"
+  shift 2
+  local begin="# >>> hyprsimple $name >>>"
+  local end="# <<< hyprsimple $name <<<"
+
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  local names=()
+  local line
+  for line in "$@"; do
+    [[ $line == export\ * ]] || continue
+    line=${line#export }
+    names+=("${line%%=*}")
+  done
+
+  local tmp="$file.hyprsimple.$$"
+  awk -v b="$begin" -v e="$end" -v drop="$(printf '%s\n' "${names[@]}")" '
+    BEGIN { n = split(drop, want, "\n"); for (i = 1; i <= n; i++) if (want[i] != "") skipname[want[i]] = 1 }
+    $0 == b { inblock = 1; next }
+    $0 == e { inblock = 0; next }
+    inblock { next }
+    {
+      # A bare export of a name this block owns, left by a run before the
+      # markers existed.
+      if ($0 ~ /^export [A-Za-z_][A-Za-z0-9_]*=/) {
+        split($2, kv, "=")
+        if (kv[1] in skipname) next
+      }
+      print
+    }
+  ' "$file" >"$tmp"
+
+  {
+    printf '\n%s\n' "$begin"
+    printf '%s\n' "$@"
+    printf '%s\n' "$end"
+  } >>"$tmp"
+
+  mv -f "$tmp" "$file"
+}
+
 detect_and_install_nvidia() {
   echo -e "${YELLOW}Detecting NVIDIA GPU...${NC}"
 
@@ -246,20 +312,16 @@ detect_and_install_nvidia() {
 
   # Append NVIDIA env vars to uwsm/env
   if [[ $GPU_ARCH = "turing_plus" ]]; then
-    cat >>"$HOME/.config/uwsm/env" <<'EOF'
-
-# NVIDIA (Turing+ with GSP firmware) - auto-detected by installer
-export NVD_BACKEND=direct
-export LIBVA_DRIVER_NAME=nvidia
-export __GLX_VENDOR_LIBRARY_NAME=nvidia
-EOF
+    set_env_block "$HOME/.config/uwsm/env" nvidia \
+      "# NVIDIA (Turing+ with GSP firmware) - auto-detected by installer" \
+      "export NVD_BACKEND=direct" \
+      "export LIBVA_DRIVER_NAME=nvidia" \
+      "export __GLX_VENDOR_LIBRARY_NAME=nvidia"
   elif [[ $GPU_ARCH = "maxwell_pascal_volta" ]]; then
-    cat >>"$HOME/.config/uwsm/env" <<'EOF'
-
-# NVIDIA (Maxwell/Pascal/Volta) - auto-detected by installer
-export NVD_BACKEND=egl
-export __GLX_VENDOR_LIBRARY_NAME=nvidia
-EOF
+    set_env_block "$HOME/.config/uwsm/env" nvidia \
+      "# NVIDIA (Maxwell/Pascal/Volta) - auto-detected by installer" \
+      "export NVD_BACKEND=egl" \
+      "export __GLX_VENDOR_LIBRARY_NAME=nvidia"
   fi
 
   # Rebuild initramfs
@@ -338,12 +400,9 @@ EOF
   sudo udevadm trigger
 
   # Write to env-hyprland (uwsm users should use this file per Hyprland docs)
-  mkdir -p "$HOME/.config/uwsm"
-  cat >>"$HOME/.config/uwsm/env-hyprland" <<EOF
-
-# Primary GPU: $GPU_VENDOR (priority: Intel > AMD > NVIDIA)
-export AQ_DRM_DEVICES="/dev/dri/$GPU_SYMLINK"
-EOF
+  set_env_block "$HOME/.config/uwsm/env-hyprland" gpu \
+    "# Primary GPU: $GPU_VENDOR (priority: Intel > AMD > NVIDIA)" \
+    "export AQ_DRM_DEVICES=\"/dev/dri/$GPU_SYMLINK\""
 
   echo -e "${GREEN}GPU setup complete ($GPU_VENDOR selected as primary)${NC}"
 }

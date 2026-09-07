@@ -41,8 +41,13 @@ check() {
 
 FUNCS="$TMP/funcs.sh"
 sed -n '/^detect_and_install_nvidia() {/,/^}/p' "$REPO/install.sh" >"$FUNCS"
+# set_env_block is extracted too. detect_and_install_nvidia calls it now
+# instead of `cat >>`, and a function that is not extracted is simply absent
+# here: the block is never written and every check about the env file fails for
+# a reason that has nothing to do with what it is testing.
+sed -n '/^set_env_block() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
-for marker in 'detect_and_install_nvidia() {' 'other_gpu' '__GLX_VENDOR_LIBRARY_NAME'; do
+for marker in 'detect_and_install_nvidia() {' 'set_env_block() {' 'other_gpu' '__GLX_VENDOR_LIBRARY_NAME'; do
   if grep -qF -- "$marker" "$FUNCS"; then
     pass "extracted source contains $marker"
   else

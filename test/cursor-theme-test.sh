@@ -61,8 +61,13 @@ else
   fail "no theme declares a cursor, so this suite is testing nothing"
 fi
 
+# Comments stripped before counting. install.sh explains in a comment that
+# theme-switcher.sh replaces rather than appends for XCURSOR_THEME, and an
+# unanchored grep counted that explanation as code.
 check "install.sh no longer writes XCURSOR_THEME itself" \
-  "$(grep -c 'XCURSOR_THEME' "$REPO/install.sh")" "0"
+  "$(sed 's/#.*//' "$REPO/install.sh" | grep -c 'XCURSOR_THEME')" "0"
+check "and stripping comments leaves its code behind" \
+  "$(sed 's/#.*//' "$REPO/install.sh" | grep -c '^set_env_block()')" "1"
 
 # --- the switcher persists it ------------------------------------------------
 
