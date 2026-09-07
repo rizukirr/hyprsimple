@@ -18,11 +18,32 @@ echo "Write the GTK settings.ini that theme switches never created"
 # Only when the file is absent. A settings.ini that exists is the user's, and
 # the next theme switch edits just the one key in it.
 
+# The theme is derived from hyprsimple's own state, not from gsettings.
+#
+# gsettings does not fail without a session bus: it answers with the schema
+# default. Run from a TTY, which is what bootstrap.sh is for, `gsettings get
+# org.gnome.desktop.interface gtk-theme` returns 'Adwaita' on a machine whose
+# theme is Adwaita-dark. Measured by running bootstrap.sh under env -i against
+# a fresh HOME. So this wrote a light theme name for a dark desktop, and
+# because the file then exists it was never corrected.
+#
+# light.mode is the same thing theme-switcher.sh reads to make this decision,
+# it lives in the theme directory, and it needs no session at all.
 wrote=0
-theme=$(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null | tr -d "'")
+
+active_lua=$(readlink "$HOME/.config/hypr/theme-active.lua" 2>/dev/null)
+theme=""
+if [[ -n $active_lua ]]; then
+  # .../themes/<name>/generated/hyprland-colors.lua
+  theme_dir=$(dirname "$(dirname "$active_lua")")
+  if [[ -d $theme_dir ]]; then
+    if [[ -f $theme_dir/light.mode ]]; then theme="Adwaita"; else theme="Adwaita-dark"; fi
+  fi
+fi
 
 if [[ -z $theme ]]; then
-  echo "  Could not read the current GTK theme, so nothing was written."
+  echo "  Could not tell which theme is active, so nothing was written."
+  echo "  Your next theme switch writes these files."
   exit 0
 fi
 

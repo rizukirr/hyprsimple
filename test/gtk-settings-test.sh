@@ -118,14 +118,18 @@ check "and no longer skips the file when it is absent" \
 # ---- the migration ---------------------------------------------------------
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
-# A heredoc, not a printf. Building this stub with nested printf quoting ate
-# the %s and wrote a script that printed an empty line, so the migration read
-# no theme and four checks failed for a reason that had nothing to do with it.
-cat >"$STUB/gsettings" <<'STUBEOF'
-#!/bin/bash
-echo "'Adwaita-dark'"
-STUBEOF
-chmod +x "$STUB/gsettings"
+# No gsettings stub any more, and that is the point.
+#
+# The migration used to read the theme from gsettings, which does not fail
+# without a session bus: it answers with the schema default. Run from a TTY,
+# which is what bootstrap.sh is for, it returned Adwaita on a machine whose
+# theme is Adwaita-dark, so a light name was written for a dark desktop and the
+# file then existed so nothing corrected it. Measured by running bootstrap.sh
+# under env -i against a fresh HOME.
+#
+# It reads light.mode now, which is what theme-switcher.sh reads to make the
+# same decision, lives in the theme directory and needs no session. So these
+# fixtures arrange a theme rather than a gsettings answer.
 
 # A rofi of its own, ahead of the real one. This suite only greps
 # theme-switcher.sh rather than running it, so nothing here reaches a picker
@@ -135,11 +139,23 @@ chmod +x "$STUB/gsettings"
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 chmod +x "$STUB/rofi"
 
+# An active theme in a fixture home, the way a real one is arranged: a symlink
+# at ~/.config/hypr/theme-active.lua pointing into <theme>/generated/.
+make_active_theme() {
+  local home="$1" name="$2" light="${3-}"
+  local theme="$home/.config/hypr/themes/$name"
+  mkdir -p "$theme/generated" "$home/.config/hypr"
+  [[ -n $light ]] && : >"$theme/light.mode"
+  : >"$theme/generated/hyprland-colors.lua"
+  ln -sfn "$theme/generated/hyprland-colors.lua" "$home/.config/hypr/theme-active.lua"
+}
+
 run_migration() {
   HOME="$1" PATH="$STUB:/usr/bin:/bin" bash "$MIGRATION" >"$TMP/out" 2>&1
 }
 
 h1="$TMP/h1"; mkdir -p "$h1"
+make_active_theme "$h1" darkone
 run_migration "$h1"
 check "the migration writes gtk-3.0/settings.ini when it is absent" \
   "$(grep -c '^gtk-theme-name=Adwaita-dark$' "$h1/.config/gtk-3.0/settings.ini" 2>/dev/null)" "1"
@@ -151,24 +167,99 @@ run_migration "$h1"
 check "running it again writes nothing" "$(grep -c 'already exist' "$TMP/out")" "1"
 
 h2="$TMP/h2"; mkdir -p "$h2/.config/gtk-3.0" "$h2/.config/gtk-4.0"
+make_active_theme "$h2" darkone
 printf '[Settings]\ngtk-font-name=Mine\n' >"$h2/.config/gtk-3.0/settings.ini"
 printf '[Settings]\ngtk-font-name=Mine\n' >"$h2/.config/gtk-4.0/settings.ini"
 run_migration "$h2"
 check "an existing settings.ini is not rewritten by the migration" \
   "$(cat "$h2/.config/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-font-name=Mine')"
 
-# gsettings unreachable: write nothing rather than a made up theme name.
-cat >"$STUB/gsettings" <<'STUBEOF'
-#!/bin/bash
-exit 1
-STUBEOF
-chmod +x "$STUB/gsettings"
+# A light theme gets the light name, which is the half a schema default would
+# have got right by accident.
+h4="$TMP/h4"; mkdir -p "$h4"
+make_active_theme "$h4" lightone light
+run_migration "$h4"
+check "a theme declaring light.mode gets the light GTK theme name" \
+  "$(grep -c '^gtk-theme-name=Adwaita$' "$h4/.config/gtk-3.0/settings.ini" 2>/dev/null)" "1"
+check "and not the dark one" \
+  "$(grep -c '^gtk-theme-name=Adwaita-dark$' "$h4/.config/gtk-3.0/settings.ini" 2>/dev/null)" "0"
+
+# No active theme: write nothing rather than guess.
 h3="$TMP/h3"; mkdir -p "$h3"
 run_migration "$h3"
-check "with no readable GTK theme, nothing is written" \
+check "with no active theme, nothing is written" \
   "$([[ -e $h3/.config/gtk-3.0/settings.ini ]] && echo written || echo none)" "none"
 check "and the migration says why" \
-  "$(grep -c 'Could not read the current GTK theme' "$TMP/out")" "1"
+  "$(grep -c 'Could not tell which theme is active' "$TMP/out")" "1"
+
+# The heart of it: no session bus, and the answer is still right.
+#
+# env -i so there is no DBUS_SESSION_BUS_ADDRESS and no XDG_RUNTIME_DIR, which
+# is what a TTY bootstrap looks like. A real gsettings is on PATH here on
+# purpose: if the migration asked it, it would answer Adwaita and this check
+# would fail.
+h5="$TMP/h5"; mkdir -p "$h5"
+make_active_theme "$h5" darkone
+env -i HOME="$h5" PATH="/usr/bin:/bin" bash "$MIGRATION" >"$TMP/out5" 2>&1
+check "with no session bus at all, a dark theme still gets the dark name" \
+  "$(grep -c '^gtk-theme-name=Adwaita-dark$' "$h5/.config/gtk-3.0/settings.ini" 2>/dev/null)" "1"
+check "and the migration no longer consults gsettings" \
+  "$(sed 's/^[[:space:]]*#.*//' "$MIGRATION" | grep -c gsettings)" "0"
+
+# ---- the correction for machines that already ran the old one ---------------
+#
+# 1788793000 has already run where it read the schema default, so fixing it is
+# not enough. 1788797000 corrects those, and only the exact two-line file the
+# old one wrote.
+
+CORRECTION="$REPO/migrations/1788797000.sh"
+
+wrong_file() {
+  local home="$1"
+  mkdir -p "$home/.config/gtk-3.0" "$home/.config/gtk-4.0"
+  printf '[Settings]\ngtk-theme-name=Adwaita\n' >"$home/.config/gtk-3.0/settings.ini"
+  printf '[Settings]\ngtk-theme-name=Adwaita\n' >"$home/.config/gtk-4.0/settings.ini"
+}
+
+c1="$TMP/c1"; mkdir -p "$c1"
+make_active_theme "$c1" darkone
+wrong_file "$c1"
+HOME="$c1" bash "$CORRECTION" >"$TMP/cout" 2>&1
+check "a light name written for a dark theme is corrected" \
+  "$(grep -c '^gtk-theme-name=Adwaita-dark$' "$c1/.config/gtk-3.0/settings.ini")" "1"
+check "in both files" \
+  "$(grep -c '^gtk-theme-name=Adwaita-dark$' "$c1/.config/gtk-4.0/settings.ini")" "1"
+check "and it says how many" "$(grep -c 'Corrected 2 settings.ini' "$TMP/cout")" "1"
+
+HOME="$c1" bash "$CORRECTION" >"$TMP/cout2" 2>&1
+check "running it again finds nothing" "$(grep -c 'Nothing to correct' "$TMP/cout2")" "1"
+
+# A file with anything else in it is somebody's, and is not touched.
+c2="$TMP/c2"; mkdir -p "$c2"
+make_active_theme "$c2" darkone
+mkdir -p "$c2/.config/gtk-3.0" "$c2/.config/gtk-4.0"
+printf '[Settings]\ngtk-theme-name=Adwaita\ngtk-font-name=Mine 11\n' >"$c2/.config/gtk-3.0/settings.ini"
+before=$(cat "$c2/.config/gtk-3.0/settings.ini")
+HOME="$c2" bash "$CORRECTION" >/dev/null 2>&1
+check "a settings.ini with anything else in it is left alone" \
+  "$([[ $(cat "$c2/.config/gtk-3.0/settings.ini") == "$before" ]] && echo unchanged || echo edited)" "unchanged"
+
+# And a correct file is not rewritten, so nothing churns on every update.
+c3="$TMP/c3"; mkdir -p "$c3"
+make_active_theme "$c3" lightone light
+mkdir -p "$c3/.config/gtk-3.0" "$c3/.config/gtk-4.0"
+printf '[Settings]\ngtk-theme-name=Adwaita\n' >"$c3/.config/gtk-3.0/settings.ini"
+HOME="$c3" bash "$CORRECTION" >"$TMP/cout3" 2>&1
+check "a file already naming the right theme is not touched" \
+  "$(grep -c 'Nothing to correct' "$TMP/cout3")" "1"
+
+# No active theme: change nothing rather than guess.
+c4="$TMP/c4"; mkdir -p "$c4"
+wrong_file "$c4"
+HOME="$c4" bash "$CORRECTION" >"$TMP/cout4" 2>&1
+check "with no active theme, nothing is changed" \
+  "$(grep -c '^gtk-theme-name=Adwaita$' "$c4/.config/gtk-3.0/settings.ini")" "1"
+check "and it says why" "$(grep -c 'Could not tell which theme is active' "$TMP/cout4")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
