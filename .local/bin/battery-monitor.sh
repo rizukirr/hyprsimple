@@ -8,6 +8,10 @@ BATTERY_THRESHOLD=(20 15 10 5 3)
 # purpose: dimming hard and early buys more runtime than stepping down slowly.
 LOW_BATTERY_BRIGHTNESS=5
 FLAG_FILE="/tmp/battery-notification-flag"
+# Where the brightness was before a low battery dimmed the screen, so charging
+# can put it back. Beside the flag, and overridable so the suite never writes
+# to the real one.
+BRIGHTNESS_FILE="${HYPRSIMPLE_BRIGHTNESS_FILE:-/tmp/battery-brightness-before-dim}"
 
 get_battery_percentage() {
   upower -i "$(upower -e | grep 'BAT')" |
@@ -56,6 +60,19 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
     # again. Dimming hard and early is deliberate. Pinning it there, against
     # the user, was not.
     if [[ ! -f "$FLAG_FILE" ]] || [[ $(cat "$FLAG_FILE" 2>/dev/null) != "$crossed" ]]; then
+      # Remembered before dimming, so plugging in can put it back. Only on the
+      # first crossing: falling into a lower band dims again from 5%, and
+      # recording that would make 5% the value restored later.
+      #
+      # A record that is not a number counts as no record. It lives in /tmp,
+      # which anything can leave a file in, and an empty one left behind would
+      # otherwise stop the real brightness ever being written and so lose the
+      # restore silently.
+      recorded=$(cat "$BRIGHTNESS_FILE" 2>/dev/null)
+      if [[ ! $recorded =~ ^[0-9]+$ ]]; then
+        current_brightness() { brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'; }
+        printf '%s\n' "$(current_brightness)" >"$BRIGHTNESS_FILE"
+      fi
       brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
       notify-send -u critical "Battery Low" "Battery at ${BATTERY_LEVEL}%, brightness reduced to ${LOW_BATTERY_BRIGHTNESS}%"
       echo "$crossed" >"$FLAG_FILE"
@@ -64,4 +81,28 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
 else
   # Clear flag when charging/charged to allow new notifications on next discharge
   rm -f "$FLAG_FILE"
+
+  # And put the brightness back.
+  #
+  # The dimming had no counterpart, so a low battery took the screen to 5% and
+  # left it there. Plugging in cleared the flag and nothing else: the screen
+  # stayed dark until it was raised by hand, every time, long after the
+  # notification that explained it had gone. Measured on a live machine
+  # charging at 4%, with the panel sitting at 5% and no way to tell why.
+  #
+  # Its own record rather than `brightnessctl -s` and `-r`. hypridle already
+  # uses that save slot for the idle dim, so the two would overwrite each
+  # other: idle after a battery dim would save 5% over the real value, and the
+  # restore here would put back 5%.
+  if [[ -f $BRIGHTNESS_FILE ]]; then
+    saved=$(cat "$BRIGHTNESS_FILE" 2>/dev/null)
+    now=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%')
+    # Only when the screen is still where the dimming left it. Anything else
+    # was set deliberately since, and is not ours to undo.
+    if [[ $now == "$LOW_BATTERY_BRIGHTNESS" && $saved =~ ^[0-9]+$ && $saved != "$LOW_BATTERY_BRIGHTNESS" ]]; then
+      brightnessctl set "${saved}%"
+      notify-send "Battery" "Charging, brightness restored to ${saved}%" -t 2000
+    fi
+    rm -f "$BRIGHTNESS_FILE"
+  fi
 fi
