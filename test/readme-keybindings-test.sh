@@ -187,6 +187,48 @@ check "and that mode captures the whole output, not a region" \
 check "so the README says monitor rather than region" \
   "$(sed -n "${start},${end}p" "$README" | grep -c 'SUPER + CTRL + Print` | Screenshot current monitor to clipboard')" "1"
 
+# --- every shipped script appears in the README -------------------------------
+#
+# The README has a Scripts section listing what each one does, and nothing kept
+# it in step with .local/bin. Four had gone missing: hyprsimple-hw-battery.sh
+# and hyprsimple-hw-nvidia.sh, and hyprsimple-require.sh and
+# hyprsimple-theme-deliver.sh, both added while fixing something else. A reader
+# looking for what a file in their ~/.local/bin does found nothing.
+#
+# Both sides are read out of the repository. A list written down here would go
+# stale the same way the README did.
+
+mapfile -t shipped < <(find "$REPO/.local/bin" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)
+mapfile -t named < <(grep -oE '`[a-zA-Z0-9_.-]+\.(sh|fish)`' "$README" | tr -d '`' | LC_ALL=C sort -u)
+
+if (( ${#shipped[@]} < 20 )); then
+  fail "found ${#shipped[@]} scripts in .local/bin, which is too few to be right"
+elif (( ${#named[@]} < 20 )); then
+  fail "found ${#named[@]} script names in the README, which is too few to be right"
+else
+  pass "comparing ${#shipped[@]} shipped scripts against ${#named[@]} named in the README"
+fi
+
+undocumented=()
+for script in "${shipped[@]}"; do
+  printf '%s\n' "${named[@]}" | grep -qxF "$script" || undocumented+=("$script")
+done
+undocumented_str=""
+(( ${#undocumented[@]} > 0 )) && undocumented_str="$(printf '%s ' "${undocumented[@]}")"
+check "every script in .local/bin is named somewhere in the README" "$undocumented_str" ""
+
+# And the other way: a row for a script that was deleted sends the reader to a
+# file that is not there. install.sh is named in the install instructions and
+# lives at the repository root rather than in .local/bin, so it is not one.
+missing=()
+for name in "${named[@]}"; do
+  [[ $name == install.sh || $name == bootstrap.sh ]] && continue
+  [[ -f $REPO/.local/bin/$name ]] || missing+=("$name")
+done
+missing_str=""
+(( ${#missing[@]} > 0 )) && missing_str="$(printf '%s ' "${missing[@]}")"
+check "and every script the README names is one that ships" "$missing_str" ""
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

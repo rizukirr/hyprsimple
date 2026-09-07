@@ -365,6 +365,10 @@ These are sourced by other files rather than run directly.
 | `bashrc.sh` / `zsh.sh` / `fish.fish` | Per-shell init (zoxide, fzf, starship, aliases) sourced from your shell's rc file |
 | `terminal.sh` | Detect your login shell and wire the matching init script into its rc file |
 | `hypr-helpers.sh` | Shared hyprpaper helper functions used by the wallpaper scripts |
+| `hyprsimple-require.sh` | Loads the helpers a script needs, and stops it rather than letting it run with them missing |
+| `hyprsimple-theme-deliver.sh` | Puts a theme's generated files where each program reads them, shared by the theme switcher and the updater |
+| `hyprsimple-hw-battery.sh` | Exits 0 when this machine has a battery, which is how hyprsimple decides it is a laptop |
+| `hyprsimple-hw-nvidia.sh` | Exits 0 when this machine has an NVIDIA GPU |
 
 ## FAQ
 
