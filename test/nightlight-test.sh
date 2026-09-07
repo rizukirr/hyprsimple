@@ -79,7 +79,7 @@ scraped=$(PATH="$STUB:/usr/bin:/bin" HYPRCTL_LOG=/dev/null "$STUB/hyprctl-dead" 
 check "the connection error scrapes into digits, which is what the old parse read" \
   "$([[ -n ${scraped// /} ]] && echo yes || echo no)" "yes"
 check "and none of them is the daylight temperature, so the comparison could not match" \
-  "$(printf '%s\n' $scraped | grep -cx 6000)" "0"
+  "$(printf '%s' "$scraped" | tr ' ' '\n' | grep -cx 6000)" "0"
 
 # ---- a live hyprsunset toggles both ways -----------------------------------
 
