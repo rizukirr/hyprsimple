@@ -427,6 +427,53 @@ unguarded_str=""
 (( ${#unguarded[@]} > 0 )) && unguarded_str="$(printf '%s ' "${unguarded[@]}")"
 check "every prompt in an unattended script is behind a terminal check" \
   "$unguarded_str" ""
+
+# ---- a migration must not take a value from the session -----------------------
+#
+# Migrations run once, unattended, and cannot be re-run. bootstrap.sh runs them,
+# and bootstrap is for machines that predate the update system, so a console
+# with no session bus is an ordinary place for one to run.
+#
+# gsettings does not fail there. It answers with the schema default. A migration
+# that wrote ~/.config/gtk-3.0/settings.ini from
+#
+#   gsettings get org.gnome.desktop.interface gtk-theme
+#
+# recorded Adwaita on a machine whose theme is Adwaita-dark, and because the
+# file then existed nothing corrected it. Measured by running bootstrap.sh under
+# env -i against a fresh HOME. The migration guarded an empty answer, and the
+# answer was never empty, only wrong.
+#
+# hyprctl is the same shape: it answers ok for a cursor theme that is not
+# installed. A migration deciding what to write must read hyprsimple's own
+# files, which are there whether or not a session is.
+#
+# Acting on the exit status is fine and is not what this looks for. Only
+# capturing output as a value.
+
+session_readers=()
+for migration in "$REPO/migrations"/*.sh; do
+  sed 's/^[[:space:]]*#.*//' "$migration" |
+    grep -qE '\$\((gsettings get|hyprctl|dunstctl|busctl)' &&
+    session_readers+=("$(basename "$migration")")
+done
+
+readers_str=""
+(( ${#session_readers[@]} > 0 )) && readers_str="$(printf '%s ' "${session_readers[@]}")"
+check "no migration reads a value out of the running session" "$readers_str" ""
+
+# Not vacuous: migrations do call these, they just act on the status rather than
+# capturing the answer. If that stops being true the check above means nothing.
+callers=0
+for migration in "$REPO/migrations"/*.sh; do
+  sed 's/^[[:space:]]*#.*//' "$migration" |
+    grep -qE '\b(gsettings|hyprctl|systemctl --user)\b' && callers=$((callers + 1))
+done
+if (( callers < 3 )); then
+  fail "only $callers migrations touch the session at all, so the check above proves little"
+else
+  pass "$callers migrations touch the session, and none of them reads a value from it"
+fi
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
