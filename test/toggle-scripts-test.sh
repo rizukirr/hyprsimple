@@ -35,6 +35,12 @@ check() {
 }
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A rofi that answers with nothing, never the real one. These scripts open a
+# picker when given no argument and /usr/bin is on the PATH below, so the real
+# rofi was reachable from here. It reached the maintainer's screen once, from a
+# suite that had no stub, and opened a window complaining about a theme inside
+# the fixture.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 LOG="$TMP/calls"
 
 # One hyprctl stub for every script here. It answers from files the test names,

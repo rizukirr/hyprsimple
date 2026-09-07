@@ -46,6 +46,15 @@ done
 # maintainer's own session.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/pgrep"
 printf '#!/bin/bash\nexit 0\n' >"$STUB/pkill"
+# rofi above all. These scripts open a picker when given no argument, and
+# /usr/bin is on the PATH below, so the real rofi was reachable. It opened a
+# window on the maintainer's screen during a sabotage run, complaining about a
+# theme inside the fixture. theme-picker-test.sh has warned about exactly this
+# since it was written; this suite did not carry the stub over.
+#
+# It answers with nothing, so a picker that is reached selects nothing and the
+# caller exits rather than waiting for input.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 cat >"$STUB/notify-send" <<'STUBEOF'
 #!/bin/bash
 printf '%s\n' "$*" >>"$NOTIFY_LOG"

@@ -284,6 +284,55 @@ else
     "$unisolated_str" ""
 fi
 
+# A suite must not be able to reach the real rofi.
+#
+# rofi opens a window on whoever is running the tests. Several of these suites
+# run scripts that open a picker when given no argument, with /usr/bin on the
+# PATH they build, and had no rofi of their own in front of it. That is not
+# theoretical: during one sabotage run a picker was reached and rofi appeared on
+# the maintainer's screen, complaining about a theme path inside the fixture.
+#
+# The scripts that can open one are read out of the repository rather than
+# listed here, so a picker added to another script later is covered without
+# this check being touched.
+mapfile -t picker_scripts < <(
+  for script in "$REPO/.local/bin"/*.sh; do
+    sed 's/#.*//' "$script" | grep -q 'hyprsimple-image-picker.sh' &&
+      basename "$script"
+  done
+)
+# hyprsimple-image-picker.sh is the one that actually runs rofi, so it counts
+# too.
+picker_scripts+=(hyprsimple-image-picker.sh)
+
+if (( ${#picker_scripts[@]} < 3 )); then
+  fail "found ${#picker_scripts[@]} scripts that can open a picker, which is too few to be right"
+else
+  pass "found ${#picker_scripts[@]} scripts that can open a picker"
+fi
+
+unstubbed=()
+for suite in "${suites[@]}"; do
+  # Whole-line comments only. Stripping from the first # anywhere cut
+  # `printf '#!/bin/bash\n...' >"$STUB/rofi"` down to `printf '`, so the stub
+  # this check is looking for disappeared and three suites that have one were
+  # reported as missing it.
+  code=$(sed 's/^[[:space:]]*#.*//' "$suite")
+  # Only suites that put a directory of their own ahead of a real one.
+  grep -q 'PATH="\$STUB:' <<<"$code" || continue
+  runs_picker=0
+  for script in "${picker_scripts[@]}"; do
+    grep -qF "$script" <<<"$code" && runs_picker=1
+  done
+  (( runs_picker )) || continue
+  grep -q 'rofi' <<<"$code" || unstubbed+=("$(basename "$suite")")
+done
+
+unstubbed_str=""
+(( ${#unstubbed[@]} > 0 )) && unstubbed_str="$(printf '%s ' "${unstubbed[@]}")"
+check "every suite that can reach rofi puts one of its own in front of it" \
+  "$unstubbed_str" ""
+
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
