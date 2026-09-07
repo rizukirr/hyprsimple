@@ -199,6 +199,85 @@ run_record nvidia region none
 check "a recorder that exits at once is reported rather than ignored" \
   "$(grep -c 'failed to start' "$NLOG")" "1"
 
+# --- stopping waits for the recorder to actually go ------------------------
+#
+# The waybar indicator is driven by RTMIN+8 and nothing else: that module has a
+# signal and no interval, so whatever the module sees when the signal arrives
+# stands until the next recording starts. The stop path used to sleep 0.2s and
+# then signal, so a recorder still finalising its mp4 left the bar claiming to
+# be recording with nothing scheduled to correct it.
+#
+# Modelled with a pgrep that reports the recorder alive until a marker file
+# appears, and a pkill that creates that marker after a delay. The order of the
+# two events is what matters, so the check reads which came first rather than
+# timing anything.
+
+ORDER="$TMP/stop-order"
+GONE="$TMP/recorder-gone"
+
+cat >"$STUB/pgrep" <<'STUBEOF'
+#!/bin/bash
+# Alive until the marker says the recorder finished exiting.
+[[ -e $RECORDER_GONE ]] && exit 1
+exit 0
+STUBEOF
+
+cat >"$STUB/pkill" <<'STUBEOF'
+#!/bin/bash
+if [[ $* == *RTMIN+8* ]]; then
+  printf 'signalled\n' >>"$STOP_ORDER"
+  exit 0
+fi
+# The TERM to the recorder. It goes away only after finalising, which is what
+# the delay stands for: long enough that a fixed 0.2s sleep would signal first.
+#
+# Once, not once per recorder: the script TERMs both names and only one of them
+# was ever running.
+if [[ $* == *wl-screenrec* || $* == *wf-recorder* ]] && mkdir "$RECORDER_GONE.once" 2>/dev/null; then
+  ( sleep 0.8; printf 'exited\n' >>"$STOP_ORDER"; : >"$RECORDER_GONE" ) &
+fi
+exit 0
+STUBEOF
+chmod +x "$STUB/pgrep" "$STUB/pkill"
+
+: >"$ORDER"; rm -f "$GONE"; rm -rf "$GONE.once"; : >"$NLOG"
+CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
+  STOP_ORDER="$ORDER" RECORDER_GONE="$GONE" \
+  PATH="$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" stop >/dev/null 2>&1
+
+check "the recorder is gone before waybar is told to re-read" \
+  "$(tr '\n' ' ' <"$ORDER")" "exited signalled "
+check "and waybar is told exactly once" \
+  "$(grep -c '^signalled$' "$ORDER")" "1"
+
+# A recorder that never exits must not hang the stop for good.
+: >"$ORDER"; rm -f "$GONE"; rm -rf "$GONE.once"
+cat >"$STUB/pkill" <<'STUBEOF'
+#!/bin/bash
+[[ $* == *RTMIN+8* ]] && printf 'signalled\n' >>"$STOP_ORDER"
+exit 0
+STUBEOF
+chmod +x "$STUB/pkill"
+CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
+  STOP_ORDER="$ORDER" RECORDER_GONE="$GONE" HYPRSIMPLE_RECORDER_STOP_WAIT=3 \
+  PATH="$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" stop >/dev/null 2>&1
+check "a recorder that never exits still ends with waybar being told" \
+  "$(grep -c '^signalled$' "$ORDER")" "1"
+
+# And the wait is bounded by something, or the check above proves only that
+# this run happened to finish.
+check "the stop wait has a limit rather than looping forever" \
+  "$(sed 's/#.*//' "$BIN/screen-record.sh" | grep -c 'HYPRSIMPLE_RECORDER_STOP_WAIT')" "1"
+check "and the fixed sleep it replaced is gone" \
+  "$(sed 's/#.*//' "$BIN/screen-record.sh" | grep -c 'sleep 0.2')" "0"
+
+# The module really does have no interval, which is why the sample has to be
+# taken at the right moment.
+check "the waybar recording module is signal driven with no interval" \
+  "$(sed -n '/custom\/screenrecording/,/}/p' "$REPO/.config/waybar/config.jsonc" | grep -c 'interval')" "0"
+check "and it really does carry the signal this script sends" \
+  "$(sed -n '/custom\/screenrecording/,/}/p' "$REPO/.config/waybar/config.jsonc" | grep -c '"signal": 8')" "1"
+
 # This suite once left four processes named wf-recorder running, which made
 # waybar-refresh-test and notification-idiom-test see a recording in progress.
 # Assert the cleanup rather than trust it.
