@@ -372,6 +372,61 @@ noisy_str=""
 (( ${#noisy[@]} > 0 )) && noisy_str="$(printf '%s ' "${noisy[@]}")"
 check "every suite that runs a notifying script stubs notify-send" "$noisy_str" ""
 
+
+# ---- nothing that runs unattended asks a question it cannot hear -------------
+#
+# install.sh, bootstrap.sh, the migration runner and every migration can all run
+# with no terminal attached. bootstrap's documented install is
+# `curl -fsSL .../bootstrap.sh | bash`, where stdin is the script itself, so a
+# read there does not wait for a person: it takes the next line of the script as
+# the answer and that line never runs.
+#
+# It has happened twice. The migration runner consumed a line of bootstrap.sh,
+# and install.sh's closing prompt would have consumed the `if` that tests its own
+# answer. Both files already guarded one prompt each and not the other.
+#
+# The rule rather than the two instances: a read that prompts must sit behind a
+# check for a terminal. Scripts a person runs by hand, like setup-dns.sh and the
+# vendored hotspot.sh, are not in this set and are not checked.
+
+UNATTENDED=("$REPO/install.sh" "$REPO/bootstrap.sh"
+  "$REPO/.local/bin/hyprsimple-migrate.sh" "$REPO/.local/bin/hyprsimple-update.sh")
+while IFS= read -r m; do UNATTENDED+=("$m"); done < <(find "$REPO/migrations" -name '*.sh' | sort)
+
+if (( ${#UNATTENDED[@]} < 6 )); then
+  fail "found ${#UNATTENDED[@]} unattended scripts to audit, which is too few to be right"
+else
+  pass "auditing ${#UNATTENDED[@]} scripts that can run with no terminal"
+fi
+
+# Counted so the check cannot pass by finding no prompts at all.
+prompts=0
+unguarded=()
+for script in "${UNATTENDED[@]}"; do
+  [[ -f $script ]] || continue
+  # Whole-line comments only. Stripping from the first # anywhere would cut a
+  # prompt string containing one.
+  mapfile -t prompt_lines < <(sed 's/^[[:space:]]*#.*//' "$script" | grep -n 'read -[a-z]*p' | cut -d: -f1)
+  for n in "${prompt_lines[@]}"; do
+    prompts=$((prompts + 1))
+    # The guard has to be above the prompt and close to it. Ten lines is more
+    # than any of these needs and far less than the distance to an unrelated one.
+    start=$(( n > 10 ? n - 10 : 1 ))
+    sed 's/^[[:space:]]*#.*//' "$script" | sed -n "${start},${n}p" |
+      grep -q -- '-t 0' || unguarded+=("$(basename "$script"):$n")
+  done
+done
+
+if (( prompts < 3 )); then
+  fail "found $prompts prompts across those scripts, which is fewer than there are"
+else
+  pass "found $prompts prompts, each of which must be guarded"
+fi
+
+unguarded_str=""
+(( ${#unguarded[@]} > 0 )) && unguarded_str="$(printf '%s ' "${unguarded[@]}")"
+check "every prompt in an unattended script is behind a terminal check" \
+  "$unguarded_str" ""
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
