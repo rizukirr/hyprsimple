@@ -241,6 +241,9 @@ jobs:
       - name: removed-files-test
         run: bash test/removed-files-test.sh
 
+      - name: env-block-test
+        run: bash test/env-block-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
