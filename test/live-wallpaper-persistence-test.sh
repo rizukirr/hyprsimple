@@ -34,6 +34,12 @@ check() {
 }
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A rofi that answers with nothing, never the real one. These scripts open a
+# picker when given no argument and /usr/bin is on the PATH below, so the real
+# rofi was reachable from here. It reached the maintainer's screen once, from a
+# suite that had no stub, and opened a window complaining about a theme inside
+# the fixture.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 for t in systemctl notify-send hyprctl; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$t"; chmod +x "$STUB/$t"
 done
@@ -43,7 +49,10 @@ setup() {
   rm -rf "${TMP:?}/home"
   mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.cache" \
     "$HOME_DIR/.config/hypr/themes/demo/backgrounds"
-  cp "$BIN/live-wallpaper-toggle.sh" "$BIN/hypr-helpers.sh" "$HOME_DIR/.local/bin/"
+  # hyprsimple-require.sh too: the scripts test for their helpers before
+  # sourcing them, so a fixture without it stops rather than running.
+  cp "$BIN/live-wallpaper-toggle.sh" "$BIN/hypr-helpers.sh" \
+    "$BIN/hyprsimple-require.sh" "$HOME_DIR/.local/bin/"
   printf 'x\n' >"$HOME_DIR/.config/hypr/themes/demo/backgrounds/a.jpg"
   printf 'x\n' >"$HOME_DIR/.config/hypr/themes/demo/backgrounds/b.jpg"
   printf '%s\n' "$HOME_DIR/.config/hypr/themes/demo/backgrounds/a.jpg" \

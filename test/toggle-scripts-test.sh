@@ -35,6 +35,12 @@ check() {
 }
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A rofi that answers with nothing, never the real one. These scripts open a
+# picker when given no argument and /usr/bin is on the PATH below, so the real
+# rofi was reachable from here. It reached the maintainer's screen once, from a
+# suite that had no stub, and opened a window complaining about a theme inside
+# the fixture.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 LOG="$TMP/calls"
 
 # One hyprctl stub for every script here. It answers from files the test names,
@@ -199,7 +205,9 @@ check "an unknown mode exits non-zero rather than doing something" \
 HOME_DIR="$TMP/home"
 THEME="$HOME_DIR/.config/hypr/themes/rosepine"
 mkdir -p "$THEME/backgrounds" "$HOME_DIR/.cache" "$HOME_DIR/.local/bin"
-cp "$BIN/hypr-helpers.sh" "$HOME_DIR/.local/bin/"
+# hyprsimple-require.sh too: the scripts test for their helpers before
+# sourcing them, so a fixture without it stops rather than running.
+cp "$BIN/hypr-helpers.sh" "$BIN/hyprsimple-require.sh" "$HOME_DIR/.local/bin/"
 printf 'first\n' >"$THEME/backgrounds/0-with-you.jpg"
 printf 'second\n' >"$THEME/backgrounds/1-elsewhere.jpg"
 printf '%s\n' "$THEME/backgrounds/0-with-you.jpg" >"$HOME_DIR/.cache/current_wallpaper_path"

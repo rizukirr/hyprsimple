@@ -72,6 +72,12 @@ check "and stripping comments leaves its code behind" \
 # --- the switcher persists it ------------------------------------------------
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A rofi that answers with nothing, never the real one. These scripts open a
+# picker when given no argument and /usr/bin is on the PATH below, so the real
+# rofi was reachable from here. It reached the maintainer's screen once, from a
+# suite that had no stub, and opened a window complaining about a theme inside
+# the fixture.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 for tool in gsettings hyprctl systemctl pkill hyprsimple-restart-waybar.sh; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
@@ -81,7 +87,10 @@ setup_home() {
   rm -rf "${TMP:?}/home"
   mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.config/uwsm" "$HOME_DIR/.cache" \
     "$HOME_DIR/.config/hypr/themes/withcursor" "$HOME_DIR/.config/hypr/themes/plain"
+  # theme-switcher.sh requires both helpers before it will run, so the
+  # fixture carries both even though this file only reads the cursor half.
   cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" \
+    "$BIN/hyprsimple-require.sh" "$BIN/hyprsimple-theme-deliver.sh" \
     "$HOME_DIR/.local/bin/"
   printf 'Adwaita-dark\n' >"$HOME_DIR/.config/hypr/themes/withcursor/cursor-theme"
   cat >"$HOME_DIR/.config/uwsm/env" <<'ENVEOF'

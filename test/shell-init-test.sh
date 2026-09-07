@@ -291,6 +291,11 @@ while IFS= read -r line; do
   case "$cmd" in "" | '$0' | '$(basename' | "Usage"*) continue ;; esac
   [[ -f "$BIN/$cmd" ]] && continue
   printf '%s\n' "$bash_names" | grep -qx "$cmd" && continue
+  # A sourced helper documents the usage of the function it defines, which is
+  # neither a script nor an alias and is still a real thing to run. Accepted
+  # only when some script actually defines it, so a usage line naming a
+  # function that does not exist is still caught.
+  grep -qhE "^[[:space:]]*$cmd\(\) \{" "$BIN"/*.sh && continue
   bad_usage+=("$cmd")
 done < <(grep -hoE 'Usage:? [a-zA-Z0-9_.$/(-]+' "$BIN"/*.sh | LC_ALL=C sort -u)
 

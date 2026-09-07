@@ -95,7 +95,10 @@ fi
 switch_home="$TMP/switch-home"
 must_be_fixture "$switch_home"
 mkdir -p "$switch_home/.local/bin" "$switch_home/.config/hypr"
-cp "$REPO/.local/bin/hypr-helpers.sh" "$switch_home/.local/bin/hypr-helpers.sh"
+# hyprsimple-require.sh too: the scripts test for their helpers before
+# sourcing them, so a fixture without it stops rather than running.
+cp "$REPO/.local/bin/hypr-helpers.sh" "$REPO/.local/bin/hyprsimple-require.sh" \
+  "$switch_home/.local/bin/"
 # theme-switcher.sh delivers generated files through this, shared with
 # hyprsimple-update.sh so the two cannot deliver different sets.
 cp "$REPO/.local/bin/hyprsimple-theme-deliver.sh" "$switch_home/.local/bin/"

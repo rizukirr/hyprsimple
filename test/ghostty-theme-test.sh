@@ -55,6 +55,12 @@ fi
 # --- the switch ---------------------------------------------------------------
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A rofi that answers with nothing, never the real one. These scripts open a
+# picker when given no argument and /usr/bin is on the PATH below, so the real
+# rofi was reachable from here. It reached the maintainer's screen once, from a
+# suite that had no stub, and opened a window complaining about a theme inside
+# the fixture.
+printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 for tool in gsettings hyprctl systemctl pkill busctl notify-send \
   hyprsimple-restart-waybar.sh hyprsimple-restart-dunst.sh; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
@@ -67,7 +73,7 @@ setup_home() {
   rm -rf "${TMP:?}/home"
   mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.cache" \
     "$HOME_DIR/.config/ghostty" "$HOME_DIR/.config/hypr/themes/demo"
-  cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" \
+  cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" "$BIN/hyprsimple-require.sh" \
     "$BIN/hyprsimple-theme-deliver.sh" \
     "$HOME_DIR/.local/bin/"
   # A theme naming a built-in ghostty theme, which is the branch that appends

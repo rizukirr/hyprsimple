@@ -253,6 +253,9 @@ jobs:
       - name: hyprsunset-service-test
         run: bash test/hyprsunset-service-test.sh
 
+      - name: required-helpers-test
+        run: bash test/required-helpers-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
