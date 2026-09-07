@@ -112,11 +112,67 @@ fi
 gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME_NAME"
 
 # Update gtk-3.0 and gtk-4.0 settings.ini (some apps read these instead of gsettings)
+#
+# This used to be a mkdir followed by `[[ -f settings.ini ]] && sed`, and
+# nothing in hyprsimple has ever created settings.ini. So the mkdir made the
+# directory, the test then failed, and the block wrote nothing on every theme
+# switch. Measured on a live machine: ~/.config/gtk-3.0 and ~/.config/gtk-4.0
+# both present and both empty, on an install that had switched themes many
+# times. The apps the comment above is about were reading nothing.
+#
+# Three cases, because the file belongs to the user when it exists:
+#   absent          write a minimal one
+#   has the key     replace that line, keeping the rest
+#   lacks the key   add it under [Settings], keeping the rest
+set_gtk_theme_name() {
+  local file="$1" name="$2"
+
+  if [[ ! -f $file ]]; then
+    printf '[Settings]\ngtk-theme-name=%s\n' "$name" >"$file"
+    return 0
+  fi
+
+  # Section aware, because settings.ini is an ini file and the key only counts
+  # under [Settings]. A first attempt matched ^gtk-theme-name= anywhere, which
+  # rewrote one sitting under a later section and left [Settings] without the
+  # key. That is the same unanchored-match mistake this file just had in its
+  # rofi rewrite.
+  local tmp="$file.hyprsimple.$$"
+  awk -v name="$name" '
+    /^[[:space:]]*\[/ {
+      # Leaving [Settings] without having seen the key: add it here.
+      if (in_settings && !done) { print "gtk-theme-name=" name; done = 1 }
+      in_settings = ($0 ~ /^[[:space:]]*\[Settings\][[:space:]]*$/)
+      if (in_settings) seen_settings = 1
+      print
+      next
+    }
+    in_settings && /^[[:space:]]*gtk-theme-name[[:space:]]*=/ {
+      if (!done) { print "gtk-theme-name=" name; done = 1 }
+      next
+    }
+    { print }
+    END {
+      if (!done) {
+        if (in_settings) print "gtk-theme-name=" name
+        else if (!seen_settings) { print ""; print "[Settings]"; print "gtk-theme-name=" name }
+      }
+    }
+  ' "$file" >"$tmp" || { rm -f "$tmp"; return 0; }
+
+  # A [Settings] section that ended before EOF and got no key would leave the
+  # file without one. awk above adds it on the section boundary, so this only
+  # guards the case where awk wrote nothing at all.
+  if [[ -s $tmp ]]; then
+    mv -f "$tmp" "$file"
+  else
+    rm -f "$tmp"
+  fi
+}
+
 for gtk_dir in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
   mkdir -p "$gtk_dir"
-  if [[ -f "$gtk_dir/settings.ini" ]]; then
-    sed -i "s/^gtk-theme-name=.*/gtk-theme-name=$GTK_THEME_NAME/" "$gtk_dir/settings.ini"
-  fi
+  set_gtk_theme_name "$gtk_dir/settings.ini" "$GTK_THEME_NAME"
 done
 
 # Icon theme (icons.theme = omarchy style, icon-theme = hyprsimple style)
