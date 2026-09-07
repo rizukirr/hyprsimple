@@ -522,7 +522,10 @@ check "with the cache directory made unwritable, the picker still prints a key" 
 ws_home="$TMP/ws-home"
 must_be_fixture "$ws_home"
 mkdir -p "$ws_home/.local/bin" "$ws_home/.cache"
-cp "$REPO/.local/bin/hypr-helpers.sh" "$ws_home/.local/bin/hypr-helpers.sh"
+# hyprsimple-require.sh too: the scripts test for their helpers before
+# sourcing them, so a fixture without it stops rather than running.
+cp "$REPO/.local/bin/hypr-helpers.sh" "$REPO/.local/bin/hyprsimple-require.sh" \
+  "$ws_home/.local/bin/"
 
 ws_marker="$TMP/picker-invoked-marker"
 cat >"$ws_home/.local/bin/hyprsimple-image-picker.sh" <<STUB2

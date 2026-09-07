@@ -1,7 +1,16 @@
 #!/bin/bash
 
-source "$HOME/.local/bin/hypr-helpers.sh"
-source "$HOME/.local/bin/hyprsimple-theme-deliver.sh"
+# Tested for before use, not sourced blind. A missing helper used to leave
+# this script running with its functions undefined, delivering nothing and
+# still reporting "Theme applied!" at the end.
+# This one line cannot use require_helper, so it carries the check itself.
+source "$HOME/.local/bin/hyprsimple-require.sh" 2>/dev/null || {
+  echo "hyprsimple: missing helper: hyprsimple-require.sh. Run hyprsimple-update." >&2
+  command -v notify-send >/dev/null &&
+    notify-send -u critical "hyprsimple" "Missing helper: hyprsimple-require.sh. Run hyprsimple-update."
+  exit 1
+}
+require_helper hypr-helpers.sh hyprsimple-theme-deliver.sh
 
 # Usage: theme-switcher.sh [theme-name]
 #   No argument: show rofi picker

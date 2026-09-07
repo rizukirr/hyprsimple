@@ -1,6 +1,13 @@
 #!/bin/bash
 
-source "$HOME/.local/bin/hypr-helpers.sh"
+# This one line cannot use require_helper, so it carries the check itself.
+source "$HOME/.local/bin/hyprsimple-require.sh" 2>/dev/null || {
+  echo "hyprsimple: missing helper: hyprsimple-require.sh. Run hyprsimple-update." >&2
+  command -v notify-send >/dev/null &&
+    notify-send -u critical "hyprsimple" "Missing helper: hyprsimple-require.sh. Run hyprsimple-update."
+  exit 1
+}
+require_helper hypr-helpers.sh
 
 # Switch wallpaper within the current theme
 # Usage: wallpaper-switcher.sh [next|pick]

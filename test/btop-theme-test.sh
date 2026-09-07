@@ -70,7 +70,7 @@ setup_home() {
   rm -rf "${TMP:?}/home"
   mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.config/uwsm" "$HOME_DIR/.cache" \
     "$HOME_DIR/.config/hypr/themes/demo/generated"
-  cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" \
+  cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" "$BIN/hyprsimple-require.sh" \
     "$BIN/hyprsimple-theme-deliver.sh" \
     "$HOME_DIR/.local/bin/"
   printf 'theme[main_bg]="#191724"\n' \
