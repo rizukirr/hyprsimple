@@ -127,10 +127,15 @@ STUBEOF
   chmod +x "$STUB/upower"
 }
 
-FLAG=/tmp/battery-notification-flag
+# Both under the suite's own temp directory. These used to be the real paths,
+# so running the suite deleted the live notification flag out from under the
+# running service and left a record of 500 behind it, which the next charge
+# would have restored the screen to.
+FLAG="$TMP/battery-flag"
 run_battery() {
   battery_at "$1"
-  NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
+  HYPRSIMPLE_BATTERY_FLAG="$FLAG" HYPRSIMPLE_BRIGHTNESS_FILE="$TMP/record" \
+    NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
     bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 }
 
@@ -189,7 +194,8 @@ echo "    percentage:          80%"
 echo "    state:               charging"
 STUBEOF
 chmod +x "$STUB/upower"
-NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
+HYPRSIMPLE_BATTERY_FLAG="$FLAG" HYPRSIMPLE_BRIGHTNESS_FILE="$TMP/record" \
+  NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
   bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 check "charging clears the flag" \
   "$([[ -f $FLAG ]] && echo present || echo gone)" "gone"
@@ -245,6 +251,7 @@ run_at() {
   local pct="$1" state="${2:-discharging}"
   if [[ $state == charging ]]; then charging_at "$pct"; else battery_at "$pct"; fi
   LEVEL_FILE="$LEVEL" HYPRSIMPLE_BRIGHTNESS_FILE="$BF" \
+    HYPRSIMPLE_BATTERY_FLAG="$FLAG" \
     NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
     bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 }

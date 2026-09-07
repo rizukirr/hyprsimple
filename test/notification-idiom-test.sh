@@ -125,12 +125,16 @@ chmod +x "$STUB/upower"
 # remembers the last one written. That is a real defect, it predates the
 # notification substitution, and fixing it is a behaviour change this suite
 # has no mandate for. Pinning the count here would pin the bug.
-rm -f /tmp/battery-notification-flag
+# Both state files under this suite's own temp directory. These used to be
+# left at their real paths, so running the suite deleted the live notification
+# flag and left a bogus brightness record for the next charge to restore.
 : >"$LOG"
-NOTIFY_LOG="$LOG" PATH="$STUB:$PATH" bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
+NOTIFY_LOG="$LOG" PATH="$STUB:$PATH" \
+  HYPRSIMPLE_BATTERY_FLAG="$STUB/battery-flag" \
+  HYPRSIMPLE_BRIGHTNESS_FILE="$STUB/battery-record" \
+  bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 check "battery-monitor reaches its low battery notification" \
   "$( (( $(grep -c 'Battery Low' "$LOG") >= 1 )) && echo reached )" "reached"
-rm -f /tmp/battery-notification-flag
 
 # capslock-notify polls a sysfs LED when one exists and falls back to hyprctl
 # when it does not. This exercises the fallback, which is the path CI takes,

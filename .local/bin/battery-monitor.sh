@@ -7,7 +7,10 @@ BATTERY_THRESHOLD=(20 15 10 5 3)
 # Brightness to drop to once the battery reaches the first threshold. Fixed on
 # purpose: dimming hard and early buys more runtime than stepping down slowly.
 LOW_BATTERY_BRIGHTNESS=5
-FLAG_FILE="/tmp/battery-notification-flag"
+# The threshold last acted on, so a crossing acts once. Overridable for the
+# same reason as the record below: a suite that ran against the real path
+# deleted the live flag out from under the running service.
+FLAG_FILE="${HYPRSIMPLE_BATTERY_FLAG:-/tmp/battery-notification-flag}"
 # Where the brightness was before a low battery dimmed the screen, so charging
 # can put it back. Beside the flag, and overridable so the suite never writes
 # to the real one.

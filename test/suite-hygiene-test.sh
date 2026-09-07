@@ -208,6 +208,82 @@ else
   check "and every one of them exists" "$absent_str" ""
 fi
 
+# A suite must not touch the state a shipped script keeps on the real machine.
+#
+# Two of them ran battery-monitor.sh against its real /tmp paths. Running the
+# tests deleted the live notification flag out from under the running service,
+# so the next tick notified and dimmed again, and left a brightness record of
+# 500 behind, which the next charge would have restored the screen to. Both
+# were found on the maintainer's own machine, by a file reappearing after it
+# was deleted.
+#
+# The paths are read out of the script rather than listed here. A list written
+# down in this file would keep passing after the script renamed its paths,
+# which is the shape of failure this whole suite exists to catch.
+monitor="$REPO/.local/bin/battery-monitor.sh"
+mapfile -t state_paths < <(
+  grep -oE '\$\{HYPRSIMPLE_[A-Z_]+:-[^}]+\}' "$monitor" |
+    sed 's/.*:-//; s/}$//' |
+    LC_ALL=C sort -u
+)
+mapfile -t state_vars < <(
+  grep -oE 'HYPRSIMPLE_[A-Z_]+' "$monitor" | LC_ALL=C sort -u
+)
+
+if [[ ${#state_paths[@]} -lt 2 || ${#state_vars[@]} -lt 2 ]]; then
+  fail "read ${#state_paths[@]} state paths and ${#state_vars[@]} overrides out of battery-monitor.sh, so this check is not reading it"
+else
+  pass "read ${#state_paths[@]} overridable state paths out of battery-monitor.sh"
+
+  named=()
+  unisolated=()
+  runners=()
+  for suite in "${suites[@]}"; do
+    for path in "${state_paths[@]}"; do
+      grep -qF -- "$path" "$suite" && named+=("$(basename "$suite"):$path")
+    done
+    # Comments stripped, and matching an invocation rather than the name.
+    # Two suites name the script only to explain something and one names
+    # battery-monitor.service throughout, and counting those made this read as
+    # a failure in files that never run it.
+    #
+    # Every invocation is checked, not the file as a whole. The first version
+    # asked whether the suite mentioned the overrides anywhere, and a suite
+    # that isolated two of its three runs passed while the third wrote to the
+    # real paths. Continuations are joined first, so the environment in front
+    # of the command is on the same line as the command.
+    while IFS= read -r invocation; do
+      runners+=("$(basename "$suite")")
+      for var in "${state_vars[@]}"; do
+        [[ $invocation == *"$var"* ]] ||
+          unisolated+=("$(basename "$suite") runs it without $var")
+      done
+    done < <(
+      sed 's/#.*//' "$suite" |
+        sed -e :a -e '/\\$/N; s/\\\n//; ta' |
+        grep -E 'bash [^|;&]*battery-monitor\.sh'
+    )
+  done
+
+  # Or the loop above would report nothing wrong by never reaching a run.
+  # A floor, not the current count. Pinning the exact number would fail the
+  # day a suite gained or dropped a run, which says nothing about isolation.
+  if (( ${#runners[@]} < 2 )); then
+    fail "found ${#runners[@]} runs of battery-monitor.sh in the suites, so the isolation check is reading none of them"
+  else
+    pass "found ${#runners[@]} runs of battery-monitor.sh across the suites"
+  fi
+
+  named_str=""
+  (( ${#named[@]} > 0 )) && named_str="$(printf '%s ' "${named[@]}")"
+  check "no suite names a real state path of a shipped script" "$named_str" ""
+
+  unisolated_str=""
+  (( ${#unisolated[@]} > 0 )) && unisolated_str="$(printf '%s; ' "${unisolated[@]}")"
+  check "and every suite running battery-monitor.sh overrides all of them" \
+    "$unisolated_str" ""
+fi
+
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
