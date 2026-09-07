@@ -243,12 +243,22 @@ check "a path outside the theme falls back to the cached wallpaper" \
 one_sink='[{"name":"alsa_output.analog-stereo","description":"Built-in Audio","ports":[]}]'
 two_sinks='[{"name":"alsa_output.analog-stereo","description":"Built-in Audio","ports":[]},{"name":"bluez_output.AA","description":"Headphones","ports":[]}]'
 
+# set-default-sink can be made to fail, because it can fail in life: the list
+# the choice came from is a moment old, and pactl exits 1 with "Failure: No
+# such entity" for a sink that has gone since. A bluetooth headset
+# disconnecting in between looks exactly like that.
 cat >"$STUB/pactl" <<'STUBEOF'
 #!/bin/bash
 printf 'pactl %s\n' "$*" >>"$CALL_LOG"
 case "$1" in
   get-default-sink) printf '%s\n' "$DEFAULT_SINK" ;;
   -f) printf '%s\n' "$SINKS_JSON" ;;
+  set-default-sink)
+    if [[ -n ${SET_SINK_FAILS:-} ]]; then
+      echo "Failure: No such entity" >&2
+      exit 1
+    fi
+    ;;
 esac
 STUBEOF
 chmod +x "$STUB/pactl"
@@ -267,6 +277,25 @@ SINKS_JSON="$two_sinks" DEFAULT_SINK="alsa_output.analog-stereo" \
 check "two sinks still cycle to the other one" \
   "$(grep -c 'set-default-sink bluez_output.AA' "$LOG")" "1"
 check "and report the switch" "$(grep -c 'Switched to: Headphones' "$LOG")" "1"
+
+# The sink goes between the list and the set. pactl fails, and the switch used
+# to be announced anyway: sound still coming out of the speakers while the
+# notification said it had moved. Same shape as the single-sink case above,
+# which this file already covers.
+: >"$LOG"
+SET_SINK_FAILS=1 SINKS_JSON="$two_sinks" DEFAULT_SINK="alsa_output.analog-stereo" \
+  run "$BIN/audio-switch.sh" >/dev/null 2>&1
+check "a switch pactl refused is not reported as done" \
+  "$(grep -c 'Switched to' "$LOG")" "0"
+check "and is reported as failed instead" \
+  "$(grep -c 'Could not switch to Headphones' "$LOG")" "1"
+check "critically, so it is not lost among the ordinary notifications" \
+  "$(grep -c -- '-u critical' "$LOG")" "1"
+
+# It was still attempted, or the checks above would pass for a script that
+# stopped trying to switch at all.
+check "and the switch really was attempted" \
+  "$(grep -c 'set-default-sink bluez_output.AA' "$LOG")" "1"
 
 # --- virtual-mirror-toggle.sh -----------------------------------------------
 
