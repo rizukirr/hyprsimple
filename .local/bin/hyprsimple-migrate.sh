@@ -32,6 +32,24 @@ for file in "${migrations[@]}"; do
     touch "$STATE_DIR/$filename"
   else
     echo -e "\033[0;31mMigration ${filename%.sh} failed.\033[0m"
+
+    # Only ask when someone is there to answer.
+    #
+    # bootstrap.sh runs this, and its documented install is
+    # `curl -fsSL .../bootstrap.sh | bash`, where stdin is the installer
+    # itself. A read here does not wait for a person: it takes the next line of
+    # bootstrap.sh as the answer and that line never runs. Demonstrated with a
+    # parent piped into bash and a child that reads, the child came back with
+    # the parent's own next command as its answer.
+    #
+    # bootstrap.sh already guards its one prompt this way, for this reason. The
+    # runner it calls did not.
+    if [[ ! -t 0 ]]; then
+      echo -e "\033[0;31mNothing is attached to answer, so it was not skipped.\033[0m" >&2
+      echo "Run hyprsimple-migrate from a terminal to decide what to do with it." >&2
+      exit 1
+    fi
+
     read -rp "Skip it and continue? (y/N) " answer
     if [[ $answer == [yY] ]]; then
       touch "$STATE_DIR/skipped/$filename"

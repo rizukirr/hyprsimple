@@ -262,6 +262,9 @@ jobs:
       - name: gtk-settings-test
         run: bash test/gtk-settings-test.sh
 
+      - name: migration-runner-test
+        run: bash test/migration-runner-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
