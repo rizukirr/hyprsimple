@@ -247,6 +247,9 @@ jobs:
       - name: theme-delivery-test
         run: bash test/theme-delivery-test.sh
 
+      - name: nightlight-test
+        run: bash test/nightlight-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
