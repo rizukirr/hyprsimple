@@ -333,6 +333,45 @@ unstubbed_str=""
 check "every suite that can reach rofi puts one of its own in front of it" \
   "$unstubbed_str" ""
 
+# The same for notify-send, and for the same reason.
+#
+# A notification from a test lands on the desktop of whoever is running it.
+# theme-switcher.sh gained a warning for a cursor theme that is not installed,
+# cursor-theme-test.sh drives exactly that case, and the warning reached the
+# maintainer's screen because that suite stubbed gsettings and hyprctl and not
+# notify-send.
+#
+# The scripts that notify are read out of the repository, so one that starts
+# notifying later is covered without this check being touched.
+mapfile -t notifying < <(
+  for script in "$REPO/.local/bin"/*.sh; do
+    sed 's/^[[:space:]]*#.*//' "$script" | grep -q 'notify-send' &&
+      basename "$script"
+  done
+)
+
+if (( ${#notifying[@]} < 5 )); then
+  fail "found ${#notifying[@]} scripts that notify, which is too few to be right"
+else
+  pass "found ${#notifying[@]} scripts that send notifications"
+fi
+
+noisy=()
+for suite in "${suites[@]}"; do
+  code=$(sed 's/^[[:space:]]*#.*//' "$suite")
+  grep -q 'PATH="\$STUB:' <<<"$code" || continue
+  runs_notifier=0
+  for script in "${notifying[@]}"; do
+    grep -qE "bash [^|;&]*$script" <<<"$code" && runs_notifier=1
+  done
+  (( runs_notifier )) || continue
+  grep -q 'notify-send' <<<"$code" || noisy+=("$(basename "$suite")")
+done
+
+noisy_str=""
+(( ${#noisy[@]} > 0 )) && noisy_str="$(printf '%s ' "${noisy[@]}")"
+check "every suite that runs a notifying script stubs notify-send" "$noisy_str" ""
+
 if [[ $failures -gt 0 ]]; then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
