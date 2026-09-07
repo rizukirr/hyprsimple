@@ -41,5 +41,17 @@ if [[ $next_sink_name == "$current_sink_name" ]]; then
   exit 0
 fi
 
-pactl set-default-sink "$next_sink_name"
-notify-send "Audio Output" "Switched to: $next_sink_description"
+# Reporting the switch only if pactl made it.
+#
+# This was an unchecked call followed by an unconditional notification, which
+# is the same shape the single-sink case above was fixed for. pactl exits 1
+# with "Failure: No such entity" when the sink is not there any more, and the
+# list this choice came from is a moment old: a bluetooth headset that
+# disconnects in between leaves the sound coming out of the speakers while the
+# notification says it moved.
+if pactl set-default-sink "$next_sink_name"; then
+  notify-send "Audio Output" "Switched to: $next_sink_description"
+else
+  notify-send -u critical "Audio Output" "Could not switch to $next_sink_description"
+  exit 1
+fi
