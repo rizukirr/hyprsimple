@@ -244,6 +244,9 @@ jobs:
       - name: env-block-test
         run: bash test/env-block-test.sh
 
+      - name: theme-delivery-test
+        run: bash test/theme-delivery-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

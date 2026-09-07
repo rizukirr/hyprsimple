@@ -47,8 +47,11 @@ check "and the repository root ships no .bashrc" \
 # than a leftover.
 check "the btop template is still shipped" \
   "$([[ -f $REPO/.config/hypr/themes/templates/btop.theme.tpl ]] && echo yes || echo no)" "yes"
-check "and the switcher still installs the rendered one" \
-  "$(grep -c 'GEN/btop.theme' "$REPO/.local/bin/theme-switcher.sh")" "2"
+# In hyprsimple-theme-deliver.sh, which is where the delivery moved when it
+# became one function shared with hyprsimple-update.sh. The update used to
+# carry its own shorter list and never delivered btop.theme at all.
+check "and the shared delivery still installs the rendered one" \
+  "$(grep -c 'GEN/btop.theme' "$REPO/.local/bin/hyprsimple-theme-deliver.sh")" "2"
 check "and bashrc.sh, which the shell actually sources, is still shipped" \
   "$([[ -f $REPO/.local/bin/bashrc.sh ]] && echo yes || echo no)" "yes"
 check "and terminal.sh still wires it into a real ~/.bashrc" \
