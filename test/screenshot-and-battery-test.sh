@@ -206,6 +206,106 @@ check "and says nothing" "$(wc -l <"$NLOG" | tr -d ' ')" "0"
 
 rm -f "$FLAG"
 
+# --- and the dim is undone when the charger goes in --------------------------
+#
+# The dimming had no counterpart. A low battery took the screen to 5% and left
+# it there: plugging in cleared the flag and nothing else, so the screen stayed
+# dark until it was raised by hand, every time, long after the notification
+# explaining it had gone. Measured on a live machine charging at 4% with the
+# panel sitting at 5%.
+#
+# The stub tracks a real level, so these read what the script actually left the
+# screen at rather than which commands it issued.
+
+BF="$TMP/before-dim"
+LEVEL="$TMP/level"
+cat >"$STUB/brightnessctl" <<'STUBEOF'
+#!/bin/bash
+if [[ $1 == -m ]]; then
+  printf 'intel_backlight,backlight,%s,%s%%,48000\n' "$(cat "$LEVEL_FILE")" "$(cat "$LEVEL_FILE")"
+  exit 0
+fi
+if [[ $1 == set ]]; then
+  printf '%s' "${2%\%}" >"$LEVEL_FILE"
+  printf '%s\n' "$*" >>"${BRIGHT_LOG:?}"
+fi
+STUBEOF
+chmod +x "$STUB/brightnessctl"
+
+charging_at() {
+  cat >"$STUB/upower" <<STUBEOF
+#!/bin/bash
+[[ \$1 == -e ]] && { echo /org/freedesktop/UPower/devices/BAT0; exit 0; }
+echo "    percentage:          $1%"
+echo "    state:               charging"
+STUBEOF
+  chmod +x "$STUB/upower"
+}
+run_at() {
+  local pct="$1" state="${2:-discharging}"
+  if [[ $state == charging ]]; then charging_at "$pct"; else battery_at "$pct"; fi
+  LEVEL_FILE="$LEVEL" HYPRSIMPLE_BRIGHTNESS_FILE="$BF" \
+    NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
+    bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
+}
+level() { cat "$LEVEL"; }
+
+rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+run_at 9
+check "a low battery dims the screen" "$(level)" "5"
+check "and records where it was" "$(cat "$BF" 2>/dev/null)" "80"
+
+run_at 4
+check "falling further dims again" "$(level)" "5"
+check "without overwriting the recorded value with the dim one" \
+  "$(cat "$BF" 2>/dev/null)" "80"
+
+run_at 20 charging
+check "plugging in puts the brightness back" "$(level)" "80"
+check "and says so" "$(grep -c 'brightness restored to 80%' "$NLOG")" "1"
+check "and forgets the record, so the next discharge starts clean" \
+  "$([[ -f $BF ]] && echo kept || echo cleared)" "cleared"
+
+# A brightness the user chose since the dim is theirs, not ours to undo.
+rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+run_at 9
+printf '45' >"$LEVEL"
+run_at 20 charging
+check "a brightness changed since the dim is left alone" "$(level)" "45"
+check "and nothing is announced about restoring it" \
+  "$(grep -c 'brightness restored' "$NLOG")" "0"
+check "but the record is still cleared" \
+  "$([[ -f $BF ]] && echo kept || echo cleared)" "cleared"
+
+# Charging with no dim behind it must not touch the screen at all.
+rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '70' >"$LEVEL"
+run_at 90 charging
+check "charging with nothing to restore leaves the screen alone" "$(level)" "70"
+check "and issues no brightness command" "$(grep -c 'set' "$BLOG")" "0"
+
+# The script must not use the save slot hypridle uses for its idle dim, or the
+# two overwrite each other.
+# Comments stripped before counting. The script explains in a comment why it
+# keeps its own record rather than using brightnessctl -s and -r, and an
+# unanchored grep counted that explanation as a call.
+script_code() { sed 's/#.*//' "$1"; }
+check "the monitor keeps its own record rather than brightnessctl -s" \
+  "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl -s')" "0"
+check "and does not restore with -r either" \
+  "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl -r')" "0"
+check "and stripping comments leaves its real calls behind" \
+  "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl set')" "2"
+check "while hypridle still uses that slot for idle" \
+  "$(grep -c 'brightnessctl -s' "$REPO/default/hypr/hypridle/20-brightness.conf")" "1"
+
+# Restore the plain stubs for anything after this point.
+cat >"$STUB/brightnessctl" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"${BRIGHT_LOG:?}"
+STUBEOF
+chmod +x "$STUB/brightnessctl"
+rm -f "$FLAG" "$BF"
+
 # --- the monitor waits for a session to notify -------------------------------
 #
 # battery-monitor.timer was WantedBy=timers.target, so it started with the user
