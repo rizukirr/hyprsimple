@@ -195,8 +195,39 @@ set_session_env() {
   mv "$tmp" "$file"
 }
 
+# A cursor theme is a directory with a cursors/ subdirectory in one of the
+# icon paths. Anything else is a name, not a theme.
+#
+# Checked because nothing else does. hyprctl setcursor answers "ok" for a theme
+# that is not installed, and gsettings stores whatever it is given, so two
+# shipped themes carried values that had never worked and nothing reported it:
+# catppuccin asked for catppuccin-mocha-lavender-cursors, which is in no
+# package list and no repository, and rosepine asked for Adwaita-dark, which is
+# a GTK theme name rather than a cursor theme. The only cursor themes on a
+# hyprsimple machine are Adwaita and Yaru.
+#
+# It matters past the switch: XCURSOR_THEME is written to uwsm/env and read at
+# every login, so a name that resolves to nothing outlives the theme that set
+# it, which is the opposite of what that export is for.
+cursor_theme_exists() {
+  local name="$1" dir
+  for dir in "$HOME/.local/share/icons" "$HOME/.icons" /usr/share/icons; do
+    [[ -d $dir/$name/cursors ]] && return 0
+  done
+  return 1
+}
+
 if [[ -f "$THEME_PATH/cursor-theme" ]]; then
   CURSOR="$(cat "$THEME_PATH/cursor-theme")"
+fi
+
+if [[ -n ${CURSOR:-} ]] && ! cursor_theme_exists "$CURSOR"; then
+  echo "theme-switcher: cursor theme '$CURSOR' is not installed, leaving the cursor alone" >&2
+  notify-send "Theme Manager" "Cursor theme '$CURSOR' is not installed, so the cursor was left as it is" >/dev/null 2>&1
+  CURSOR=""
+fi
+
+if [[ -n ${CURSOR:-} ]]; then
   gsettings set org.gnome.desktop.interface cursor-theme "$CURSOR"
   [[ -z "$THEME_SWITCHER_NO_RELOAD" ]] && hyprctl setcursor "$CURSOR" 24
 

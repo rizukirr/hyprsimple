@@ -67,7 +67,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # suite that had no stub, and opened a window complaining about a theme inside
 # the fixture.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
-for tool in gsettings hyprctl systemctl pkill busctl hyprsimple-restart-waybar.sh; do
+# notify-send among them. theme-switcher.sh notifies on success and warns when
+# a theme names a cursor that is not installed, and an unstubbed one reaches the
+# desktop of whoever is running the tests.
+for tool in gsettings hyprctl systemctl pkill busctl hyprsimple-restart-waybar.sh notify-send; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
 
