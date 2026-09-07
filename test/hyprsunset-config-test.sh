@@ -51,13 +51,22 @@ check "and keeps a commented night profile to enable" \
 check "the fixture of the old file really is the TOML one" \
   "$(grep -c '^\[\[profile\]\]' "$OLD_TOML")" "1"
 
-# --- autostart ---------------------------------------------------------------
+# --- what starts it ----------------------------------------------------------
+#
+# hyprsunset.service, not autostart.lua. It used to run as `uwsm app --
+# hyprsunset`, a scope with no restart policy, and it does not survive a
+# suspend, so the profiles above stopped applying for the rest of the session
+# and nothing brought them back. hyprsunset-service-test.sh covers the
+# handover; this only checks that something still starts it, since the point of
+# this file is that the profiles are read.
 
 code_of() { sed 's/^[[:space:]]*--.*//' "$1"; }
-check "autostart starts hyprsunset, so the profiles are read at login" \
-  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- hyprsunset')" "1"
+check "autostart no longer starts hyprsunset itself" \
+  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- hyprsunset')" "0"
 check "stripping comments leaves autostart's code intact" \
   "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- waybar')" "1"
+check "the install enables the service that starts it, so the profiles are read at login" \
+  "$(sed 's/#.*//' "$REPO/install.sh" | grep -c 'systemctl --user enable hyprsunset.service')" "1"
 
 # --- nothing still calls the file TOML ---------------------------------------
 
