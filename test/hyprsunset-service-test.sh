@@ -109,9 +109,17 @@ exit 1
 STUBEOF
 chmod +x "$STUB"/*
 
+# A fixture unit file, so this does not depend on hyprsunset being installed on
+# whichever machine runs the suite. It was not overridable at first, and the
+# migration exited early on a CI runner with no hyprsunset: ten checks went red
+# there while passing on the machine the bug was found on.
+FIXTURE_UNIT="$TMP/hyprsunset.service"
+printf '[Service]\nExecStart=/usr/bin/hyprsunset\n' >"$FIXTURE_UNIT"
+
 run_migration() {
   local home="$1"
   SYSTEMCTL_LOG="$SLOG" SUNSET_RUNNING="${2-}" SESSION_UP="${3-}" \
+    HYPRSIMPLE_SUNSET_UNIT="${4-$FIXTURE_UNIT}" \
     HOME="$home" HYPRSIMPLE_PATH="$REPO" PATH="$STUB:/usr/bin:/bin" \
     bash "$MIGRATION" >"$TMP/out" 2>&1
 }
@@ -167,12 +175,21 @@ check "while the unit is still enabled, because that half is not theirs" \
   "$(grep -c '^--user enable hyprsunset.service$' "$SLOG")" "1"
 
 # A machine with no hyprsunset installed does nothing at all.
-#
-# The unit path is read out of the migration rather than named here, so this
-# still tests the right thing if that path changes.
-unit_path=$(grep -m1 '^UNIT=' "$MIGRATION" | cut -d= -f2)
-check "the migration checks for a real unit path" \
-  "$([[ $unit_path == /usr/lib/systemd/user/* ]] && echo yes || echo no)" "yes"
+home4="$TMP/home4"
+mkdir -p "$home4/.config/systemd/user"
+: >"$SLOG"
+run_migration "$home4" "" "" "$TMP/no-such-unit"
+check "with hyprsunset not installed, nothing is enabled" \
+  "$(grep -c 'hyprsunset.service' "$SLOG")" "0"
+check "and no drop-in is left behind" \
+  "$([[ -e $home4/.config/systemd/user/hyprsunset.service.d ]] && echo created || echo none)" "none"
+check "and the user is told why" \
+  "$(grep -c 'not installed here' "$TMP/out")" "1"
+
+# The default really is the path the package installs to, or the override above
+# would be testing a path production never uses.
+check "the migration defaults to the packaged unit path" \
+  "$(grep -c 'HYPRSIMPLE_SUNSET_UNIT:-/usr/lib/systemd/user/hyprsunset.service' "$MIGRATION")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2

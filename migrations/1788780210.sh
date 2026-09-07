@@ -15,7 +15,10 @@ echo "Run hyprsunset as a service, so it comes back when it dies"
 # The drop-in is a symlink into the install, like the dunst one, so a later
 # change to it needs no migration of its own.
 
-UNIT=/usr/lib/systemd/user/hyprsunset.service
+# Overridable so the suite can arrange a machine with and without hyprsunset
+# installed. Without this the test depended on whatever the host happened to
+# have, and passed here while doing nothing on a runner with no hyprsunset.
+UNIT="${HYPRSIMPLE_SUNSET_UNIT:-/usr/lib/systemd/user/hyprsunset.service}"
 DROPIN_DIR="$HOME/.config/systemd/user/hyprsunset.service.d"
 DROPIN="$DROPIN_DIR/10-hyprsimple.conf"
 SHIPPED="$HYPRSIMPLE_PATH/default/systemd/hyprsunset-restart.conf"
