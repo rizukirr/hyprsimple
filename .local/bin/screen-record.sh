@@ -100,7 +100,29 @@ stop_screenrecording() {
   pkill -x wl-screenrec
   pkill -x wf-recorder
   notify-send "Screen recording saved to $OUTPUT_DIR" -t 2000
-  sleep 0.2
+
+  # Waited for, not slept past.
+  #
+  # This was `sleep 0.2`, and the indicator is driven by a signal with no
+  # interval behind it: waybar re-runs the module when RTMIN+8 arrives and at
+  # no other time. So the module sampled pgrep once, 0.2 seconds after the
+  # TERM, and whatever it saw then stood until the next recording started.
+  #
+  # A recorder does not always exit inside that window. Both are asked to
+  # finalise an mp4 written with +faststart, which rewrites the file to move
+  # the index to the front, and that takes longer the longer the recording is.
+  # Every stop slower than 0.2s left the bar claiming to be recording, with
+  # nothing scheduled to correct it.
+  local waited=0
+  local limit="${HYPRSIMPLE_RECORDER_STOP_WAIT:-100}"
+  while screenrecording_active && ((waited < limit)); do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+
+  # Outside the loop, so the indicator is refreshed even when the wait ran out.
+  # A recorder still alive after ten seconds is a different problem, and
+  # leaving the bar untouched would not help with it either.
   toggle_screenrecording_indicator
 }
 
