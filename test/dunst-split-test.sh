@@ -96,6 +96,9 @@ switch_home="$TMP/switch-home"
 must_be_fixture "$switch_home"
 mkdir -p "$switch_home/.local/bin" "$switch_home/.config/hypr"
 cp "$REPO/.local/bin/hypr-helpers.sh" "$switch_home/.local/bin/hypr-helpers.sh"
+# theme-switcher.sh delivers generated files through this, shared with
+# hyprsimple-update.sh so the two cannot deliver different sets.
+cp "$REPO/.local/bin/hyprsimple-theme-deliver.sh" "$switch_home/.local/bin/"
 
 withcolors="$switch_home/.config/hypr/themes/withcolors"
 mkdir -p "$withcolors/generated"

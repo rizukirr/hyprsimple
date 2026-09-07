@@ -68,6 +68,7 @@ setup_home() {
   mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.cache" \
     "$HOME_DIR/.config/ghostty" "$HOME_DIR/.config/hypr/themes/demo"
   cp "$BIN/theme-switcher.sh" "$BIN/hypr-helpers.sh" "$BIN/theme-apply-templates.sh" \
+    "$BIN/hyprsimple-theme-deliver.sh" \
     "$HOME_DIR/.local/bin/"
   # A theme naming a built-in ghostty theme, which is the branch that appends
   # a single "theme = " line.
@@ -144,11 +145,14 @@ fi
 # file is lying to whoever reads it.
 
 SHIPPED="$REPO/.config/ghostty/config"
-SWITCHER="$BIN/theme-switcher.sh"
-filter_keys=$(grep -oE '\(background\|[a-z|-]+\)' "$SWITCHER" | head -1 |
+# The filter moved to hyprsimple-theme-deliver.sh when the delivery became one
+# function shared with hyprsimple-update.sh, which used to deliver a shorter
+# list of generated files than a theme switch did.
+FILTER_SCRIPT="$BIN/hyprsimple-theme-deliver.sh"
+filter_keys=$(grep -oE '\(background\|[a-z|-]+\)' "$FILTER_SCRIPT" | head -1 |
   tr -d '()' | tr '|' '\n' | LC_ALL=C sort -u | tr '\n' ' ')
 if [[ -z ${filter_keys// /} ]]; then
-  fail "could not read the key list out of theme-switcher.sh"
+  fail "could not read the key list out of hyprsimple-theme-deliver.sh"
 else
   pass "the filter names: $filter_keys"
 fi
@@ -175,9 +179,9 @@ check "the filter rewrites exactly the keys the header names" \
 # The pattern has to be the tolerant one, stated by name so a narrowing edit is
 # caught even if a fixture stops covering it.
 check "the filter allows whitespace before the key" \
-  "$(grep -c "grep -vE '\^\[\[:space:\]\]\*(" "$SWITCHER")" "1"
+  "$(grep -c "grep -vE '\^\[\[:space:\]\]\*(" "$FILTER_SCRIPT")" "1"
 check "and around the equals" \
-  "$(grep -c 'theme)\[\[:space:\]\]\*=' "$SWITCHER")" "1"
+  "$(grep -c 'theme)\[\[:space:\]\]\*=' "$FILTER_SCRIPT")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2

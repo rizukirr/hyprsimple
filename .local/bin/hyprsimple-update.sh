@@ -305,23 +305,25 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
     # state here rather than an error.
     active=$(readlink "$HOME/.config/hypr/theme-active.lua" 2>/dev/null || true)
     if [[ -n $active ]]; then
-      gen="${active%/*}"
-      # Plain if blocks, because each of these files is legitimately absent on
-      # some themes and the intent reads better than a chain of && lists.
+      # The same delivery a theme switch performs, out of the same function.
       #
-      # Not for the reason an earlier version of this comment gave. It claimed
-      # `[[ test ]] && cmd` aborts the script under set -e when the test is
-      # false. It does not: bash exempts a command that is not the last in an
-      # && list, and a standalone list of that shape leaves set -e alone. What
-      # actually took the update down was `x=$(cmd)` where cmd fails, which is
-      # why the two assignments above carry `|| true` and these do not need it.
-      if [[ -f $gen/hyprlock.conf ]]; then
-        cp "$gen/hyprlock.conf" "$HOME/.config/hypr/theme-hyprlock.conf"
-      fi
-      if [[ -f $gen/dunst-colors ]]; then
-        mkdir -p "$HOME/.config/dunst/dunstrc.d"
-        cp "$gen/dunst-colors" "$HOME/.config/dunst/dunstrc.d/90-theme.conf"
-      fi
+      # This used to be its own shorter list, and copied two of the eight
+      # generated files: a change to btop.theme.tpl or ghostty.conf.tpl was
+      # rendered here, stamped as done, and never reached btop or ghostty until
+      # the user happened to switch theme. Five of the sixteen shipped themes
+      # have no ghostty-theme file and so depend on the generated one, and
+      # every theme depends on the generated btop.theme.
+      gen="${active%/*}"
+      source "$HOME/.local/bin/hyprsimple-theme-deliver.sh"
+      deliver_theme_configs "${gen%/*}"
+
+      # And restarted, or the freshly written colours sit on disk unread.
+      # waybar reads its stylesheet at startup and dunst its drop-ins at load,
+      # so delivering without this is the same invisibility in a new place.
+      # Both are no-ops when the program is not running. ghostty is reloaded
+      # inside the delivery itself, over its own dbus interface.
+      "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running || true
+      "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running || true
     fi
 
     mkdir -p "$STAMP_DIR"
