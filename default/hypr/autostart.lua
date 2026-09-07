@@ -1,16 +1,22 @@
 local vars = require("default.hypr.vars")
 
+-- hyprsunset is not started here. It applies the profiles in
+-- ~/.config/hypr/hyprsunset.conf and used to run as `uwsm app -- hyprsunset`,
+-- a scope with no restart policy, and it does not survive a suspend: measured
+-- across two cycles on one machine, started at login with dunst, hypridle and
+-- waybar, and the only one of the four gone afterwards, both times. Nothing
+-- brought it back, so the profiles stopped applying for the rest of the
+-- session.
+--
+-- It runs as hyprsunset.service now, the unit its own package ships, with a
+-- hyprsimple drop-in raising Restart to always. install.sh enables it.
+
 hl.on("hyprland.start", function()
   hl.exec_cmd("uwsm app -- dunst")
   hl.exec_cmd("uwsm app -- waybar")
   hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
   hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")
   hl.exec_cmd("uwsm app -- hypridle")
-  -- hyprsunset applies the profiles in ~/.config/hypr/hyprsunset.conf. Nothing
-  -- started it before, so those profiles never ran: the file invited you to
-  -- uncomment a night profile and uncommenting it did nothing. SUPER+N starts
-  -- it too, but only for that session and only once pressed.
-  hl.exec_cmd("uwsm app -- hyprsunset")
   hl.exec_cmd("uwsm app -- " .. os.getenv("HOME") .. "/.local/bin/capslock-notify.sh")
   hl.exec_cmd("uwsm app -- " .. vars.terminal)
   -- apply, not on: the flag records what you chose, and login restores it

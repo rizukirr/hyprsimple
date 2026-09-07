@@ -250,6 +250,9 @@ jobs:
       - name: nightlight-test
         run: bash test/nightlight-test.sh
 
+      - name: hyprsunset-service-test
+        run: bash test/hyprsunset-service-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

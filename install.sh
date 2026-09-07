@@ -836,6 +836,31 @@ if [ -f "$HOME/.config/systemd/user/battery-monitor.timer" ]; then
   echo -e "${GREEN}Battery monitor enabled${NC}"
 fi
 
+# hyprsunset, through the unit its own package ships rather than a bare uwsm
+# scope. autostart.lua used to run `uwsm app -- hyprsunset`, which has no
+# restart policy at all, and hyprsunset does not survive a suspend: measured on
+# one machine across two cycles, started at login with dunst, hypridle and
+# waybar, and the only one of the four gone afterwards, both times. Nothing
+# brought it back, so every profile in hyprsunset.conf stopped applying for the
+# rest of the session.
+#
+# The drop-in beside it raises Restart from on-failure to always, because
+# on-failure does not cover the clean exit hyprsunset makes when its output
+# goes. A symlink, like the dunst drop-in, so an update to it reaches every
+# machine without a migration.
+if [ -f /usr/lib/systemd/user/hyprsunset.service ]; then
+  echo -e "${YELLOW}Enabling hyprsunset...${NC}"
+  mkdir -p "$HOME/.config/systemd/user/hyprsunset.service.d"
+  ln -sfn "$HYPRSIMPLE_PATH/default/systemd/hyprsunset-restart.conf" \
+    "$HOME/.config/systemd/user/hyprsunset.service.d/10-hyprsimple.conf"
+  systemctl --user daemon-reload
+  # enable, not enable --now, for the reason above: the unit is wanted by
+  # graphical-session.target and carries ConditionEnvironment=WAYLAND_DISPLAY,
+  # so there is nothing for --now to start from the install. The session does.
+  systemctl --user enable hyprsunset.service
+  echo -e "${GREEN}hyprsunset enabled${NC}"
+fi
+
 # Initialize Theme Manager (Default: Deep Sea)
 DEFAULT_THEME="deep-sea"
 echo ""

@@ -142,8 +142,13 @@ INSTALL_CODE="$TMP/install.code"
 code_of "$INSTALL" >"$INSTALL_CODE"
 check "stripping comments leaves install.sh's code behind" \
   "$(grep -c '^install_packages()' "$INSTALL_CODE")" "1"
+# systemd/user/hyprsunset.service.d is the drop-in directory the installer
+# creates and links hyprsimple's own file into, the same shape as
+# dunst/dunstrc.d. The file it holds lives in default/, not .config/, so that
+# an update to it reaches every machine without a migration.
 GENERATED="uwsm/env uwsm/env-hyprland btop/themes rofi/hyprsimple hypr/hyprsimple
-  dunst/dunstrc.d hypr/theme-active.lua hypr/theme-hyprlock.conf"
+  dunst/dunstrc.d hypr/theme-active.lua hypr/theme-hyprlock.conf
+  systemd/user/hyprsunset.service.d"
 
 # Both spellings. install.sh writes "$HOME/.config/..." in code and ~/.config/...
 # in the text it prints, and reading only the printed form found a single path,

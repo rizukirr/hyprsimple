@@ -27,8 +27,11 @@ current_temperature() {
 # Waited for, not slept past. This was `sleep 1`, which is a guess about how
 # long hyprsunset takes to open its socket, and every guess that comes up short
 # landed in the branch above.
+# Through the unit, not `uwsm app --`. A scope started here would have no
+# restart policy, which is the thing that left hyprsunset gone for the rest of
+# a session after a suspend.
 if ! pgrep -x hyprsunset >/dev/null; then
-  uwsm app -- hyprsunset &
+  systemctl --user start hyprsunset.service 2>/dev/null &
   waited=0
   limit="${HYPRSIMPLE_SUNSET_WAIT:-50}"
   while ! current_temperature >/dev/null && ((waited < limit)); do
