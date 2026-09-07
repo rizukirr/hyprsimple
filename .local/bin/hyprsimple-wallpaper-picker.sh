@@ -8,11 +8,24 @@
 # the caller can apply directly.
 #
 # The theme is derived from ~/.cache/current_wallpaper_path, which is the only
-# record of which theme is applied. wallpaper-switcher.sh derives it the same
-# way at its line 12.
+# record of which theme is applied.
+#
+# ~/.cache literally, not ${XDG_CACHE_HOME:-$HOME/.cache}. This file used to
+# honour XDG_CACHE_HOME and was alone in doing so: wallpaper-switcher.sh,
+# theme-switcher.sh and live-wallpaper-toggle.sh all write the record to
+# $HOME/.cache. On a machine with XDG_CACHE_HOME set, this read a path nobody
+# writes and offered the wrong pictures. Moving the writers instead would
+# strand the record every existing install already has.
+CACHE_DIR="$HOME/.cache"
 
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}"
 CURRENT=$(cat "$CACHE_DIR/current_wallpaper_path" 2>/dev/null)
+
+# Before dirname, not after. `dirname ""` is `.`, and `.` is a directory, so
+# the check below passed on an empty record and this listed whatever jpg and
+# png files happened to sit in the working directory, presented as the current
+# theme's wallpapers.
+[[ -n $CURRENT ]] || exit 0
+
 BG_DIR=$(dirname "$CURRENT" 2>/dev/null)
 
 [[ -d $BG_DIR ]] || exit 0
