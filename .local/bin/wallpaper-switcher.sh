@@ -8,8 +8,14 @@ source "$HOME/.local/bin/hypr-helpers.sh"
 #   pick - choose via rofi (default)
 
 CACHE_DIR="$HOME/.cache"
-# Track the actual wallpaper source path in a state file
-CURRENT=$(cat "$CACHE_DIR/current_wallpaper_path" 2>/dev/null || readlink -f "$CACHE_DIR/current_wallpaper" 2>/dev/null)
+# Track the actual wallpaper source path in a state file.
+#
+# No readlink fallback on current_wallpaper. There used to be one, and it could
+# never fire: every writer of that file, here and in theme-switcher.sh and
+# live-wallpaper-toggle.sh, copies the picture rather than linking to it, so
+# readlink -f returned the copy's own path and BG_DIR came out as
+# $HOME/backgrounds. It read as a safety net and was a dead branch.
+CURRENT=$(cat "$CACHE_DIR/current_wallpaper_path" 2>/dev/null)
 THEME_DIR=$(dirname "$(dirname "$CURRENT")" 2>/dev/null)
 BG_DIR="$THEME_DIR/backgrounds"
 

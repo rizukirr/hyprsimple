@@ -376,13 +376,63 @@ mkdir -p "$wp_theme/backgrounds"
 make_wallpaper "$wp_theme/backgrounds/0-morning-breeze.jpg"
 make_wallpaper "$wp_theme/backgrounds/1-evening-glow.jpg"
 
-wp_cache="$TMP/cache-wp"
+# Fed through HOME, not XDG_CACHE_HOME. This suite used to set XDG_CACHE_HOME,
+# and passed, because the picker was the one script in the set that read it.
+# Every script that writes the record writes it to $HOME/.cache, so a machine
+# with XDG_CACHE_HOME set had the picker reading a path nobody writes. The
+# suite agreeing with the picker is what kept that invisible.
+wp_home="$TMP/home-wp"
+wp_cache="$wp_home/.cache"
 must_be_fixture "$wp_cache"
 mkdir -p "$wp_cache"
 printf '%s\n' "$wp_theme/backgrounds/0-morning-breeze.jpg" >"$wp_cache/current_wallpaper_path"
 
 wp_out="$TMP/out-wp"
-XDG_CACHE_HOME="$wp_cache" bash "$WALLPAPER_PICKER" >"$wp_out"
+HOME="$wp_home" bash "$WALLPAPER_PICKER" >"$wp_out"
+
+# And XDG_CACHE_HOME pointing somewhere else changes nothing, because the
+# writers do not read it either.
+wp_xdg_out="$TMP/out-wp-xdg"
+HOME="$wp_home" XDG_CACHE_HOME="$TMP/somewhere-else" bash "$WALLPAPER_PICKER" >"$wp_xdg_out"
+check "XDG_CACHE_HOME does not move the record out from under the picker" \
+  "$(cmp -s "$wp_out" "$wp_xdg_out" && echo same || echo diverged)" "same"
+
+# The record can be gone: a fresh install has never written one. dirname of an
+# empty string is ".", and "." is a directory, so the directory check passed
+# and the picker listed whatever jpg and png files were in the working
+# directory, offered as the current theme's wallpapers.
+norec_home="$TMP/home-norecord"
+mkdir -p "$norec_home/.cache" "$TMP/cwd-with-images"
+make_wallpaper "$TMP/cwd-with-images/not-a-wallpaper.png"
+norec_out=$(cd "$TMP/cwd-with-images" && HOME="$norec_home" bash "$WALLPAPER_PICKER")
+check "with no record, the picker emits nothing rather than the working directory" \
+  "$norec_out" ""
+
+# Anti-vacuity: the same working directory does produce rows when it is the
+# recorded theme, so the check above is about the missing record and not about
+# find coming up empty.
+canary_home="$TMP/home-canary"
+mkdir -p "$canary_home/.cache"
+printf '%s\n' "$TMP/cwd-with-images/not-a-wallpaper.png" >"$canary_home/.cache/current_wallpaper_path"
+canary_out=$(cd "$TMP/cwd-with-images" && HOME="$canary_home" bash "$WALLPAPER_PICKER")
+check "and that same directory does produce a row when it is the recorded one" \
+  "$(printf '%s' "$canary_out" | wc -l)" "0"
+check "which is one row" "$(printf '%s\n' "$canary_out" | grep -c 'not-a-wallpaper')" "1"
+
+# Neither script keeps a readlink fallback on current_wallpaper. It read as a
+# safety net and could never fire: every writer copies the picture there rather
+# than linking to it, so readlink -f returns that copy's own path and the theme
+# directory comes out as the user's home.
+fb_home="$TMP/home-fallback"
+mkdir -p "$fb_home/.cache"
+cp "$wp_theme/backgrounds/0-morning-breeze.jpg" "$fb_home/.cache/current_wallpaper"
+fb_out=$(HOME="$fb_home" bash "$WALLPAPER_PICKER")
+check "a copy at current_wallpaper with no record resolves nothing, so the picker emits nothing" \
+  "$fb_out" ""
+check "and the dead readlink fallback is gone from both scripts" \
+  "$(cat "$WALLPAPER_PICKER" "$WALLPAPER_SWITCHER" | sed 's/#.*//' | grep -c 'readlink')" "0"
+check "while the writers really do copy rather than link, which is why it was dead" \
+  "$(sed 's/#.*//' "$WALLPAPER_SWITCHER" | grep -c 'cp "$SELECTED" "$CACHE_DIR/current_wallpaper"')" "1"
 
 wp_keys_ok=yes
 while IFS=$'\t' read -r wp_key _ _; do
