@@ -283,6 +283,24 @@ run_at 90 charging
 check "charging with nothing to restore leaves the screen alone" "$(level)" "70"
 check "and issues no brightness command" "$(grep -c 'set' "$BLOG")" "0"
 
+
+# A leftover record that is not a number counts as no record. /tmp is shared,
+# and an empty file left there would otherwise block the real brightness from
+# ever being written, losing the restore with nothing to show for it.
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+printf '\n' >"$BF"
+run_at 9
+check "an empty leftover record is replaced with the real brightness" \
+  "$(cat "$BF" 2>/dev/null)" "80"
+run_at 20 charging
+check "so the restore still happens" "$(level)" "80"
+
+rm -f "$FLAG"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+printf 'garbage' >"$BF"
+run_at 9
+check "and so is a record that is not a number" \
+  "$(cat "$BF" 2>/dev/null)" "80"
+
 # The script must not use the save slot hypridle uses for its idle dim, or the
 # two overwrite each other.
 # Comments stripped before counting. The script explains in a comment why it

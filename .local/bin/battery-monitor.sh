@@ -63,7 +63,13 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
       # Remembered before dimming, so plugging in can put it back. Only on the
       # first crossing: falling into a lower band dims again from 5%, and
       # recording that would make 5% the value restored later.
-      if [[ ! -f $BRIGHTNESS_FILE ]]; then
+      #
+      # A record that is not a number counts as no record. It lives in /tmp,
+      # which anything can leave a file in, and an empty one left behind would
+      # otherwise stop the real brightness ever being written and so lose the
+      # restore silently.
+      recorded=$(cat "$BRIGHTNESS_FILE" 2>/dev/null)
+      if [[ ! $recorded =~ ^[0-9]+$ ]]; then
         current_brightness() { brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'; }
         printf '%s\n' "$(current_brightness)" >"$BRIGHTNESS_FILE"
       fi
