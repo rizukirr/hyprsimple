@@ -3,11 +3,22 @@
 
 NOTIFY_ID=9998
 
+# Nothing rather than a level, when brightnessctl cannot answer.
+#
+# This divided by max without looking at it. On a machine brightnessctl has no
+# device on, both reads come back empty, and bash reported
+#
+#   line 9: (current * 100) / max: division by 0 (error token is "max")
+#
+# on stderr, where a keybind sends it nowhere, and then showed "Brightness: %"
+# with an empty bar. A notification with no number in it is worse than none.
 get_brightness() {
-  current=$(brightnessctl get)
-  max=$(brightnessctl max)
-  level=$(((current * 100) / max))
-  echo "$level"
+  local current max
+  current=$(brightnessctl get 2>/dev/null)
+  max=$(brightnessctl max 2>/dev/null)
+  [[ $current =~ ^[0-9]+$ && $max =~ ^[0-9]+$ ]] || return 1
+  (( max > 0 )) || return 1
+  printf '%s' "$(((current * 100) / max))"
 }
 
 # printf with no arguments prints its format string once, so
@@ -28,4 +39,9 @@ show_notification() {
   notify-send -u low -t 1500 -r $NOTIFY_ID "Brightness: $brightness%" "$bar"
 }
 
-show_notification "$(get_brightness)"
+if ! level=$(get_brightness); then
+  notify-send -u low -t 1500 -r $NOTIFY_ID "Brightness" "Could not read the current brightness"
+  exit 1
+fi
+
+show_notification "$level"

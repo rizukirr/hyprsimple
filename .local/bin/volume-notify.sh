@@ -4,14 +4,24 @@
 
 NOTIFY_ID=9999
 
+# Nothing rather than a level, when wpctl cannot answer.
+#
+# awk printed 0 for any line it could not parse, so a failed read showed
+# "Volume: 0%" with an empty bar: a specific, wrong number rather than a sign
+# that nothing was read. The keybinds run this after a set-volume that
+# succeeded, but the default sink can go between the two calls, which is what a
+# bluetooth headset disconnecting looks like.
 get_volume() {
-  vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
-  level=$(echo "$vol" | awk '{print int($2*100)}')
-  if echo "$vol" | grep -q MUTED; then
-    echo "muted"
-  else
-    echo "$level"
+  local vol level
+  vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || return 1
+  if grep -q MUTED <<<"$vol"; then
+    printf 'muted'
+    return 0
   fi
+  # wpctl answers "Volume: 0.55". Anything else is not a volume.
+  level=$(awk '/^Volume:/ { printf("%d", $2 * 100) }' <<<"$vol")
+  [[ $level =~ ^[0-9]+$ ]] || return 1
+  printf '%s' "$level"
 }
 
 # printf with no arguments prints its format string once, so
@@ -36,4 +46,9 @@ show_notification() {
   fi
 }
 
-show_notification "$(get_volume)"
+if ! level=$(get_volume); then
+  notify-send -u low -t 1500 -r $NOTIFY_ID "Volume" "Could not read the current volume"
+  exit 1
+fi
+
+show_notification "$level"
