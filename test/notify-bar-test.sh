@@ -141,7 +141,11 @@ check "and it comes after the prayer times, not before" \
 
 # The label, read out of the script that emits it.
 check "the module says what it is rather than showing a bare glyph" \
-  "$(grep -c 'recording\.\.\.' "$RECSCRIPT")" "1"
+  "$(grep -c '󰻂 Recording' "$RECSCRIPT")" "1"
+check "with no trailing ellipsis, which reads as a thing still starting" \
+  "$(grep -c 'Recording\.\.\.' "$RECSCRIPT")" "0"
+check "and a capital R, matching the tooltip beside it" \
+  "$(grep -c '"text": "󰻂 recording' "$RECSCRIPT")" "0"
 check "and still carries the active class the styling keys off" \
   "$(grep -c '"class": "active"' "$RECSCRIPT")" "1"
 check "while the idle branch still emits an empty string" \
@@ -165,8 +169,25 @@ check "the recording state has a background" \
   "$(printf '%s' "$active_block" | grep -c 'background-color')" "1"
 check "and it is the one every other module uses" \
   "$(prop "$active_block" background-color)" "$(prop "$ordinary_block" background-color)"
-check "with the same padding as they have" \
-  "$(prop "$active_block" padding)" "$(prop "$ordinary_block" padding)"
+# The vertical half matches, so the row lines up. The horizontal half is wider
+# on purpose: this module carries a word rather than a short readout, and at
+# the shared 0.5rem the text sat hard against the rounded corner.
+pad_v() { printf '%s' "$1" | awk '{print $1}'; }
+pad_h() { printf '%s' "$1" | awk '{print $2}'; }
+rem() { printf '%s' "${1%rem}"; }
+
+active_pad=$(sed -n '/^#custom-screenrecording\.active {/,/^}/p' "$WBSTYLE" |
+  grep -oE '^ *padding: *[^;]+' | sed 's/.*padding: *//')
+ordinary_pad=$(sed -n '/^#cpu,/,/^}/p' "$WBSTYLE" |
+  grep -oE '^ *padding: *[^;]+' | sed 's/.*padding: *//')
+
+check "both padding declarations were read" \
+  "$([[ -n $active_pad && -n $ordinary_pad ]] && echo both || echo missing)" "both"
+check "the vertical padding matches the other modules, so the row lines up" \
+  "$(pad_v "$active_pad")" "$(pad_v "$ordinary_pad")"
+check "and the horizontal padding is wider, because this one carries a word" \
+  "$(awk -v a="$(rem "$(pad_h "$active_pad")")" -v b="$(rem "$(pad_h "$ordinary_pad")")" \
+      'BEGIN { print (a > b) ? "wider" : "not wider" }')" "wider"
 check "and the shared rule really was read, so those two are not empty" \
   "$([[ -n $(prop "$ordinary_block" background-color) ]] && echo read || echo empty)" "read"
 
