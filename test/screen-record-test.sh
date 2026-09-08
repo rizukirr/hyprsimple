@@ -278,6 +278,121 @@ check "the waybar recording module is signal driven with no interval" \
 check "and it really does carry the signal this script sends" \
   "$(sed -n '/custom\/screenrecording/,/}/p' "$REPO/.config/waybar/config.jsonc" | grep -c '"signal": 8')" "1"
 
+# ---- the recorder is chosen by what is installed ---------------------------
+#
+# wl-screenrec is the one package hyprsimple builds from source. wl-screenrec-git
+# failed to compile on an older machine, the install carried on and listed it
+# among the failed packages, and every recording keybind afterwards ran a
+# command that was not there. wf-recorder ships from the official repositories
+# and needs no build, so there is always something to fall back to.
+#
+# These runs need a PATH where a recorder can genuinely be absent, and both are
+# installed on the maintainer's own machine, so /usr/bin cannot be on it. The
+# handful of real tools the script runs are linked in by name instead. Read out
+# of the script rather than listed from memory: one missing from this list
+# looks exactly like the bug being tested.
+mapfile -t needed < <(
+  sed 's/^[[:space:]]*#.*//' "$BIN/screen-record.sh" |
+    grep -oE '\b(date|grep|cut|sleep)\b' | sort -u
+)
+if (( ${#needed[@]} < 4 )); then
+  fail "read ${#needed[@]} real tools out of screen-record.sh, which is fewer than it runs"
+else
+  pass "linking ${#needed[@]} real tools into the restricted PATH"
+fi
+
+# Runs with exactly the recorders named installed, and nothing else on the
+# PATH that could stand in for one.
+run_with_recorders() {
+  local gpu="$1" scope="$2" audio="$3"; shift 3
+  local dir="$TMP/only.$RANDOM"
+  mkdir -p "$dir"
+  local tool f
+  for tool in "${needed[@]}"; do ln -sf "$(command -v "$tool")" "$dir/$tool"; done
+  # Every stub except the recorders, which are added back only when asked for.
+  for f in "$STUB"/*; do
+    case "$(basename "$f")" in
+    wl-screenrec | wf-recorder) continue ;;
+    esac
+    cp "$f" "$dir/"
+  done
+  # The recorder stubs are written here rather than copied out of $STUB. The
+  # stop checks earlier in this file replace those with ones that exit at once,
+  # so copying them made every recorder look like it had died on start, and the
+  # "failed to start" notification fired on a run that had worked.
+  for tool in "$@"; do
+    cat >"$dir/$tool" <<STUBEOF
+#!/bin/bash
+printf '$tool %s\n' "\$*" >>"\$CALL_LOG"
+printf '%s\n' "\$\$" >>"\$STUB_PIDS"
+exec sleep 2
+STUBEOF
+    chmod +x "$dir/$tool"
+  done
+
+  # This suite replaces the pgrep stub partway through, so the stop path can be
+  # tested, and these checks sit after that. They are about starting, so each
+  # carries its own answer: nothing is recording. Without this they all took
+  # the stop branch and started no recorder at all, which looks exactly like
+  # the bug being tested.
+  printf '#!/bin/bash\nexit 1\n' >"$dir/pgrep"
+  chmod +x "$dir/pgrep"
+
+  : >"$LOG"; : >"$NLOG"
+  set_gpu "$gpu"
+  CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
+    DEFAULT_SINK="$SINK" SOURCE_LIST="$SOURCES" \
+    HYPRSIMPLE_RECORDER_START_WAIT=0.05 \
+    PATH="$dir" "$(command -v bash)" "$BIN/screen-record.sh" "$scope" "$audio" >/dev/null 2>&1
+  kill_stubs
+}
+
+run_with_recorders non-nvidia output none wl-screenrec wf-recorder
+check "with both installed, a non-NVIDIA machine records with wl-screenrec" \
+  "$(grep -c '^wl-screenrec' "$LOG")" "1"
+run_with_recorders nvidia output none wl-screenrec wf-recorder
+check "and an NVIDIA machine with wf-recorder" \
+  "$(grep -c '^wf-recorder' "$LOG")" "1"
+
+# The reported case: wl-screenrec-git would not build, so it is not there.
+run_with_recorders non-nvidia output none wf-recorder
+check "with wl-screenrec missing, recording falls back to wf-recorder" \
+  "$(grep -c '^wf-recorder' "$LOG")" "1"
+check "and nothing is said about a failure" \
+  "$(grep -c 'failed to start' "$NLOG")" "0"
+
+# And the other way round, so the fallback is not simply a hardcoded second
+# name that happens to match.
+run_with_recorders nvidia output none wl-screenrec
+check "with wf-recorder missing, an NVIDIA machine uses wl-screenrec" \
+  "$(grep -c '^wl-screenrec' "$LOG")" "1"
+
+run_with_recorders non-nvidia output none
+check "with neither installed, nothing is started" \
+  "$(wc -l <"$LOG" | tr -d ' ')" "0"
+check "and it says which packages would fix it" \
+  "$(grep -c 'wf-recorder or wl-screenrec' "$NLOG")" "1"
+check "rather than the generic failed-to-start message" \
+  "$(grep -c 'failed to start' "$NLOG")" "0"
+
+# Anti-vacuity: the restricted PATH is what makes a recorder absent, and both
+# are installed on the machine this was written on. A PATH that still reached
+# them would make every check above pass for the wrong reason.
+only_wf="$TMP/anti.$RANDOM"; mkdir -p "$only_wf"
+cp "$STUB/wf-recorder" "$only_wf/"
+check "a recorder left out of the restricted PATH really is unreachable" \
+  "$(PATH="$only_wf" command -v wl-screenrec || echo none)" "none"
+check "while the one put there is found" \
+  "$(PATH="$only_wf" command -v wf-recorder)" "$only_wf/wf-recorder"
+
+# wf-recorder ships from the official repositories, so the fallback is always
+# installed. If it ever moved to the AUR list, both recorders would be built
+# from source and there would be nothing to fall back to.
+check "wf-recorder comes from the official repositories" \
+  "$(grep -cx 'wf-recorder' "$REPO/packages.txt")" "1"
+check "and is not in the AUR list" \
+  "$(grep -cx 'wf-recorder' "$REPO/aur-packages.txt")" "0"
+
 # This suite once left four processes named wf-recorder running, which made
 # waybar-refresh-test and notification-idiom-test see a recording in progress.
 # Assert the cleanup rather than trust it.
