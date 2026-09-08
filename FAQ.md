@@ -36,6 +36,27 @@ To reset a single file to the shipped default at any time:
 hyprsimple-refresh-config hypr/hyprlock.conf
 ```
 
+## Connecting to WiFi says "secrets were required but not provided"
+
+Fixed. `wifi 'Your Network'` now asks for the password when it needs one.
+
+If you are on an install that predates the fix, run `hyprsimple-update`, or
+pass the password as a second argument, which has always worked:
+
+```bash
+wifi 'Your Network' 'your password'
+```
+
+The cause was that `nmcli` refuses to prompt for a secret unless it is given
+`--ask`, and the script never gave it, so joining a secured network for the
+first time failed with a message about `passwd-file`. A network that is open,
+or one already saved, was never affected.
+
+Run from a keybind or a script rather than a terminal there is nobody to ask,
+so the two-argument form is still the way to do it unattended.
+
+`wifi --help` lists both forms.
+
 ## A migration failed. What now?
 
 Migrations run once per machine, tracked in

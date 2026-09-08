@@ -67,13 +67,41 @@ mk_sysfs() {
   printf '%s' "$root"
 }
 
+# Stdin is closed, so every run below takes the no-terminal branch unless
+# run_on_tty is used. Left inherited, the answer would depend on whether the
+# suite was started from a shell or by CI, and the two branches differ.
 run() {
   local sysfs="$1" service="$2"
   shift 2
   : >"$LOG"
   CALL_LOG="$LOG" NMCLI_RC="${NMCLI_RC:-0}" RUNNING_SERVICE="$service" \
     HYPRSIMPLE_SYSFS_NET="$sysfs" PATH="$STUB:/usr/bin:/bin" \
-    bash "$WIFI" "$@" >"$TMP/out" 2>&1
+    bash "$WIFI" "$@" >"$TMP/out" 2>&1 </dev/null
+  printf '%s' "$?" >"$TMP/rc"
+}
+
+# The same, with a real terminal on stdin. script(1) is the only way to give
+# one: a redirect from a file or a pipe leaves [[ -t 0 ]] false, which is the
+# branch this exists to tell apart.
+SCRIPT_BIN="$(command -v script || true)"
+
+run_on_tty() {
+  local sysfs="$1" service="$2"
+  shift 2
+  : >"$LOG"
+  # The arguments go through a generated wrapper rather than into script's -c
+  # string. That string is a shell command line, so an SSID with a space in it
+  # would need requoting there, and an SSID with a space is the reported case.
+  {
+    printf '#!/bin/bash\n'
+    printf 'exec bash %q' "$WIFI"
+    printf ' %q' "$@"
+    printf '\n'
+  } >"$TMP/tty-run.sh"
+  chmod +x "$TMP/tty-run.sh"
+  CALL_LOG="$LOG" NMCLI_RC="${NMCLI_RC:-0}" RUNNING_SERVICE="$service" \
+    HYPRSIMPLE_SYSFS_NET="$sysfs" PATH="$STUB:/usr/bin:/bin" \
+    "$SCRIPT_BIN" -qec "$TMP/tty-run.sh" /dev/null >"$TMP/out" 2>&1 </dev/null
   printf '%s' "$?" >"$TMP/rc"
 }
 rc() { cat "$TMP/rc"; }
@@ -108,6 +136,123 @@ check "a passphrase is passed through" \
 
 NMCLI_RC=4 run "$(mk_sysfs both)" NetworkManager MyNet
 check "a failed connect is not reported as success" "$(rc)" "4"
+
+# ---- --help -----------------------------------------------------------------
+#
+# The usage lived only in a comment at the top of the script, so the way to
+# find out what the second argument was for was to read the source. It also has
+# to answer before the backend is chosen: the interface detection and the
+# backend choice both come before any argument is looked at, so on a machine
+# with neither nmcli nor iwctl, asking for help got "No supported WiFi backend
+# found" and exit 1.
+
+for flag in --help -h; do
+  run "$(mk_sysfs both)" NetworkManager "$flag"
+  check "$flag prints the usage" "$(grep -c '^Usage: wifi.sh' "$TMP/out")" "1"
+  check "and exits 0" "$(rc)" "0"
+  check "and touches no backend" "$(calls | wc -l | tr -d ' ')" "0"
+done
+
+check "the usage explains what the second argument is for" \
+  "$(grep -c 'SSID PASSWORD' "$TMP/out")" "1"
+check "and that a secured network asks when it can" \
+  "$(grep -c 'asks for the password' "$TMP/out")" "1"
+check "and how to quote an SSID with a space in it" \
+  "$(grep -c 'Quote an SSID' "$TMP/out")" "1"
+
+# With no wireless hardware, no backend installed and nothing running, which is
+# the case that used to answer with an error.
+# The real tools the script itself needs, and nothing else. Linking them in by
+# name rather than adding /usr/bin, which would bring the maintainer's own
+# nmcli back and make "no backend installed" untrue.
+NO_BACKEND="$TMP/empty-bin"
+mkdir -p "$NO_BACKEND"
+for tool in cat basename; do
+  ln -sf "$(command -v "$tool")" "$NO_BACKEND/$tool"
+done
+BASH_BIN="$(command -v bash)"
+
+HYPRSIMPLE_SYSFS_NET="$(mk_sysfs none)" PATH="$NO_BACKEND" \
+  "$BASH_BIN" "$WIFI" --help >"$TMP/out" 2>&1 </dev/null
+check "--help works with no backend installed at all" "$?" "0"
+check "and still prints the usage rather than an error" \
+  "$(grep -c '^Usage: wifi.sh' "$TMP/out")" "1"
+check "and says nothing about a missing backend" \
+  "$(grep -c 'No supported WiFi backend' "$TMP/out")" "0"
+
+# Anti-vacuity: without --help that same machine really does report the error,
+# so the three checks above are not passing because the fixture is inert.
+HYPRSIMPLE_SYSFS_NET="$(mk_sysfs none)" PATH="$NO_BACKEND" \
+  "$BASH_BIN" "$WIFI" >"$TMP/out" 2>&1 </dev/null
+check "while a plain run there still reports the missing backend" \
+  "$(grep -c 'No supported WiFi backend' "$TMP/out")" "1"
+
+# An SSID is still an SSID. Only the two flags are taken as a request for help.
+run "$(mk_sysfs both)" NetworkManager helpdesk
+check "an SSID that merely contains 'help' is connected to" \
+  "$(calls | grep -c 'connect helpdesk')" "1"
+
+# ---- a secured network with no password given -----------------------------
+#
+# Reported on a new install, typing `wifi "POCO F4"`, which is the shape the
+# usage line at the top of the script offers first:
+#
+#   passwords or encryption keys are required to access the wireless network
+#     'POCO F4'
+#   warning: password for '802-11-wireless-security.psk' not given in
+#     'passwd-file' and nmcli cannot ask without '--ask' option
+#   Error: connection activation failed: secrets were required but not provided
+#
+# nmcli will not prompt for a secret unless it is told it may. The script never
+# told it, so the only way to join a secured network was to know to pass the
+# password as a second argument.
+
+if [[ -n $SCRIPT_BIN ]]; then
+  run_on_tty "$(mk_sysfs both)" NetworkManager MyNet
+  check "at a terminal, nmcli is allowed to ask for the password" \
+    "$(calls | grep -c 'nmcli --ask device wifi connect MyNet')" "1"
+  check "and it is not asked twice, once with the flag and once without" \
+    "$(calls | grep -c 'device wifi connect')" "1"
+
+  # The reported SSID has a space in it, which is the argument most likely to
+  # be taken apart on its way through.
+  run_on_tty "$(mk_sysfs both)" NetworkManager "POCO F4"
+  check "an SSID with a space reaches nmcli in one piece" \
+    "$(calls | grep -c 'connect POCO F4$')" "1"
+
+  # --ask is for a missing secret, not for one already given. Passing both
+  # would have nmcli prompt for parameters the caller has already supplied.
+  run_on_tty "$(mk_sysfs both)" NetworkManager MyNet hunter2
+  check "a password given on the command line is still passed through" \
+    "$(calls | grep -c 'connect MyNet password hunter2')" "1"
+  check "and nmcli is not asked to prompt as well" \
+    "$(calls | grep -c -- '--ask')" "0"
+
+  # Listing takes no secret, so it must not have grown a prompt either.
+  run_on_tty "$(mk_sysfs both)" NetworkManager
+  check "listing networks at a terminal asks for nothing" \
+    "$(calls | grep -c -- '--ask')" "0"
+else
+  pass "skipped the terminal checks: no script(1) to attach one"
+fi
+
+# Without a terminal there is nobody to answer, so --ask would hang on a
+# prompt no one can see. The connection is attempted as before, and the advice
+# is given here rather than left to nmcli's message about passwd-file.
+run "$(mk_sysfs both)" NetworkManager MyNet
+check "with no terminal, nmcli is not told to prompt" \
+  "$(calls | grep -c -- '--ask')" "0"
+check "and the connection is still attempted" \
+  "$(calls | grep -c 'nmcli device wifi connect MyNet')" "1"
+
+NMCLI_RC=4 run "$(mk_sysfs both)" NetworkManager MyNet
+check "and when it fails, the password is named as the likely reason" \
+  "$(grep -c "wifi.sh 'MyNet' '<password>'" "$TMP/out")" "1"
+check "while the exit status stays nmcli's own" "$(rc)" "4"
+
+NMCLI_RC=0 run "$(mk_sysfs both)" NetworkManager MyNet
+check "and a connection that works says nothing about passwords" \
+  "$(grep -c 'password' "$TMP/out")" "0"
 unset NMCLI_RC
 
 # ---- iwd is the branch that genuinely needs the interface -----------------
