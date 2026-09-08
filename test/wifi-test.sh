@@ -67,13 +67,41 @@ mk_sysfs() {
   printf '%s' "$root"
 }
 
+# Stdin is closed, so every run below takes the no-terminal branch unless
+# run_on_tty is used. Left inherited, the answer would depend on whether the
+# suite was started from a shell or by CI, and the two branches differ.
 run() {
   local sysfs="$1" service="$2"
   shift 2
   : >"$LOG"
   CALL_LOG="$LOG" NMCLI_RC="${NMCLI_RC:-0}" RUNNING_SERVICE="$service" \
     HYPRSIMPLE_SYSFS_NET="$sysfs" PATH="$STUB:/usr/bin:/bin" \
-    bash "$WIFI" "$@" >"$TMP/out" 2>&1
+    bash "$WIFI" "$@" >"$TMP/out" 2>&1 </dev/null
+  printf '%s' "$?" >"$TMP/rc"
+}
+
+# The same, with a real terminal on stdin. script(1) is the only way to give
+# one: a redirect from a file or a pipe leaves [[ -t 0 ]] false, which is the
+# branch this exists to tell apart.
+SCRIPT_BIN="$(command -v script || true)"
+
+run_on_tty() {
+  local sysfs="$1" service="$2"
+  shift 2
+  : >"$LOG"
+  # The arguments go through a generated wrapper rather than into script's -c
+  # string. That string is a shell command line, so an SSID with a space in it
+  # would need requoting there, and an SSID with a space is the reported case.
+  {
+    printf '#!/bin/bash\n'
+    printf 'exec bash %q' "$WIFI"
+    printf ' %q' "$@"
+    printf '\n'
+  } >"$TMP/tty-run.sh"
+  chmod +x "$TMP/tty-run.sh"
+  CALL_LOG="$LOG" NMCLI_RC="${NMCLI_RC:-0}" RUNNING_SERVICE="$service" \
+    HYPRSIMPLE_SYSFS_NET="$sysfs" PATH="$STUB:/usr/bin:/bin" \
+    "$SCRIPT_BIN" -qec "$TMP/tty-run.sh" /dev/null >"$TMP/out" 2>&1 </dev/null
   printf '%s' "$?" >"$TMP/rc"
 }
 rc() { cat "$TMP/rc"; }
@@ -108,6 +136,68 @@ check "a passphrase is passed through" \
 
 NMCLI_RC=4 run "$(mk_sysfs both)" NetworkManager MyNet
 check "a failed connect is not reported as success" "$(rc)" "4"
+
+# ---- a secured network with no password given -----------------------------
+#
+# Reported on a new install, typing `wifi "POCO F4"`, which is the shape the
+# usage line at the top of the script offers first:
+#
+#   passwords or encryption keys are required to access the wireless network
+#     'POCO F4'
+#   warning: password for '802-11-wireless-security.psk' not given in
+#     'passwd-file' and nmcli cannot ask without '--ask' option
+#   Error: connection activation failed: secrets were required but not provided
+#
+# nmcli will not prompt for a secret unless it is told it may. The script never
+# told it, so the only way to join a secured network was to know to pass the
+# password as a second argument.
+
+if [[ -n $SCRIPT_BIN ]]; then
+  run_on_tty "$(mk_sysfs both)" NetworkManager MyNet
+  check "at a terminal, nmcli is allowed to ask for the password" \
+    "$(calls | grep -c 'nmcli --ask device wifi connect MyNet')" "1"
+  check "and it is not asked twice, once with the flag and once without" \
+    "$(calls | grep -c 'device wifi connect')" "1"
+
+  # The reported SSID has a space in it, which is the argument most likely to
+  # be taken apart on its way through.
+  run_on_tty "$(mk_sysfs both)" NetworkManager "POCO F4"
+  check "an SSID with a space reaches nmcli in one piece" \
+    "$(calls | grep -c 'connect POCO F4$')" "1"
+
+  # --ask is for a missing secret, not for one already given. Passing both
+  # would have nmcli prompt for parameters the caller has already supplied.
+  run_on_tty "$(mk_sysfs both)" NetworkManager MyNet hunter2
+  check "a password given on the command line is still passed through" \
+    "$(calls | grep -c 'connect MyNet password hunter2')" "1"
+  check "and nmcli is not asked to prompt as well" \
+    "$(calls | grep -c -- '--ask')" "0"
+
+  # Listing takes no secret, so it must not have grown a prompt either.
+  run_on_tty "$(mk_sysfs both)" NetworkManager
+  check "listing networks at a terminal asks for nothing" \
+    "$(calls | grep -c -- '--ask')" "0"
+else
+  pass "skipped the terminal checks: no script(1) to attach one"
+fi
+
+# Without a terminal there is nobody to answer, so --ask would hang on a
+# prompt no one can see. The connection is attempted as before, and the advice
+# is given here rather than left to nmcli's message about passwd-file.
+run "$(mk_sysfs both)" NetworkManager MyNet
+check "with no terminal, nmcli is not told to prompt" \
+  "$(calls | grep -c -- '--ask')" "0"
+check "and the connection is still attempted" \
+  "$(calls | grep -c 'nmcli device wifi connect MyNet')" "1"
+
+NMCLI_RC=4 run "$(mk_sysfs both)" NetworkManager MyNet
+check "and when it fails, the password is named as the likely reason" \
+  "$(grep -c "wifi.sh 'MyNet' '<password>'" "$TMP/out")" "1"
+check "while the exit status stays nmcli's own" "$(rc)" "4"
+
+NMCLI_RC=0 run "$(mk_sysfs both)" NetworkManager MyNet
+check "and a connection that works says nothing about passwords" \
+  "$(grep -c 'password' "$TMP/out")" "0"
 unset NMCLI_RC
 
 # ---- iwd is the branch that genuinely needs the interface -----------------

@@ -2,8 +2,10 @@
 
 # Usage: wifi.sh [SSID] [PASSWORD]
 #   no args   -> rescan and list networks
-#   SSID      -> connect (open network, or known/saved network)
-#   SSID PASS -> connect with passphrase
+#   SSID      -> connect. An open or already saved network connects straight
+#                away; a secured one asks for the password, if there is a
+#                terminal to ask on.
+#   SSID PASS -> connect with passphrase, without being asked
 
 # Auto-detect WiFi interface. A glob rather than parsing ls output, so the
 # shell splits the paths instead of a newline doing it.
@@ -59,8 +61,37 @@ nmcli)
   fi
   if [[ -n $PASS ]]; then
     nmcli device wifi connect "$SSID" password "$PASS"
+  elif [[ -t 0 ]]; then
+    # --ask, or a secured network nmcli has no saved secret for fails without
+    # ever asking, in nmcli's own words:
+    #
+    #   passwords or encryption keys are required to access the wireless
+    #     network 'POCO F4'
+    #   warning: password for '802-11-wireless-security.psk' not given in
+    #     'passwd-file' and nmcli cannot ask without '--ask' option
+    #   Error: connection activation failed: secrets were required but not
+    #     provided
+    #
+    # Reported on a new install by someone typing `wifi "POCO F4"`, which is
+    # the shape the usage line at the top of this file offers first.
+    #
+    # nmcli only prompts when a secret is actually missing, so an open network
+    # and one already saved still connect without a word.
+    nmcli --ask device wifi connect "$SSID"
   else
+    # No terminal to prompt on: a keybind, a script, a service. --ask here
+    # would wait on a prompt nobody can see, so the connection is attempted as
+    # it always was and the advice is given here rather than left to nmcli's
+    # message about passwd-file.
     nmcli device wifi connect "$SSID"
+    # Captured on its own line. Inside `if ! cmd; then`, $? is the status of
+    # the negation, which is 0, so the exit below would have flattened every
+    # nmcli failure to the same code.
+    status=$?
+    if ((status != 0)); then
+      echo "If '$SSID' needs a password, pass it: wifi.sh '$SSID' '<password>'" >&2
+      exit "$status"
+    fi
   fi
   ;;
 iwd)
