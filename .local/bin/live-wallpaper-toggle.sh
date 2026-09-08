@@ -28,6 +28,20 @@ fi
 
 ACTION="$1"
 
+# Restart hyprpaper and say whether it took.
+#
+# Both branches below used to run the restart unchecked and notify regardless,
+# so a hyprpaper that would not come back left the user told live wallpaper was
+# on while nothing was cycling. Measured with a systemctl that fails:
+# "Enabled (30s cycle)", exit 0.
+#
+# The setting itself is already written by then, and that part did work, so the
+# message says the state was recorded and names the half that did not happen
+# rather than pretending nothing was done.
+reload_hyprpaper() {
+  systemctl --user restart hyprpaper.service 2>/dev/null
+}
+
 turn_off() {
   # Try to get current wallpaper from hyprpaper IPC
   ACTIVE=$(hyprctl hyprpaper listactive 2>/dev/null | head -1)
@@ -51,15 +65,23 @@ turn_off() {
 
   write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
   rm -f "$FLAG"
-  systemctl --user restart hyprpaper.service
-  notify-send "Live Wallpaper" "Disabled" -i "$CACHE_DIR/current_wallpaper"
+  if reload_hyprpaper; then
+    notify-send "Live Wallpaper" "Disabled" -i "$CACHE_DIR/current_wallpaper"
+  else
+    notify-send -u critical "Live Wallpaper" "Disabled, but hyprpaper did not restart, so the screen still shows the old one until you log in again"
+    exit 1
+  fi
 }
 
 turn_on() {
   write_hyprpaper_conf "$BG_DIR" 30
   touch "$FLAG"
-  systemctl --user restart hyprpaper.service
-  notify-send "Live Wallpaper" "Enabled (30s cycle)" -i "$CACHE_DIR/current_wallpaper"
+  if reload_hyprpaper; then
+    notify-send "Live Wallpaper" "Enabled (30s cycle)" -i "$CACHE_DIR/current_wallpaper"
+  else
+    notify-send -u critical "Live Wallpaper" "Enabled, but hyprpaper did not restart, so nothing cycles until you log in again"
+    exit 1
+  fi
 }
 
 case "$ACTION" in
