@@ -12,9 +12,9 @@
     //   8  custom/screenrecording, sent by .local/bin/screen-record.sh
     //   7, 9, 10 unused
     // Choose the order of the modules
-    "modules-left": ["hyprland/workspaces", "custom/muslimtify"],
+    "modules-left": ["hyprland/workspaces", "custom/muslimtify", "custom/screenrecording"],
     "modules-center": ["hyprland/window"],
-    "modules-right": ["cpu", "memory", "network", "bluetooth", "pulseaudio","pulseaudio#microphone", "backlight", "battery", "custom/screenrecording", "clock", "tray", "custom/lock", "custom/power"],
+    "modules-right": ["cpu", "memory", "network", "bluetooth", "pulseaudio","pulseaudio#microphone", "backlight", "battery", "clock", "tray", "custom/lock", "custom/power"],
     "hyprland/workspaces": {
          "disable-scroll": true,
          "sort-by-name": true,
