@@ -72,7 +72,7 @@ STUBEOF
 done
 chmod +x "$STUB"/*
 
-run() { CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" bash "$@"; }
+run() { CALL_LOG="$LOG" MIRROR_PIDS="${MIRROR_PIDS:-/dev/null}" PATH="$STUB:/usr/bin:/bin" bash "$@"; }
 
 # --- monitor-mirror-toggle.sh -----------------------------------------------
 
@@ -320,6 +320,82 @@ check "and does not announce a mirror that never started" \
   "$(grep -c 'Mirroring' "$LOG")" "0"
 check "and says what is missing" \
   "$(grep -c 'wl-mirror is not installed' "$LOG")" "1"
+
+# The mirror is announced only when wl-mirror is still there to be selected.
+#
+# wl-mirror is backgrounded, so a refused output or a missing protocol ends it
+# at once and silently. The notification told the user to go and select a window
+# that was never opened, which is worse than saying nothing: the whole point of
+# this key is that the window exists to be shared. screen-record.sh was fixed
+# for the same shape and this was not.
+#
+# The stub wl-mirror exits immediately, which is exactly the failing case, so a
+# separate one that stays up is needed for the working case.
+#
+# pgrep_RC=1 throughout, or the stub reports wl-mirror already running and the
+# script takes its stop branch without reaching any of this.
+# It records its own pid, so the cleanup below can name it.
+#
+# The first version cleaned up with `pkill -f wl-mirror-alive`, and pkill -f
+# matches any process whose whole command line contains that string. It killed
+# the shell that was running this suite, because that shell's command line
+# contained the pattern. Killing one recorded pid cannot reach anything else.
+cat >"$STUB/wl-mirror-alive" <<'STUBEOF'
+#!/bin/bash
+printf 'wl-mirror %s\n' "$*" >>"$CALL_LOG"
+printf '%s\n' "$$" >>"$MIRROR_PIDS"
+exec sleep 5
+STUBEOF
+chmod +x "$STUB/wl-mirror-alive"
+
+MIRROR_PIDS="$TMP/mirror-pids"; : >"$MIRROR_PIDS"
+kill_mirrors() {
+  local pid
+  while read -r pid; do
+    [[ -n $pid ]] && kill "$pid" 2>/dev/null
+  done <"$MIRROR_PIDS"
+  : >"$MIRROR_PIDS"
+}
+
+: >"$LOG"
+MONITORS_JSON="$FIX/monitors-extended.json" pgrep_RC=1 HYPRSIMPLE_MIRROR_START_WAIT=0.1 \
+  run "$BIN/virtual-mirror-toggle.sh" >/dev/null 2>&1
+rc=$?
+check "a wl-mirror that dies at once is not announced as mirroring" \
+  "$(grep -c 'Mirroring' "$LOG")" "0"
+check "and the failure is reported" \
+  "$(grep -c 'could not mirror' "$LOG")" "1"
+check "and the script exits non-zero" "$rc" "1"
+
+# The working case, with a wl-mirror that stays up.
+cp "$STUB/wl-mirror-alive" "$STUB/wl-mirror"
+: >"$LOG"
+MONITORS_JSON="$FIX/monitors-extended.json" pgrep_RC=1 HYPRSIMPLE_MIRROR_START_WAIT=0.2 \
+  run "$BIN/virtual-mirror-toggle.sh" >/dev/null 2>&1
+rc=$?
+check "a wl-mirror that stays up is announced" \
+  "$(grep -c 'Mirroring' "$LOG")" "1"
+check "and names the monitor it was given" \
+  "$(grep -c 'Mirroring eDP-1' "$LOG")" "1"
+check "and exits 0" "$rc" "0"
+# Left running by the check above, and this suite must not leak it.
+kill_mirrors
+
+# A compositor that answers with no focused monitor gave an empty name, and
+# "Mirroring  - Select this window" was shown with a blank in it.
+cat >"$TMP/monitors-none-focused.json" <<'JSONEOF'
+[{"name":"eDP-1","focused":false}]
+JSONEOF
+: >"$LOG"
+MONITORS_JSON="$TMP/monitors-none-focused.json" pgrep_RC=1 HYPRSIMPLE_MIRROR_START_WAIT=0.1 \
+  run "$BIN/virtual-mirror-toggle.sh" >/dev/null 2>&1
+rc=$?
+check "no focused monitor is reported rather than mirrored" \
+  "$(grep -c 'Could not tell which monitor is focused' "$LOG")" "1"
+check "and nothing is announced as mirroring" \
+  "$(grep -c 'Mirroring' "$LOG")" "0"
+check "and wl-mirror is never run" "$(grep -c '^wl-mirror ' "$LOG")" "0"
+check "and the script exits non-zero" "$rc" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
