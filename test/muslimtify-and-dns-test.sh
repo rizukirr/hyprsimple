@@ -87,6 +87,82 @@ check "a failed cd is reported" "$?" "1"
 after=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'yazi-cwd.*' 2>/dev/null | wc -l)
 check "a failed cd still cleans up its temp file" "$after" "$before"
 
+# --- the module goes into modules-left, and only there -----------------------
+#
+# The two substitutions matched "hyprland/workspaces" wherever it appeared, so a
+# config with workspaces in two lists got the module in both and the prayer
+# times showed up twice in the bar:
+#
+#   "modules-left":  ["hyprland/workspaces", "custom/muslimtify", "clock"]
+#   "modules-right": ["hyprland/workspaces", "custom/muslimtify", "tray"]
+#
+# The comment above them has always said modules-left. Only the address makes
+# it true.
+#
+# The substitutions are read out of the script rather than copied here, so this
+# exercises what ships.
+# Only the ones between the injection comment and the module definition that
+# follows it. Taking every substitution mentioning custom/muslimtify also took
+# the two that remove it, which stripped the module straight back out and made
+# five checks fail for a reason that had nothing to do with the fix.
+mapfile -t inject_seds < <(
+  sed -n '/Insert into modules-left/,/Insert module definition/p' \
+    "$BIN/hyprsimple-muslimtify.sh" |
+    grep -oE "sed -i '[^']*'" |
+    sed "s/^sed -i '//; s/'$//"
+)
+if (( ${#inject_seds[@]} != 3 )); then
+  fail "read ${#inject_seds[@]} injection substitutions out of the script, and there are three"
+else
+  pass "read the three injection substitutions out of the script"
+fi
+
+apply_injection() {
+  local file="$1" expr
+  for expr in "${inject_seds[@]}"; do
+    sed -i "$expr" "$file"
+  done
+}
+
+two_lists="$TMP/waybar-two-lists.jsonc"
+cat >"$two_lists" <<'JSONEOF'
+{
+    "modules-left": ["hyprland/workspaces", "clock"],
+    "modules-center": ["hyprland/window"],
+    "modules-right": ["hyprland/workspaces", "tray"],
+    "custom/power": { "format": "x" }
+}
+JSONEOF
+apply_injection "$two_lists"
+
+check "with workspaces in two lists, modules-left gets the module" \
+  "$(grep -c '"modules-left".*custom/muslimtify' "$two_lists")" "1"
+check "and modules-right does not" \
+  "$(grep -c '"modules-right".*custom/muslimtify' "$two_lists")" "0"
+check "so the module appears exactly once" \
+  "$(grep -c 'custom/muslimtify' "$two_lists")" "1"
+
+# Anti-vacuity: the injection still does something on an ordinary config, and
+# on the shape where modules-left holds nothing but workspaces.
+ordinary="$TMP/waybar-ordinary.jsonc"
+cat >"$ordinary" <<'JSONEOF'
+{
+    "modules-left": ["hyprland/workspaces", "clock"],
+    "modules-right": ["tray"]
+}
+JSONEOF
+apply_injection "$ordinary"
+check "an ordinary config still gets the module" \
+  "$(grep -c '"modules-left".*custom/muslimtify' "$ordinary")" "1"
+
+solo="$TMP/waybar-solo.jsonc"
+printf '{\n    "modules-left": ["hyprland/workspaces"],\n    "modules-right": ["clock"]\n}\n' >"$solo"
+apply_injection "$solo"
+check "and so does one whose modules-left holds only workspaces" \
+  "$(grep -c '"modules-left".*custom/muslimtify' "$solo")" "1"
+check "without doubling it, which the dedupe is there for" \
+  "$(grep -c 'custom/muslimtify' "$solo")" "1"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
