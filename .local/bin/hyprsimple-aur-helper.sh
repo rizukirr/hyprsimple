@@ -56,3 +56,25 @@ aur_helper() {
   done
   return 1
 }
+
+# The flags that stop a helper asking. --noconfirm on its own is not enough:
+# paru still opens each PKGBUILD for review and yay still asks about diffs,
+# edits and stale build directories, and every one of those waits for a
+# keypress. Per helper, because they spell it differently and passing yay's
+# flags to paru is an error rather than a no-op.
+#
+# One flag per line, for `mapfile`. Building a string and splitting it on
+# spaces would break the first time a flag needs one.
+aur_unattended_flags() {
+  case "$1" in
+  paru)
+    printf '%s\n' --noconfirm --skipreview
+    ;;
+  yay)
+    printf '%s\n' --noconfirm --answerdiff=None --answeredit=None --answerclean=None
+    ;;
+  *)
+    printf '%s\n' --noconfirm
+    ;;
+  esac
+}

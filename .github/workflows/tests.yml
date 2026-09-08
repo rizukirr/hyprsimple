@@ -160,6 +160,9 @@ jobs:
       - name: aur-helper-test
         run: bash test/aur-helper-test.sh
 
+      - name: unattended-install-test
+        run: bash test/unattended-install-test.sh
+
       - name: notification-idiom-test
         run: bash test/notification-idiom-test.sh
 

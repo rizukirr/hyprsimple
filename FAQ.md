@@ -36,6 +36,22 @@ To reset a single file to the shipped default at any time:
 hyprsimple-refresh-config hypr/hyprlock.conf
 ```
 
+## The install ran without asking me anything. Can I watch what it does?
+
+Yes. `./install.sh --interactive` restores every confirmation: the two
+`pacman -Syu` upgrades, the official package list, and each AUR package.
+
+The default is unattended because the install takes a while and used to stop a
+dozen times across it, minutes apart, so it needed someone sitting in front of
+the machine for the whole run. It still asks for your sudo password once, at
+the start, and holds it for the rest of the install rather than letting it
+lapse and asking again halfway through.
+
+The trade is real and worth knowing: an unattended `pacman -Syu` answers
+pacman's questions for you, including which packages to replace, and skips the
+Arch news. On a machine that has not been updated in a long time, use
+`--interactive` and read them.
+
 ## Connecting to WiFi says "secrets were required but not provided"
 
 Fixed. `wifi 'Your Network'` now asks for the password when it needs one.
@@ -56,6 +72,7 @@ Run from a keybind or a script rather than a terminal there is nobody to ask,
 so the two-argument form is still the way to do it unattended.
 
 `wifi --help` lists both forms.
+
 
 ## A migration failed. What now?
 
