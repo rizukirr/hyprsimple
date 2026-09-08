@@ -153,12 +153,32 @@ check "while the idle branch still emits an empty string" \
 active_block=$(sed -n '/^#custom-screenrecording\.active {/,/^}/p' "$WBSTYLE")
 idle_block=$(sed -n '/^#custom-screenrecording {/,/^}/p' "$WBSTYLE")
 
+# It is shaped like an ordinary module, not like its neighbour.
+# custom/muslimtify has a rounded-top shape particular to that widget, and the
+# indicator was briefly given the same one. The background, padding and top
+# margin are read out of the shared rule that covers #cpu and the rest, so this
+# compares against what ships rather than against numbers written down here.
+ordinary_block=$(sed -n '/^#cpu,/,/^}/p' "$WBSTYLE")
+prop() { printf '%s' "$1" | grep -oE "^ *$2: *[^;]+" | tr -d ' ' | sed "s/^$2://"; }
+
 check "the recording state has a background" \
   "$(printf '%s' "$active_block" | grep -c 'background-color')" "1"
-check "and a border, so it reads as a pill like its neighbour" \
-  "$(printf '%s' "$active_block" | grep -c '^    border:')" "1"
-check "and padding to sit the text inside it" \
-  "$(printf '%s' "$active_block" | grep -c '^    padding:')" "1"
+check "and it is the one every other module uses" \
+  "$(prop "$active_block" background-color)" "$(prop "$ordinary_block" background-color)"
+check "with the same padding as they have" \
+  "$(prop "$active_block" padding)" "$(prop "$ordinary_block" padding)"
+check "and the shared rule really was read, so those two are not empty" \
+  "$([[ -n $(prop "$ordinary_block" background-color) ]] && echo read || echo empty)" "read"
+
+# The rounded corner comes from #workspaces, the other item that stands on its
+# own rather than inside a run of modules.
+standalone_block=$(sed -n '/^#workspaces {/,/^}/p' "$WBSTYLE")
+check "and the corner radius of the other standalone item" \
+  "$(prop "$active_block" border-radius)" "$(prop "$standalone_block" border-radius)"
+
+# None of the treatment that belongs to muslimtify.
+check "and none of the shadow or border that widget uses" \
+  "$(printf '%s' "$active_block" | grep -cE 'box-shadow|text-shadow|^ *border:')" "0"
 
 check "the idle state has no background" \
   "$(printf '%s' "$idle_block" | grep -cE 'background-color|^    border: [0-9]')" "0"
