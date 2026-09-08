@@ -27,14 +27,14 @@ fi
 # The same test screen-record.sh uses, so the menu and the recorder cannot
 # disagree about whether a recording is running.
 if pgrep -x wl-screenrec >/dev/null || pgrep -x wf-recorder >/dev/null; then
-  labels=("  Stop recording")
+  labels=("󰓛  Stop recording")
   args=("stop")
   prompt="󰻂"
 else
   labels=(
-    "  Region, microphone"
-    "  Region, system audio"
-    "  Region, no audio"
+    "󰗆  Region, microphone"
+    "󰗆  Region, system audio"
+    "󰗆  Region, no audio"
     "󰍹  Whole screen, microphone"
     "󰍹  Whole screen, system audio"
     "󰍹  Whole screen, no audio"
