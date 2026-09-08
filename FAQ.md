@@ -55,6 +55,8 @@ or one already saved, was never affected.
 Run from a keybind or a script rather than a terminal there is nobody to ask,
 so the two-argument form is still the way to do it unattended.
 
+`wifi --help` lists both forms.
+
 ## A migration failed. What now?
 
 Migrations run once per machine, tracked in

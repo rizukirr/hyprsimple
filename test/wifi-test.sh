@@ -137,6 +137,61 @@ check "a passphrase is passed through" \
 NMCLI_RC=4 run "$(mk_sysfs both)" NetworkManager MyNet
 check "a failed connect is not reported as success" "$(rc)" "4"
 
+# ---- --help -----------------------------------------------------------------
+#
+# The usage lived only in a comment at the top of the script, so the way to
+# find out what the second argument was for was to read the source. It also has
+# to answer before the backend is chosen: the interface detection and the
+# backend choice both come before any argument is looked at, so on a machine
+# with neither nmcli nor iwctl, asking for help got "No supported WiFi backend
+# found" and exit 1.
+
+for flag in --help -h; do
+  run "$(mk_sysfs both)" NetworkManager "$flag"
+  check "$flag prints the usage" "$(grep -c '^Usage: wifi.sh' "$TMP/out")" "1"
+  check "and exits 0" "$(rc)" "0"
+  check "and touches no backend" "$(calls | wc -l | tr -d ' ')" "0"
+done
+
+check "the usage explains what the second argument is for" \
+  "$(grep -c 'SSID PASSWORD' "$TMP/out")" "1"
+check "and that a secured network asks when it can" \
+  "$(grep -c 'asks for the password' "$TMP/out")" "1"
+check "and how to quote an SSID with a space in it" \
+  "$(grep -c 'Quote an SSID' "$TMP/out")" "1"
+
+# With no wireless hardware, no backend installed and nothing running, which is
+# the case that used to answer with an error.
+# The real tools the script itself needs, and nothing else. Linking them in by
+# name rather than adding /usr/bin, which would bring the maintainer's own
+# nmcli back and make "no backend installed" untrue.
+NO_BACKEND="$TMP/empty-bin"
+mkdir -p "$NO_BACKEND"
+for tool in cat basename; do
+  ln -sf "$(command -v "$tool")" "$NO_BACKEND/$tool"
+done
+BASH_BIN="$(command -v bash)"
+
+HYPRSIMPLE_SYSFS_NET="$(mk_sysfs none)" PATH="$NO_BACKEND" \
+  "$BASH_BIN" "$WIFI" --help >"$TMP/out" 2>&1 </dev/null
+check "--help works with no backend installed at all" "$?" "0"
+check "and still prints the usage rather than an error" \
+  "$(grep -c '^Usage: wifi.sh' "$TMP/out")" "1"
+check "and says nothing about a missing backend" \
+  "$(grep -c 'No supported WiFi backend' "$TMP/out")" "0"
+
+# Anti-vacuity: without --help that same machine really does report the error,
+# so the three checks above are not passing because the fixture is inert.
+HYPRSIMPLE_SYSFS_NET="$(mk_sysfs none)" PATH="$NO_BACKEND" \
+  "$BASH_BIN" "$WIFI" >"$TMP/out" 2>&1 </dev/null
+check "while a plain run there still reports the missing backend" \
+  "$(grep -c 'No supported WiFi backend' "$TMP/out")" "1"
+
+# An SSID is still an SSID. Only the two flags are taken as a request for help.
+run "$(mk_sysfs both)" NetworkManager helpdesk
+check "an SSID that merely contains 'help' is connected to" \
+  "$(calls | grep -c 'connect helpdesk')" "1"
+
 # ---- a secured network with no password given -----------------------------
 #
 # Reported on a new install, typing `wifi "POCO F4"`, which is the shape the

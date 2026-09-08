@@ -1,11 +1,41 @@
 #!/bin/bash
 
-# Usage: wifi.sh [SSID] [PASSWORD]
-#   no args   -> rescan and list networks
-#   SSID      -> connect. An open or already saved network connects straight
-#                away; a secured one asks for the password, if there is a
-#                terminal to ask on.
-#   SSID PASS -> connect with passphrase, without being asked
+# List and join wireless networks, through whichever of NetworkManager or iwd
+# is running. `wifi` is an alias for this in bash, zsh and fish.
+
+# Answered before anything else in this file. The usage lived only in a comment
+# here, so the way to find out what the second argument was for was to read the
+# source, and the interface detection and backend choice below both come before
+# any argument is looked at: on a machine with neither nmcli nor iwctl, asking
+# for help got "No supported WiFi backend found" and exit 1.
+usage() {
+  cat <<'EOF'
+Usage: wifi.sh [SSID] [PASSWORD]
+
+  (no argument)  Rescan and list the networks in range.
+  SSID           Connect. An open network, or one already saved, connects
+                 straight away. A secured one asks for the password, as long
+                 as there is a terminal to ask on.
+  SSID PASSWORD  Connect without being asked, for a keybind or a script.
+
+Examples:
+  wifi
+  wifi 'My Network'
+  wifi 'My Network' 'my password'
+
+Quote an SSID that contains spaces. Once a network has been joined it is
+saved, so later connections need no password.
+
+Uses NetworkManager if it is running, otherwise iwd.
+EOF
+}
+
+case "${1:-}" in
+-h | --help)
+  usage
+  exit 0
+  ;;
+esac
 
 # Auto-detect WiFi interface. A glob rather than parsing ls output, so the
 # shell splits the paths instead of a newline doing it.
