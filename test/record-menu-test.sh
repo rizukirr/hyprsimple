@@ -111,6 +111,85 @@ check "the menu names region and whole screen" \
 check "and names all three audio sources" \
   "$(grep -cE 'microphone|system audio|no audio' "$INPUT")" "6"
 
+# Every entry begins with an icon, and the icon is a real character.
+#
+# Three of them shipped with nothing there. The label read "  Region,
+# microphone" with two leading spaces where the glyph should be, because the
+# character was lost on the way into the file rather than because the font
+# lacked it. Nothing noticed: the menu worked, the dispatch was by index, and
+# the only sign was a gap in the list.
+#
+# The first character of each label is read out of the script and checked to be
+# in the private use area the Nerd Font icons live in, which a space or a
+# letter is not.
+glyph_report=$(python3 - "$MENU" <<'PYEOF'
+import re, sys
+
+labels = []
+for line in open(sys.argv[1]):
+    m = re.search(r'"([^"]*(?:Region|Whole screen|Stop)[^"]*)"', line)
+    if m:
+        labels.append(m.group(1))
+
+if len(labels) < 7:
+    print(f"only {len(labels)} labels found")
+    raise SystemExit(0)
+
+bad = [l for l in labels if not l or not (0xE000 <= ord(l[0]) <= 0xF8FF or 0xF0000 <= ord(l[0]) <= 0xFFFFD)]
+print("blank: " + ", ".join(repr(l) for l in bad) if bad else "all glyphed")
+PYEOF
+)
+check "every menu entry starts with an icon" "$glyph_report" "all glyphed"
+
+# The two kinds are told apart by their icon, not only by their words.
+region_cp=$(python3 -c "
+import re,sys
+for line in open(sys.argv[1]):
+    m = re.search(r'\"([^\"]*Region[^\"]*)\"', line)
+    if m: print(f'{ord(m.group(1)[0]):05X}'); break
+" "$MENU")
+screen_cp=$(python3 -c "
+import re,sys
+for line in open(sys.argv[1]):
+    m = re.search(r'\"([^\"]*Whole screen[^\"]*)\"', line)
+    if m: print(f'{ord(m.group(1)[0]):05X}'); break
+" "$MENU")
+check "region and whole screen do not share an icon" \
+  "$([[ $region_cp != "$screen_cp" ]] && echo different || echo same)" "different"
+
+# And the font the menu asks rofi for actually has them, or they render as the
+# missing-glyph box. Skipped where fontconfig cannot answer, which is CI.
+menu_font=$(grep -oE 'font: *"[^"]+"' "$STYLE" | head -1 | sed 's/.*"\(.*\)"/\1/')
+menu_family="${menu_font%% [0-9]*}"
+
+# Skipped where the font itself is absent, not only where fontconfig is.
+#
+# A CI runner has fc-list and no Nerd Font, so every icon read as uncovered and
+# this failed for a reason that has nothing to do with the menu. The question
+# is whether the font the menu asks for covers the icons, and on a machine
+# without that font there is nothing to answer.
+installed_families=""
+if command -v fc-list >/dev/null 2>&1; then
+  installed_families=$(fc-list -f '%{family[0]}\n' 2>/dev/null)
+fi
+
+if [[ -n $menu_family ]] && grep -qiF "$menu_family" <<<"$installed_families"; then
+  # The family list is captured before it is searched, not piped into grep -q.
+  #
+  # grep -q exits on its first match, which closes the pipe, and fc-list then
+  # dies of SIGPIPE. This suite sets pipefail, so the pipeline reported failure
+  # for a grep that had succeeded and every icon read as uncovered.
+  uncovered=()
+  for cp in "$region_cp" "$screen_cp"; do
+    families=$(fc-list -f '%{family[0]}\n' ":charset=$cp" 2>/dev/null)
+    grep -qiF "${menu_font%% [0-9]*}" <<<"$families" || uncovered+=("U+$cp")
+  done
+  uncovered_str=""; (( ${#uncovered[@]} > 0 )) && uncovered_str="$(printf '%s ' "${uncovered[@]}")"
+  check "and the menu's font covers both icons" "$uncovered_str" ""
+else
+  pass "the menu's font is not installed here, so icon coverage is not checked"
+fi
+
 # ---- while recording, it offers to stop -------------------------------------
 
 recording yes
