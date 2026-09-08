@@ -10,11 +10,11 @@ hyprsimple-update
 
 This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`, installs any packages newly required by those scripts, and runs pending migrations.
 
-**It never replaces your `~/.config`.** Customise those files freely. When a shipped default genuinely has to change, a migration makes that one specific edit — or calls `hyprsimple-refresh-config`, which saves your version as `<file>.bak.<timestamp>` and prints the diff before replacing it.
+**It never replaces your `~/.config`.** Customise those files freely. When a shipped default genuinely has to change, a migration makes that one specific edit, or calls `hyprsimple-refresh-config`, which saves your version as `<file>.bak.<timestamp>` and prints the diff before replacing it.
 
 `install.sh` is a **first-time installer only**. It moves every existing `~/.config/<dir>` aside to `.backup` and copies fresh defaults, so re-running it on a configured machine will cost you your theme choice and any edits you have made. Use `hyprsimple-update` instead.
 
-If you installed hyprsimple before it could update itself, run this **once** to get onto the update system — unlike `install.sh` it leaves `~/.config` alone:
+If you installed hyprsimple before it could update itself, run this **once** to get onto the update system. Unlike `install.sh` it leaves `~/.config` alone:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rizukirr/hyprsimple/main/bootstrap.sh | bash
@@ -100,7 +100,7 @@ paru -S wl-screenrec-git   # or yay -S
 
 ## A migration failed. What now?
 
-Migrations run once per machine, tracked in `~/.local/state/hyprsimple/migrations`. When one fails you are asked whether to skip it; skipping records it under `.../migrations/skipped/` and continues.
+Migrations run once per machine, tracked in `~/.local/state/hyprsimple/migrations`. When one fails you are asked whether to skip it. Skipping records it under `.../migrations/skipped/` and continues.
 
 To retry a skipped migration later, delete its marker and re-run:
 
@@ -124,16 +124,16 @@ It collects your hyprsimple version and branch, migration state, hardware, Hyprl
 Attach the link to your [issue](https://github.com/rizukirr/hyprsimple/issues).
 
 > [!NOTE]
-> The report includes your hostname and package list. Review it before uploading — `hyprsimple-debug --print` dumps it to the terminal without uploading, and `--no-sudo` skips the dmesg section so you are not prompted for a password.
+> The report includes your hostname and package list. Review it before uploading. `hyprsimple-debug --print` dumps it to the terminal without uploading, and `--no-sudo` skips the dmesg section so you are not prompted for a password.
 
 ## Boot hangs with `[FAILED] Failed to start Load Kernel Modules`, then freezes after login (NVIDIA hybrid laptops)
 
-On NVIDIA Optimus laptops (Intel/AMD iGPU + NVIDIA dGPU) running a bleeding-edge kernel — e.g. `linux-cachyos` 7.0.x with `nvidia-open` — the NVIDIA driver's GSP firmware init can intermittently deadlock while the **initramfs** brings the dGPU up at boot. Symptoms:
+On NVIDIA Optimus laptops (Intel/AMD iGPU + NVIDIA dGPU) running a bleeding-edge kernel (`linux-cachyos` 7.0.x with `nvidia-open`, for example), the NVIDIA driver's GSP firmware init can intermittently deadlock while the **initramfs** brings the dGPU up at boot. Symptoms:
 
 - `[FAILED] Failed to start Load Kernel Modules` early in boot, followed by a long wait (a stuck `udev` / "Rule-based Manager for Device Events and Files" job).
 - The login screen eventually appears, but the session freezes right after logging in.
 
-The hang is in the kernel module load **inside the initramfs**, so userspace config (`/etc/modprobe.d`, `/etc/modules-load.d`) does **not** help unless the initramfs is rebuilt. The minimal fix is a kernel command-line parameter that stops the dGPU from loading at boot — it still loads on demand via `prime-run`, and the iGPU keeps driving the desktop (so Hyprland/Wayland is unaffected).
+The hang is in the kernel module load **inside the initramfs**, so userspace config (`/etc/modprobe.d`, `/etc/modules-load.d`) does **not** help unless the initramfs is rebuilt. The minimal fix is a kernel command-line parameter that stops the dGPU from loading at boot. It still loads on demand via `prime-run`, and the iGPU keeps driving the desktop, so Hyprland/Wayland is unaffected.
 
 **Fix (systemd-boot):** add `modprobe.blacklist` for the NVIDIA modules to the affected kernel entry's `options` line in `/boot/loader/entries/<your-entry>.conf`:
 
@@ -156,17 +156,17 @@ prime-run glxinfo | grep "OpenGL renderer"   # still loads the dGPU on demand
 > ```
 
 > [!NOTE]
-> Scope the change to the bleeding-edge entry only; leave your LTS entry untouched as a fallback. The community `nomodeset` workaround also boots, but disables **all** KMS (including the iGPU) and breaks Wayland — `modprobe.blacklist=nvidia*` avoids that by blacklisting only NVIDIA. For GRUB, add the same `modprobe.blacklist=...` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, then run `grub-mkconfig -o /boot/grub/grub.cfg`.
+> Scope the change to the bleeding-edge entry only, and leave your LTS entry untouched as a fallback. The community `nomodeset` workaround also boots, but disables **all** KMS (including the iGPU) and breaks Wayland. Blacklisting only NVIDIA with `modprobe.blacklist=nvidia*` avoids that. For GRUB, add the same `modprobe.blacklist=...` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, then run `grub-mkconfig -o /boot/grub/grub.cfg`.
 >
-> On CachyOS the systemd-boot entries are **generated by `sdboot-manage`**, so a direct edit to `/boot/loader/entries/*.conf` is overwritten on the next `sudo sdboot-manage gen` (e.g. a kernel update). To make it persist, add the parameter to `LINUX_OPTIONS` in `/etc/sdboot-manage.conf` and run `sudo sdboot-manage gen` — note this applies to **all** entries, so the dGPU loads on demand on the LTS kernel too (harmless, just no longer at boot).
+> On CachyOS the systemd-boot entries are **generated by `sdboot-manage`**, so a direct edit to `/boot/loader/entries/*.conf` is overwritten on the next `sudo sdboot-manage gen` (e.g. a kernel update). To make it persist, add the parameter to `LINUX_OPTIONS` in `/etc/sdboot-manage.conf` and run `sudo sdboot-manage gen`. This applies to **all** entries, so the dGPU loads on demand on the LTS kernel too. That is harmless, just no longer at boot.
 >
-> This is an upstream driver/kernel bug; once a fixed `linux-cachyos` / `nvidia-open` update lands you can remove the parameter.
+> This is an upstream driver/kernel bug. Once a fixed `linux-cachyos` / `nvidia-open` update lands you can remove the parameter.
 >
-> Reference: [CachyOS forum — "Failed to start Load Kernel Modules and Rule-based Manager"](https://discuss.cachyos.org/t/failed-to-start-load-kernel-modules-and-rule-based-manager/27583)
+> Reference: [CachyOS forum: "Failed to start Load Kernel Modules and Rule-based Manager"](https://discuss.cachyos.org/t/failed-to-start-load-kernel-modules-and-rule-based-manager/27583)
 
 ## Stuck on a blank screen with a spinning loading circle after picking the OS in systemd-boot
 
-This is the Plymouth boot splash hanging — it shows the spinner on a blank screen and never hands off to the login manager. Removing Plymouth fixes it (boot then shows plain text messages instead of the splash). On CachyOS the systemd-boot entries are generated by `sdboot-manage`, so the `splash`/`quiet` flags live in `/etc/sdboot-manage.conf` and `/etc/kernel/cmdline` rather than the entry files directly.
+This is the Plymouth boot splash hanging. It shows the spinner on a blank screen and never hands off to the login manager. Removing Plymouth fixes it (boot then shows plain text messages instead of the splash). On CachyOS the systemd-boot entries are generated by `sdboot-manage`, so the `splash`/`quiet` flags live in `/etc/sdboot-manage.conf` and `/etc/kernel/cmdline` rather than the entry files directly.
 
 1. Uninstall Plymouth and its CachyOS theme/animation packages:
    ```bash
@@ -182,7 +182,7 @@ This is the Plymouth boot splash hanging — it shows the spinner on a blank scr
    ```
 4. Remove `splash` and `quiet` from `/etc/kernel/cmdline` as well.
 
-Verify after reboot — boot should show plain systemd text with no spinner:
+Verify after reboot. Boot should show plain systemd text with no spinner:
 
 ```bash
 pacman -Q plymouth                # 'not found'
@@ -190,26 +190,26 @@ grep HOOKS /etc/mkinitcpio.conf   # no 'plymouth'
 ```
 
 > [!NOTE]
-> Reference: [CachyOS forum — "Disable or remove Plymouth boot splash"](https://discuss.cachyos.org/t/tutorial-disable-or-remove-plymouth-boot-splash/10922)
+> Reference: [CachyOS forum: "Disable or remove Plymouth boot splash"](https://discuss.cachyos.org/t/tutorial-disable-or-remove-plymouth-boot-splash/10922)
 
 ## Microphone sounds noisy / hissy on calls (RNNoise noise suppression)
 
-hyprsimple ships an optional RNNoise filter that creates a virtual **"Noise Canceling source"** — a denoised copy of your microphone. It is provided by the `noise-suppression-for-voice` package and configured in `~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf`.
+hyprsimple ships an optional RNNoise filter that creates a virtual **"Noise Canceling source"**, a denoised copy of your microphone. It is provided by the `noise-suppression-for-voice` package and configured in `~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf`.
 
-This is **not** forced as your default input, so it never hijacks a USB, Bluetooth, or multi-mic setup. To start using it, pick it as the default mic — WirePlumber remembers the choice across reboots:
+This is **not** forced as your default input, so it never hijacks a USB, Bluetooth, or multi-mic setup. To start using it, pick it as the default mic. WirePlumber remembers the choice across reboots:
 
 ```bash
 wpctl status                 # find the ID of "Noise Canceling source" (or your raw mic)
 wpctl set-default <ID>       # WirePlumber remembers this across reboots
 ```
 
-Tune aggressiveness via `"VAD Threshold (%)"` in the conf file (higher = cuts more noise but may clip the start of words); reload with:
+Tune aggressiveness via `"VAD Threshold (%)"` in the conf file, where higher cuts more noise but may clip the start of words. Reload with:
 
 ```bash
 systemctl --user restart pipewire pipewire-pulse wireplumber
 ```
 
 > [!NOTE]
-> If your mic is **distorted/clipping** rather than just noisy, the cause is usually a hardware capture gain set too high — RNNoise can't fix a clipped signal. Use `alsamixer` (F4 → Capture view) to lower **Capture** and any **Mic Boost** controls, then `sudo alsactl store` to persist. Bluetooth headset mics are a separate case: they only provide a mic in the low-quality HSP/HFP profile, so prefer a wired/built-in mic for input and keep the headset on A2DP for output.
+> If your mic is **distorted/clipping** rather than just noisy, the cause is usually a hardware capture gain set too high, and RNNoise can't fix a clipped signal. Use `alsamixer` (F4 → Capture view) to lower **Capture** and any **Mic Boost** controls, then `sudo alsactl store` to persist. Bluetooth headset mics are a separate case: they only provide a mic in the low-quality HSP/HFP profile, so prefer a wired/built-in mic for input and keep the headset on A2DP for output.
 >
 > After any `pipewire` restart, also restart the portals or screen sharing can break until they reconnect: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland`
