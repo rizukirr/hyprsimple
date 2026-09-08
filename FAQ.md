@@ -74,6 +74,35 @@ so the two-argument form is still the way to do it unattended.
 `wifi --help` lists both forms.
 
 
+## `wl-screenrec-git` failed to build during install. Is recording broken?
+
+No. `wf-recorder` comes from the official repositories, needs no build, and
+hyprsimple falls back to it when `wl-screenrec` is not installed. Recording
+keeps working with no action from you.
+
+If the build failed with
+
+```
+error: linker `x86_64-linux-gnu-gcc` not found
+```
+
+that linker is shipped by Arch's own `gcc` package, so the machine is either
+missing `base-devel` or running a `gcc` older than its `rust`. That mismatch
+is what a partial upgrade produces: `pacman -Sy` without the `-u` installs new
+packages against an old system. Fix it with a full upgrade, never a partial
+one:
+
+```bash
+sudo pacman -Syu
+sudo pacman -S --needed base-devel
+```
+
+Then, if you want `wl-screenrec` after all:
+
+```bash
+paru -S wl-screenrec-git   # or yay -S
+```
+
 ## A migration failed. What now?
 
 Migrations run once per machine, tracked in
