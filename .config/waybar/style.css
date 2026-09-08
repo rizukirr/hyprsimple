@@ -180,13 +180,34 @@ tooltip label {
     box-shadow: inset 0 1px 0 alpha(@warning, 0.15), 0 2px 8px alpha(@warning, 0.2);
 }
 
+/* Nothing at all when nothing is recording.
+   waybar-screenrecording.sh emits an empty string then, and a background or
+   padding here would leave an empty pill sitting in the bar next to the prayer
+   times. Everything visible belongs to .active. */
 #custom-screenrecording {
-    min-width: 12px;
-    margin: 0 7.5px;
+    min-width: 0;
+    margin: 0;
     padding: 0;
+    background: transparent;
+    border: none;
 }
 
+/* Recording: the same pill as its neighbour, in the danger colour, so the two
+   read as one row rather than a widget beside a bare glyph. */
 #custom-screenrecording.active {
+    background-color: @bg-widget;
     color: @danger;
-    text-shadow: 0 0 8px alpha(@danger, 0.5);
+    border: 1.5px solid alpha(@danger, 0.35);
+    border-radius: 1.5rem 1.5rem 0.3rem 0.3rem;
+    padding: 0.4rem 1.2rem;
+    margin: 5px 0 0 0.6rem;
+    text-shadow: 0 0 6px alpha(@danger, 0.4);
+    box-shadow: inset 0 1px 0 alpha(@danger, 0.1), 0 1px 3px alpha(@bg-deep, 0.6);
+    transition: all 300ms ease;
+}
+
+#custom-screenrecording.active:hover {
+    background-color: alpha(@danger, 0.15);
+    border-color: @danger;
+    text-shadow: 0 0 10px alpha(@danger, 0.6);
 }

@@ -120,6 +120,113 @@ b_zero=$(bar_of 0); b_full=$(bar_of 100)
 check "brightness builds the same bar at 0" "$b_zero" "$zero"
 check "and at 100" "$b_full" "$full"
 
+# --- the recording indicator sits on the left and says what it is ------------
+#
+# It used to be a bare glyph between the battery and the clock, which reads as
+# an unexplained dot. It is a labelled pill beside the prayer times now.
+
+WBCONF="$REPO/.config/waybar/config.jsonc"
+WBSTYLE="$REPO/.config/waybar/style.css"
+RECSCRIPT="$BIN/waybar-screenrecording.sh"
+RECMIGRATION="$REPO/migrations/1788860000.sh"
+
+modules_line() { grep -m1 "\"$1\"" "$WBCONF"; }
+
+check "the indicator is in modules-left" \
+  "$(modules_line modules-left | grep -c 'custom/screenrecording')" "1"
+check "and no longer in modules-right" \
+  "$(modules_line modules-right | grep -c 'custom/screenrecording')" "0"
+check "and it comes after the prayer times, not before" \
+  "$(modules_line modules-left | grep -cE 'custom/muslimtify".*custom/screenrecording')" "1"
+
+# The label, read out of the script that emits it.
+check "the module says what it is rather than showing a bare glyph" \
+  "$(grep -c 'recording\.\.\.' "$RECSCRIPT")" "1"
+check "and still carries the active class the styling keys off" \
+  "$(grep -c '"class": "active"' "$RECSCRIPT")" "1"
+check "while the idle branch still emits an empty string" \
+  "$(grep -c '{"text": ""}' "$RECSCRIPT")" "1"
+
+# The background belongs to .active only. The idle module emits an empty
+# string, and padding or a background on the bare id would leave an empty pill
+# in the bar next to the prayer times.
+active_block=$(sed -n '/^#custom-screenrecording\.active {/,/^}/p' "$WBSTYLE")
+idle_block=$(sed -n '/^#custom-screenrecording {/,/^}/p' "$WBSTYLE")
+
+check "the recording state has a background" \
+  "$(printf '%s' "$active_block" | grep -c 'background-color')" "1"
+check "and a border, so it reads as a pill like its neighbour" \
+  "$(printf '%s' "$active_block" | grep -c '^    border:')" "1"
+check "and padding to sit the text inside it" \
+  "$(printf '%s' "$active_block" | grep -c '^    padding:')" "1"
+
+check "the idle state has no background" \
+  "$(printf '%s' "$idle_block" | grep -cE 'background-color|^    border: [0-9]')" "0"
+check "and no padding, so nothing shows when nothing is recording" \
+  "$(printf '%s' "$idle_block" | grep -c 'padding: 0')" "1"
+
+# Anti-vacuity: both blocks were actually found. A sed range that matched
+# nothing would satisfy every idle check above.
+check "both style blocks were read, so those checks are not empty" \
+  "$([[ -n $active_block && -n $idle_block ]] && echo both || echo missing)" "both"
+
+# --- the migration moves it in a config that already exists ------------------
+#
+# waybar/config.jsonc is copied once at install and never touched again, so a
+# module hyprsimple moves later does not move on an existing machine.
+
+mig_home="$TMP/wbhome"
+mkdir -p "$mig_home/.config/waybar"
+cat >"$mig_home/.config/waybar/config.jsonc" <<'JSONEOF'
+{
+    "modules-left": ["hyprland/workspaces", "custom/muslimtify"],
+    "modules-center": ["hyprland/window"],
+    "modules-right": ["battery", "custom/screenrecording", "clock"],
+    "custom/screenrecording": { "exec": "x" }
+}
+JSONEOF
+before_rest=$(grep -v 'modules-left\|modules-right' "$mig_home/.config/waybar/config.jsonc")
+
+HOME="$mig_home" bash "$RECMIGRATION" >"$TMP/wbout" 2>&1
+
+check "the migration puts it in modules-left" \
+  "$(grep -m1 'modules-left' "$mig_home/.config/waybar/config.jsonc" | grep -c 'custom/screenrecording')" "1"
+check "after the prayer times" \
+  "$(grep -m1 'modules-left' "$mig_home/.config/waybar/config.jsonc" | grep -cE 'custom/muslimtify".*custom/screenrecording')" "1"
+check "and takes it out of modules-right" \
+  "$(grep -m1 'modules-right' "$mig_home/.config/waybar/config.jsonc" | grep -c 'custom/screenrecording')" "0"
+check "leaving no stray comma behind" \
+  "$(grep -m1 'modules-right' "$mig_home/.config/waybar/config.jsonc" | grep -cE ',\s*,|\[\s*,|,\s*\]')" "0"
+check "and changing nothing else in the file" \
+  "$([[ $(grep -v 'modules-left\|modules-right' "$mig_home/.config/waybar/config.jsonc") == "$before_rest" ]] && echo same || echo changed)" "same"
+
+# Run twice: it must not move it again or report work it did not do.
+HOME="$mig_home" bash "$RECMIGRATION" >"$TMP/wbout2" 2>&1
+check "running it again says it is already there" \
+  "$(grep -c 'already on the left' "$TMP/wbout2")" "1"
+check "and does not add a second copy" \
+  "$(grep -c 'custom/screenrecording' "$mig_home/.config/waybar/config.jsonc")" "2"
+
+# A config that has been rearranged by hand keeps its arrangement.
+hand_home="$TMP/wbhand"
+mkdir -p "$hand_home/.config/waybar"
+cat >"$hand_home/.config/waybar/config.jsonc" <<'JSONEOF'
+{
+    "modules-left": ["hyprland/workspaces"],
+    "modules-right": ["battery", "clock"]
+}
+JSONEOF
+hand_before=$(cat "$hand_home/.config/waybar/config.jsonc")
+HOME="$hand_home" bash "$RECMIGRATION" >"$TMP/wbout3" 2>&1
+check "a config without the module in modules-right is left alone" \
+  "$([[ $(cat "$hand_home/.config/waybar/config.jsonc") == "$hand_before" ]] && echo unchanged || echo edited)" "unchanged"
+check "and says so" "$(grep -c 'not in modules-right' "$TMP/wbout3")" "1"
+
+# No waybar config at all must not fail.
+mkdir -p "$TMP/wbnone"
+HOME="$TMP/wbnone" bash "$RECMIGRATION" >/dev/null 2>&1
+check "a home with no waybar config exits 0" "$?" "0"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
