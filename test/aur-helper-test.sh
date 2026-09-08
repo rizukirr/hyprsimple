@@ -165,13 +165,18 @@ chmod +x "$BUILD_STUBS"/*
 # Runs the lifted block with the named helpers present. mktemp, printf and the
 # rest come from /usr/bin, so the stubs go in front of it rather than replacing
 # it, and the helper names are stubbed there too.
+# UNATTENDED is set by install.sh's argument parsing, above the lifted block,
+# so the block cannot see it unless it is passed in. Defaulting it to 1 here
+# matches a plain ./install.sh.
 run_block() {
   local override="$1"; shift
+  local unattended="${RUN_BLOCK_UNATTENDED:-1}"
   local dir; dir="$(stub_path "$@")"
   cp "$BUILD_STUBS"/* "$dir/"
   : >"$TMP/fetch"; : >"$TMP/build"; : >"$TMP/pacman"
   FETCH_LOG="$TMP/fetch" BUILD_LOG="$TMP/build" PACMAN_LOG="$TMP/pacman" \
     DOTFILES_DIR="$REPO" RED='' GREEN='' YELLOW='' NC='' \
+    UNATTENDED="$unattended" \
     HYPRSIMPLE_AUR_HELPER="$override" PATH="$dir" \
     "$BASH_BIN" "$TMP/block.sh" >"$TMP/out" 2>&1 </dev/null
   printf '%s' "$?" >"$TMP/rc"
@@ -240,12 +245,12 @@ if [[ -n $SCRIPT_BIN ]]; then
     printf '%s\n' "$answer" |
       FETCH_LOG="$TMP/fetch" BUILD_LOG="$TMP/build" PACMAN_LOG="$TMP/pacman" \
       DOTFILES_DIR="$REPO" RED='' GREEN='' YELLOW='' NC='' HYPRSIMPLE_AUR_HELPER='' \
-      PATH="$dir" \
+      UNATTENDED=0 PATH="$dir" \
       "$SCRIPT_BIN" -qec "$BASH_BIN $TMP/block.sh" /dev/null >"$TMP/out" 2>&1
   }
 
   run_on_pty yay
-  check "asked at a terminal, an answer of yay builds yay" \
+  check "asked at an interactive terminal, an answer of yay builds yay" \
     "$(grep -c 'aur.archlinux.org/yay' "$TMP/fetch")" "1"
   check "and not paru" "$(grep -c 'aur.archlinux.org/paru' "$TMP/fetch")" "0"
 
@@ -261,6 +266,24 @@ if [[ -n $SCRIPT_BIN ]]; then
   check "an answer that is neither falls back to paru rather than stopping" \
     "$(grep -c 'aur.archlinux.org/paru' "$TMP/fetch")" "1"
   check "and says it did not understand" "$(grep -c 'Not paru or yay' "$TMP/out")" "1"
+  # The default run does not ask at all, terminal or not. A prompt that only
+  # a plain ./install.sh reaches is exactly the thing being removed here, and
+  # the non-tty checks above cannot see it: they take the same branch for the
+  # wrong reason.
+  RUN_BLOCK_UNATTENDED=1
+  dir="$(stub_path)"
+  cp "$BUILD_STUBS"/* "$dir/"
+  ln -sf "$SCRIPT_BIN" "$dir/script"
+  : >"$TMP/fetch"; : >"$TMP/build"; : >"$TMP/pacman"
+  printf 'yay\n' |
+    FETCH_LOG="$TMP/fetch" BUILD_LOG="$TMP/build" PACMAN_LOG="$TMP/pacman" \
+    DOTFILES_DIR="$REPO" RED='' GREEN='' YELLOW='' NC='' HYPRSIMPLE_AUR_HELPER='' \
+    UNATTENDED=1 PATH="$dir" \
+    "$SCRIPT_BIN" -qec "$BASH_BIN $TMP/block.sh" /dev/null >"$TMP/out" 2>&1
+  check "an unattended run at a terminal does not stop to ask" \
+    "$(grep -c 'Install which one' "$TMP/out")" "0"
+  check "and builds paru, ignoring the answer nobody was asked for" \
+    "$(grep -c 'aur.archlinux.org/paru' "$TMP/fetch")" "1"
 else
   pass "skipped the prompt checks: no script(1) to give the block a terminal"
 fi

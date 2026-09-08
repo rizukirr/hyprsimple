@@ -75,6 +75,101 @@ if [ ! -f /etc/arch-release ]; then
   exit 1
 fi
 
+# ======================================
+#  Unattended by default
+# ======================================
+#
+# This install used to stop and wait a dozen times: the sudo password, twice
+# for a full upgrade, once for the official package list, and once per package
+# for the AUR list, each of them minutes apart, so installing hyprsimple meant
+# sitting in front of the machine for the length of it.
+#
+# It was never a decision. Five package operations in this file already passed
+# --noconfirm, including the retry inside install_packages, and four did not.
+# The unattended path was the fallback and the interactive one was the default.
+#
+# --interactive puts the confirmations back for anyone who wants to read what
+# pacman is about to replace.
+UNATTENDED=1
+for arg in "$@"; do
+  case "$arg" in
+  --interactive)
+    UNATTENDED=0
+    ;;
+  -h | --help)
+    cat <<'USAGE'
+Usage: ./install.sh [--interactive]
+
+  (no argument)  Install without stopping to confirm. The sudo password is
+                 asked for once, at the start, and held for the whole run.
+  --interactive  Confirm each package operation, the way pacman does when it
+                 is run by hand.
+USAGE
+    exit 0
+    ;;
+  *)
+    echo -e "${RED}Unknown option: $arg${NC}"
+    echo "Run ./install.sh --help for what this takes."
+    exit 1
+    ;;
+  esac
+done
+
+# Passed to every package operation. An empty array expands to nothing, so the
+# interactive run is the command that was there before this existed.
+CONFIRM=()
+if ((UNATTENDED)); then
+  CONFIRM=(--noconfirm)
+  echo -e "${YELLOW}Installing without confirmations. Pass --interactive to be asked.${NC}"
+  echo ""
+fi
+
+# ======================================
+#  The password, once
+# ======================================
+#
+# sudo forgets after 15 minutes without a sudo call, and a full upgrade or an
+# AUR build takes longer than that, so the install asked again partway through
+# and then sat waiting. Asked once here instead, and refreshed until this
+# script ends.
+#
+# Failing here rather than at the first sudo several minutes in. A machine with
+# no way to authenticate cannot install this, and saying so at the start costs
+# nothing.
+SUDO_KEEPALIVE_PID=""
+
+stop_sudo_keepalive() {
+  [[ -n $SUDO_KEEPALIVE_PID ]] || return 0
+  # The recorded pid, never a pattern. `pkill -f` matches the shell that is
+  # running this script as readily as the loop it is aimed at.
+  kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+  SUDO_KEEPALIVE_PID=""
+}
+trap stop_sudo_keepalive EXIT
+
+# `sudo -n true` first, so a machine that needs no password is never prompted
+# and a cached credential is reused. `sudo -v` reads from the terminal device
+# rather than stdin, so this is safe under curl-pipe, where stdin is the
+# script.
+if ! sudo -n true 2>/dev/null; then
+  echo -e "${YELLOW}This install needs sudo. You will be asked once, now.${NC}"
+  if ! sudo -v; then
+    echo -e "${RED}Could not authenticate with sudo, so nothing was installed.${NC}"
+    exit 1
+  fi
+fi
+
+# Refreshed every 60 seconds. It stops when this script does: the EXIT trap
+# kills it, and the kill -0 is the backstop for the case where the trap does
+# not run, so a keep-alive can never outlive the install and leave the machine
+# authorised.
+while true; do
+  sleep 60
+  kill -0 "$$" 2>/dev/null || exit
+  sudo -n true 2>/dev/null || exit
+done &
+SUDO_KEEPALIVE_PID=$!
+
 # Check for AUR helper
 #
 # The ladder this used to hold read yay first and then built yay when it found
@@ -105,23 +200,24 @@ elif ((aur_status != 0)); then
   # Which one to build. yay used to be the only answer and it was never asked,
   # on a machine where the choice belongs to whoever uses it afterwards.
   AUR_BUILD="paru"
-  if [[ -t 0 ]]; then
+  # Two reasons not to ask. An unattended run does not stop for questions, and
+  # under curl-pipe stdin is the script itself, so a read there takes the next
+  # line of the installer as its answer rather than waiting for a person.
+  if [[ -t 0 ]] && ((!UNATTENDED)); then
     read -rp "No AUR helper found. Install which one? [paru/yay] (paru) " reply
     case "${reply,,}" in
-      yay) AUR_BUILD="yay" ;;
-      paru | "") AUR_BUILD="paru" ;;
-      *) echo -e "${YELLOW}Not paru or yay, so installing paru.${NC}" ;;
+    yay) AUR_BUILD="yay" ;;
+    paru | "") AUR_BUILD="paru" ;;
+    *) echo -e "${YELLOW}Not paru or yay, so installing paru.${NC}" ;;
     esac
   else
-    # Under curl-pipe, stdin is the script itself, so reading from it would
-    # consume the installer. Same answer as the prompt's default.
-    echo -e "${YELLOW}No AUR helper found, and nothing here to ask. Installing paru.${NC}"
-    echo -e "${YELLOW}Set HYPRSIMPLE_AUR_HELPER, or install yay first, to use yay instead.${NC}"
+    echo -e "${YELLOW}No AUR helper found. Installing paru.${NC}"
+    echo -e "${YELLOW}Set HYPRSIMPLE_AUR_HELPER=yay, or pass --interactive to be asked.${NC}"
   fi
 
   echo -e "${YELLOW}Installing $AUR_BUILD...${NC}"
-  sudo pacman -Syu
-  sudo pacman -S --needed git base-devel
+  sudo pacman -Syu "${CONFIRM[@]}"
+  sudo pacman -S --needed "${CONFIRM[@]}" git base-devel
   # A build directory left behind by an earlier run holds that run's checkout,
   # and reusing it silently builds whatever it happens to contain. Cloning
   # fresh into a directory of our own costs nothing and cannot be a stale or
@@ -129,10 +225,17 @@ elif ((aur_status != 0)); then
   AUR_BUILD_DIR="$(mktemp -d)"
   git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
   cd "$AUR_BUILD_DIR/$AUR_BUILD"
-  makepkg -si --noconfirm
+  makepkg -si "${CONFIRM[@]}"
   cd "$DOTFILES_DIR"
   rm -rf "$AUR_BUILD_DIR"
   AUR_HELPER="$AUR_BUILD"
+fi
+
+# Per helper, and only when the run is unattended. paru and yay each need
+# more than --noconfirm before they stop waiting for a keypress.
+AUR_CONFIRM=()
+if ((UNATTENDED)); then
+  mapfile -t AUR_CONFIRM < <(aur_unattended_flags "$AUR_HELPER")
 fi
 
 echo -e "${GREEN}Using AUR helper: $AUR_HELPER${NC}"
@@ -516,8 +619,8 @@ install_package_list() {
 # Install official packages
 echo -e "${YELLOW}Installing official packages...${NC}"
 if [ -f "$DOTFILES_DIR/packages.txt" ]; then
-  sudo pacman -Syu
-  install_package_list "$DOTFILES_DIR/packages.txt" sudo pacman -S
+  sudo pacman -Syu "${CONFIRM[@]}"
+  install_package_list "$DOTFILES_DIR/packages.txt" sudo pacman -S "${CONFIRM[@]}"
 else
   echo -e "${RED}packages.txt not found!${NC}"
   exit 1
@@ -526,8 +629,8 @@ fi
 # Install AUR packages
 echo -e "${YELLOW}Installing AUR packages...${NC}"
 if [ -f "$DOTFILES_DIR/aur-packages.txt" ]; then
-  $AUR_HELPER -Syu || true
-  install_package_list "$DOTFILES_DIR/aur-packages.txt" "$AUR_HELPER" -S
+  $AUR_HELPER -Syu "${AUR_CONFIRM[@]}" || true
+  install_package_list "$DOTFILES_DIR/aur-packages.txt" "$AUR_HELPER" -S "${AUR_CONFIRM[@]}"
 else
   echo -e "${YELLOW}aur-packages.txt not found, skipping AUR packages${NC}"
 fi

@@ -50,6 +50,18 @@ cd hyprsimple
 ./install.sh
 ```
 
+The install asks for your sudo password once, at the start, and then runs to
+the end without stopping. Package operations confirm nothing, so you can start
+it and walk away. It comes back to you once, at the very end, to ask whether to
+log out.
+
+If you would rather read what pacman is about to do, `./install.sh
+--interactive` puts every confirmation back, including the full system upgrade.
+It also asks which AUR helper to build when you have neither paru nor yay,
+instead of taking paru. Whichever helper you already have is the one used
+either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that
+has both.
+
 > [!WARNING]
 > These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected
 > as the desktop during installation. Coming from another desktop environment or compositor
