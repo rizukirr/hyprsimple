@@ -145,6 +145,80 @@ check "and no longer forces it on" \
 check "stripping comments leaves the file's code intact" \
   "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- waybar')" "1"
 
+# --- a reload that failed is not announced as a change on screen -------------
+#
+# Both branches ran `systemctl --user restart hyprpaper.service` unchecked and
+# notified regardless, so a hyprpaper that would not come back left the user
+# told live wallpaper was on while nothing was cycling. Measured with a
+# systemctl that fails: "Enabled (30s cycle)", exit 0.
+#
+# The setting is written before the restart and that part does work, so the
+# message names the half that did not happen rather than pretending nothing was
+# done, and the flag is still expected to be set.
+
+NLOG="$TMP/notifications"
+cat >"$STUB/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$NOTIFY_LOG"
+STUBEOF
+chmod +x "$STUB/notify-send"
+
+run_notifying() {
+  NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" PATH="$STUB:/usr/bin:/bin" \
+    bash "$HOME_DIR/.local/bin/live-wallpaper-toggle.sh" "$1" >/dev/null 2>&1
+  printf '%s' "$?" >"$TMP/lw-rc"
+}
+
+fail_restart() {
+  cat >"$STUB/systemctl" <<'STUBEOF'
+#!/bin/bash
+echo "Failed to restart hyprpaper.service" >&2
+exit 1
+STUBEOF
+  chmod +x "$STUB/systemctl"
+}
+pass_restart() { printf '#!/bin/bash\nexit 0\n' >"$STUB/systemctl"; chmod +x "$STUB/systemctl"; }
+
+# Turning it on, with a hyprpaper that will not restart.
+setup; rm -f "$HOME_DIR/.cache/live_wallpaper_enabled"
+fail_restart; : >"$NLOG"
+run_notifying on
+check "a failed restart is not announced as cycling" \
+  "$(grep -c 'Enabled (30s cycle)' "$NLOG")" "0"
+check "and the user is told nothing cycles yet" \
+  "$(grep -c 'nothing cycles' "$NLOG")" "1"
+check "and it exits non-zero" \
+  "$([[ $(cat "$TMP/lw-rc") != "0" ]] && echo nonzero || echo zero)" "nonzero"
+check "while the setting is still recorded, because that part did work" "$(flag)" "on"
+
+# Turning it off, same failure.
+setup
+fail_restart; : >"$NLOG"
+run_notifying off
+check "a failed restart on the way off is not announced as disabled" \
+  "$(grep -c '^Live Wallpaper Disabled -i' "$NLOG")" "0"
+check "and says the old one is still on screen" \
+  "$(grep -c 'still shows the old one' "$NLOG")" "1"
+check "while the setting is still recorded" "$(flag)" "off"
+
+# Anti-vacuity: with a restart that works, both are announced plainly. A script
+# that always reported failure would satisfy every check above.
+setup; rm -f "$HOME_DIR/.cache/live_wallpaper_enabled"
+pass_restart; : >"$NLOG"
+run_notifying on
+check "a restart that works is announced as cycling" \
+  "$(grep -c 'Enabled (30s cycle)' "$NLOG")" "1"
+check "and exits 0" "$(cat "$TMP/lw-rc")" "0"
+
+: >"$NLOG"
+run_notifying off
+check "and turning it off is announced plainly" \
+  "$(grep -c 'Live Wallpaper Disabled' "$NLOG")" "1"
+check "and exits 0" "$(cat "$TMP/lw-rc")" "0"
+
+# Restore the quiet stub for anything after this.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/notify-send"; chmod +x "$STUB/notify-send"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
