@@ -58,6 +58,73 @@ case "${1-}" in
     ;;
 esac
 
+# Network calls that stop rather than hang.
+#
+# The three git calls below reach out to origin, and none of them was bounded.
+# A connection that stalls mid transfer leaves "Pulling latest hyprsimple..."
+# on screen with no output, no timeout and nothing to say whether it is slow or
+# wedged. Seen doing exactly that: an established connection to github with
+# nothing moving through it for two and a half minutes, while curl to the same
+# host answered in under a second, until it was interrupted by hand.
+#
+# git's own low speed guard rather than an outer timeout. It aborts a transfer
+# that drops below a byte rate for a stretch, which is the stalled case, and it
+# leaves a slow but working transfer alone. A wall clock timeout cannot tell
+# those apart and would cut off someone on a poor connection who was making
+# progress.
+#
+# Both overridable, so a machine on a genuinely slow link can raise them and
+# the suite can drop them to something it need not wait for.
+GIT_STALL_BYTES="${HYPRSIMPLE_GIT_STALL_BYTES:-1000}"
+GIT_STALL_SECONDS="${HYPRSIMPLE_GIT_STALL_SECONDS:-30}"
+
+# Tried again before giving up, because the stall that prompted this cleared on
+# its own: the run that hung was interrupted by hand and the very next one
+# finished in under a second. A failure the user fixes by pressing up and enter
+# is a failure this can absorb.
+#
+# Output is collected per attempt and only emitted once, on success. A retry
+# that appended to a partial answer would corrupt the tag list this feeds.
+GIT_ATTEMPTS="${HYPRSIMPLE_GIT_ATTEMPTS:-3}"
+
+git_net() {
+  local attempt=1 out status
+  out=$(mktemp) || return 1
+  while :; do
+    # The status is taken from git directly, not after an if.
+    #
+    # `if cmd; then ...; fi` with a false condition and no else returns 0, so
+    # reading $? on the line after the fi captured 0 and this function reported
+    # success for a fetch that had failed every attempt. The script then carried
+    # on with a repository it had not updated and printed "hyprsimple is up to
+    # date", which is worse than the hang this was written to replace.
+    git -c "http.lowSpeedLimit=$GIT_STALL_BYTES" \
+        -c "http.lowSpeedTime=$GIT_STALL_SECONDS" \
+        -C "$HYPRSIMPLE_PATH" "$@" >"$out" 2>/dev/null
+    status=$?
+
+    if (( status == 0 )); then
+      cat "$out"
+      rm -f "$out"
+      return 0
+    fi
+
+    if (( attempt >= GIT_ATTEMPTS )); then
+      rm -f "$out"
+      return "$status"
+    fi
+
+    echo -e "${YELLOW}That did not get through. Trying again ($((attempt + 1)) of $GIT_ATTEMPTS)...${NC}" >&2
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+}
+
+stalled_hint() {
+  echo -e "${YELLOW}If that keeps happening, the connection to origin is stalling rather than failing.${NC}" >&2
+  echo "Check the network and run hyprsimple-update again." >&2
+}
+
 # The tag list cannot come from the local repository. The history-shrinking
 # migration deletes every tag ref, and the fetch refspec only covers branches,
 # so a shrunk install has no tags at all and never grows any on its own.
@@ -65,7 +132,7 @@ esac
 # their numbers. A plain `sort -V` puts every unprefixed tag below every
 # prefixed one, which is only accidentally right while the newest tag has a v.
 latest_release_tag() {
-  git -C "$HYPRSIMPLE_PATH" ls-remote --tags origin |
+  git_net ls-remote --tags origin |
     sed 's|.*refs/tags/||; s|\^{}$||' | sort -u |
     awk '{ key = $0; sub(/^v/, "", key); print key "\t" $0 }' |
     sort -V | tail -1 | cut -f2
@@ -121,8 +188,9 @@ if [[ -d $HYPRSIMPLE_PATH/.git ]]; then
     # git prints "! [rejected] (would clobber existing tag)" and still exits 0,
     # so a re-pointed release would leave the install on the old commit while
     # this script reported success.
-    git -C "$HYPRSIMPLE_PATH" fetch --quiet --force --depth 1 origin tag "$tag" || {
+    git_net fetch --quiet --force --depth 1 origin tag "$tag" || {
       echo -e "${RED}Could not fetch $tag from origin.${NC}"
+      stalled_hint
       exit 1
     }
     git -C "$HYPRSIMPLE_PATH" checkout --quiet --detach "$tag"
@@ -132,8 +200,10 @@ if [[ -d $HYPRSIMPLE_PATH/.git ]]; then
     # the shallow boundary to the new tip, which disconnects the commit this
     # install is on and turns the fast-forward below into "refusing to merge
     # unrelated histories". A plain fetch keeps the boundary and stays shallow.
-    if ! git -C "$HYPRSIMPLE_PATH" fetch --quiet origin "$target"; then
-      echo -e "${RED}origin has no branch called '$target'.${NC}"
+    if ! git_net fetch --quiet origin "$target"; then
+      echo -e "${RED}Could not fetch '$target' from origin.${NC}"
+      echo "Either origin has no branch by that name, or the fetch did not complete." >&2
+      stalled_hint
       exit 1
     fi
     if [[ $target == "$current_branch" ]]; then

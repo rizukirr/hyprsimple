@@ -163,9 +163,16 @@ before=$(git -C "$INSTALL" rev-parse HEAD)
 run_update no-such-branch
 check "an unknown branch fails" "$(rc)" 1
 check "an unknown branch leaves the install alone" "$(git -C "$INSTALL" rev-parse HEAD)" "$before"
-if grep -q "no branch called 'no-such-branch'" "$TMP/out"; then
+# The branch has to be named, whatever the wording around it. The message used
+# to assert the cause outright, "origin has no branch called X", and a fetch
+# that stalled produced that same line about a branch that exists. It says which
+# fetch failed and offers both causes now.
+if grep -q "no-such-branch" "$TMP/out"; then
   pass "an unknown branch is named in the error"
 else fail "an unknown branch is named in the error"; fi
+if grep -q "no branch by that name" "$TMP/out"; then
+  pass "and a missing branch is still offered as the cause"
+else fail "and a missing branch is still offered as the cause"; fi
 
 run_update --nonsense
 check "an unknown option fails" "$(rc)" 1
@@ -174,6 +181,127 @@ check "--help exits 0" "$(rc)" 0
 
 # --- the shrink must survive all of it --------------------------------------
 check "the install is still shallow" "$(git -C "$INSTALL" rev-parse --is-shallow-repository)" true
+
+# ---- a stalled origin stops instead of hanging -------------------------------
+#
+# The three git calls that reach origin were unbounded. A connection that
+# stalls mid transfer left "Pulling latest hyprsimple..." on screen with no
+# output, no timeout and nothing to say whether it was slow or wedged. Seen
+# doing exactly that on a real machine: an established connection to github
+# with nothing moving through it for two and a half minutes, while curl to the
+# same host answered in under a second, until it was interrupted by hand.
+#
+# Driven against a server that accepts and then sends nothing, which is that
+# stall, rather than against a refused or missing port. A refusal fails fast on
+# its own and would prove nothing about the guard.
+
+STALL_LOG="$TMP/stall-server.log"
+STALL_PIDFILE="$TMP/stall-server.pid"
+cat >"$TMP/stallserver.py" <<'PYEOF'
+import socket, sys
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("127.0.0.1", 0))
+s.listen(16)
+print(s.getsockname()[1], flush=True)
+held = []
+while True:
+    c, _ = s.accept()
+    held.append(c)  # accepted, never answered, never closed
+PYEOF
+
+python3 "$TMP/stallserver.py" >"$STALL_LOG" 2>/dev/null &
+printf '%s' "$!" >"$STALL_PIDFILE"
+# By recorded pid, never by pattern. pkill -f matches the command line of
+# whatever shell is running this suite, and a pattern that appears in that
+# command line kills the suite itself.
+kill_stall_server() {
+  local pid
+  pid=$(cat "$STALL_PIDFILE" 2>/dev/null) || return 0
+  [[ -n $pid ]] && kill "$pid" 2>/dev/null
+  : >"$STALL_PIDFILE"
+}
+trap 'kill_stall_server; rm -rf "$TMP"' EXIT
+
+stall_port=""
+for _ in $(seq 1 50); do
+  stall_port=$(head -1 "$STALL_LOG" 2>/dev/null)
+  [[ -n $stall_port ]] && break
+  sleep 0.1
+done
+
+if [[ -z $stall_port ]]; then
+  fail "the stalling server did not start, so the guard is not being tested"
+else
+  pass "a stalling server is listening on port $stall_port"
+
+  stall_install="$TMP/stall-install"
+  must_be_fixture "$stall_install"
+  git init -q "$stall_install"
+  git -C "$stall_install" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$stall_install" branch -M main
+  git -C "$stall_install" remote add origin "http://127.0.0.1:$stall_port/x.git"
+
+  started=$(date +%s)
+  HOME="$FAKE_HOME" HYPRSIMPLE_PATH="$stall_install" PATH="$STUB:$PATH" \
+    HYPRSIMPLE_GIT_STALL_SECONDS=3 HYPRSIMPLE_GIT_STALL_BYTES=1000 \
+    HYPRSIMPLE_GIT_ATTEMPTS=2 \
+    timeout 40 bash "$UPDATE" main >"$TMP/stall-out" 2>&1
+  stall_rc=$?
+  elapsed=$(( $(date +%s) - started ))
+
+  check "a stalled origin does not hang the update" \
+    "$([[ $stall_rc == 124 ]] && echo hung || echo stopped)" "stopped"
+  check "and it stops near the guard rather than much later (${elapsed}s)" \
+    "$([[ $elapsed -lt 20 ]] && echo prompt || echo late)" "prompt"
+  check "and exits non-zero" \
+    "$([[ $stall_rc != "0" ]] && echo nonzero || echo zero)" "nonzero"
+  check "and says the fetch did not complete" \
+    "$(grep -c 'did not complete' "$TMP/stall-out")" "1"
+  check "and names stalling as the thing to look at" \
+    "$(grep -c 'stalling rather than failing' "$TMP/stall-out")" "1"
+
+  # The half that matters most: a fetch that never got through must not leave
+  # the run reporting success. The first version of the retry read $? on the
+  # line after an if whose condition had failed, which in bash is 0, so it
+  # returned success for a fetch that failed every attempt and the script went
+  # on to print "hyprsimple is up to date" against a repository it had not
+  # updated. That is worse than the hang it replaced.
+  check "a fetch that never got through is not reported as up to date" \
+    "$(grep -c 'up to date' "$TMP/stall-out")" "0"
+  check "and the run does not claim a version it did not fetch" \
+    "$(grep -c 'Now on hyprsimple' "$TMP/stall-out")" "0"
+
+  # It really did try more than once, or the retry is not being exercised.
+  check "and it tried again before giving up" \
+    "$(grep -c 'Trying again' "$TMP/stall-out")" "1"
+
+  # Without the guard the same fetch is still running when the cap fires, which
+  # is what makes the checks above about the guard and not about the server.
+  started=$(date +%s)
+  timeout 8 git -C "$stall_install" fetch --quiet origin main >/dev/null 2>&1
+  bare_rc=$?
+  check "the same fetch unguarded is still hanging when it is cut off" \
+    "$([[ $bare_rc == 124 ]] && echo hanging || echo stopped)" "hanging"
+  check "and it used the whole window rather than failing early" \
+    "$([[ $(( $(date +%s) - started )) -ge 7 ]] && echo whole || echo early)" "whole"
+
+  kill_stall_server
+fi
+
+# All three calls that reach origin go through the guard, not just the one the
+# checks above happen to exercise.
+update_code() { sed 's/^[[:space:]]*#.*//' "$UPDATE"; }
+check "no call to origin bypasses the guard" \
+  "$(update_code | grep -cE 'git -C "\$HYPRSIMPLE_PATH" (fetch|ls-remote)')" "0"
+check "and the guard is used by all three of them" \
+  "$(update_code | grep -cE 'git_net (fetch|ls-remote)')" "3"
+check "the number of attempts is bounded and overridable" \
+  "$(update_code | grep -c 'HYPRSIMPLE_GIT_ATTEMPTS')" "1"
+check "and it sets both halves of git's low speed check" \
+  "$(update_code | grep -c 'http.lowSpeedLimit')" "1"
+check "and the time half too" \
+  "$(update_code | grep -c 'http.lowSpeedTime')" "1"
 
 if ((failures > 0)); then
   printf '\n%d check(s) failed\n' "$failures" >&2
