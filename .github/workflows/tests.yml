@@ -157,6 +157,9 @@ jobs:
       - name: package-install-test
         run: bash test/package-install-test.sh
 
+      - name: aur-helper-test
+        run: bash test/aur-helper-test.sh
+
       - name: notification-idiom-test
         run: bash test/notification-idiom-test.sh
 

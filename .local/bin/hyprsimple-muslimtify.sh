@@ -30,11 +30,23 @@ usage() {
   exit 1
 }
 
+# Whichever helper is installed. This read yay first, so a paru machine
+# installed muslimtify through yay the moment yay was present for any other
+# reason. Shared with install.sh and hyprsimple-update.sh now.
+AUR_DETECT="$HOME/.local/bin/hyprsimple-aur-helper.sh"
+if [[ -r $AUR_DETECT ]]; then
+  # shellcheck source=/dev/null
+  source "$AUR_DETECT"
+else
+  die "missing helper: hyprsimple-aur-helper.sh. Run hyprsimple-update."
+fi
+
 pick_aur_helper() {
-  if command -v yay >/dev/null 2>&1; then echo yay
-  elif command -v paru >/dev/null 2>&1; then echo paru
-  else die "no AUR helper found (need yay or paru)"
-  fi
+  local helper
+  # aur_helper says on stderr which name it could not find, so the message
+  # here only has to cover the case where nothing is installed at all.
+  helper="$(aur_helper)" || die "no AUR helper found (need paru or yay)"
+  printf '%s\n' "$helper"
 }
 
 reload_waybar() {
