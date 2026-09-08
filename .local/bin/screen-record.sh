@@ -37,9 +37,33 @@ start_screenrecording() {
 
   # Which recorder runs has to be settled before the audio flags are built,
   # because the two do not take the same ones.
-  local recorder=wl-screenrec
+  #
+  # By what is installed, not by hardware alone. This used to be wl-screenrec
+  # unless the machine had NVIDIA, and wl-screenrec is the one package here
+  # built from source: wl-screenrec-git failed to compile on an older machine,
+  # the install carried on and reported it among the failed packages, and every
+  # recording keybind afterwards ran a command that was not there. wf-recorder
+  # ships in packages.txt from the official repositories and needs no build, so
+  # there is always something to fall back to.
+  #
+  # NVIDIA still prefers wf-recorder. That preference is the order here, not a
+  # decision made instead of looking.
+  local recorder="" candidate
+  local preferred=(wl-screenrec wf-recorder)
   if "$HOME/.local/bin/hyprsimple-hw-nvidia.sh"; then
-    recorder=wf-recorder
+    preferred=(wf-recorder wl-screenrec)
+  fi
+  for candidate in "${preferred[@]}"; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      recorder="$candidate"
+      break
+    fi
+  done
+
+  if [[ -z $recorder ]]; then
+    notify-send "No screen recorder installed" \
+      "Install wf-recorder or wl-screenrec, then try again." -u critical -t 5000
+    exit 1
   fi
 
   # Configure audio source depending on mode
