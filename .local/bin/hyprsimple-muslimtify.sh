@@ -95,8 +95,18 @@ cmd_add() {
     backup "$WAYBAR_CONFIG"
 
     # Insert into modules-left after "hyprland/workspaces"
-    sed -i 's|"hyprland/workspaces"\(\s*\)\]|"hyprland/workspaces", "custom/muslimtify"\1]|' "$WAYBAR_CONFIG"
-    sed -i 's|"hyprland/workspaces",|"hyprland/workspaces", "custom/muslimtify",|' "$WAYBAR_CONFIG"
+    #
+    # Addressed to the modules-left line, not applied to the whole file. Both
+    # substitutions matched "hyprland/workspaces" wherever it appeared, and a
+    # config with workspaces in two lists got the module in both:
+    #
+    #   "modules-left":  ["hyprland/workspaces", "custom/muslimtify", "clock"]
+    #   "modules-right": ["hyprland/workspaces", "custom/muslimtify", "tray"]
+    #
+    # so the prayer times showed up twice in the bar. The comment above has
+    # always said modules-left; only the address makes it true.
+    sed -i '/"modules-left"/ s|"hyprland/workspaces"\(\s*\)\]|"hyprland/workspaces", "custom/muslimtify"\1]|' "$WAYBAR_CONFIG"
+    sed -i '/"modules-left"/ s|"hyprland/workspaces",|"hyprland/workspaces", "custom/muslimtify",|' "$WAYBAR_CONFIG"
     # Above two regexes collide if modules-left is just ["hyprland/workspaces"]; dedupe just in case:
     sed -i 's|"custom/muslimtify", "custom/muslimtify"|"custom/muslimtify"|g' "$WAYBAR_CONFIG"
 
