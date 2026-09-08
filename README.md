@@ -179,7 +179,18 @@ Older installs have a copy of the templates at `~/.config/hypr/themes/templates`
 
 ## Network
 
-To see the available network interfaces, run `wifi`. To connect to a network, run `wifi <network name>` for example `wifi "MY NETWORK"`
+`wifi` on its own rescans and lists the networks in range. `wifi "MY NETWORK"`
+connects to one: an open network, or one you have joined before, connects
+straight away, and a secured one asks for the password.
+
+From a keybind or a script there is nobody to ask, so pass it instead:
+
+```bash
+wifi "MY NETWORK" "my password"
+```
+
+`wifi --help` lists both forms. It uses NetworkManager if it is running, and
+iwd otherwise.
 
 ## Keybindings
 
@@ -244,6 +255,11 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 The menu offers a region or the whole screen, each with microphone audio,
 system audio, or none. While something is recording it offers to stop instead,
 so the same key both starts and stops.
+
+Recording uses `wl-screenrec` where it can and `wf-recorder` otherwise, and
+NVIDIA machines prefer `wf-recorder`. Only `wf-recorder` is required: it comes
+from the official repositories, so recording still works if the `wl-screenrec`
+build fails during install.
 
 ### Media & Brightness
 
@@ -316,7 +332,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 
 | Script | Description |
 |--------|-------------|
-| `wifi.sh` | List and connect to WiFi networks |
+| `wifi.sh` | List and connect to WiFi networks, asking for the password when one is needed |
 | `wifi-powersave.sh` | Toggle WiFi power saving (`on` / `off`) |
 | `hotspot.sh` | Create a WiFi hotspot with internet sharing |
 | `setup-dns.sh` | Configure the DNS provider (Cloudflare / Google / DHCP) |
