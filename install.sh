@@ -76,22 +76,63 @@ if [ ! -f /etc/arch-release ]; then
 fi
 
 # Check for AUR helper
-if command -v yay &>/dev/null; then
-  AUR_HELPER="yay"
-elif command -v paru &>/dev/null; then
-  AUR_HELPER="paru"
-else
-  echo -e "${YELLOW}No AUR helper found. Installing yay...${NC}"
-  sudo pacman -Syu
-  sudo pacman -S --needed git base-devel
-  if [[ ! -d "/tmp/yay" ]]; then
-    git clone https://aur.archlinux.org/yay.git /tmp/yay
+#
+# The ladder this used to hold read yay first and then built yay when it found
+# neither, so a paru machine was moved onto yay by installing hyprsimple. The
+# detection is shared with hyprsimple-update.sh and hyprsimple-muslimtify.sh
+# now, because all three had their own copy of it and all three were wrong the
+# same way.
+AUR_DETECT="$DOTFILES_DIR/.local/bin/hyprsimple-aur-helper.sh"
+if [[ ! -r $AUR_DETECT ]]; then
+  echo -e "${RED}Missing $AUR_DETECT, so this clone is incomplete.${NC}"
+  echo -e "${RED}Clone hyprsimple again and re-run this installer.${NC}"
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "$AUR_DETECT"
+
+# `|| status=$?` rather than reading $? on the next line. An `if` whose
+# condition is false and which has no else returns 0, so the status read after
+# it is the `if`'s, not the command's.
+aur_status=0
+AUR_HELPER="$(aur_helper)" || aur_status=$?
+
+if ((aur_status == 2)); then
+  # aur_helper has already said which name it could not find.
+  echo -e "${RED}Install it, or unset HYPRSIMPLE_AUR_HELPER to use whichever is present.${NC}"
+  exit 1
+elif ((aur_status != 0)); then
+  # Which one to build. yay used to be the only answer and it was never asked,
+  # on a machine where the choice belongs to whoever uses it afterwards.
+  AUR_BUILD="paru"
+  if [[ -t 0 ]]; then
+    read -rp "No AUR helper found. Install which one? [paru/yay] (paru) " reply
+    case "${reply,,}" in
+      yay) AUR_BUILD="yay" ;;
+      paru | "") AUR_BUILD="paru" ;;
+      *) echo -e "${YELLOW}Not paru or yay, so installing paru.${NC}" ;;
+    esac
+  else
+    # Under curl-pipe, stdin is the script itself, so reading from it would
+    # consume the installer. Same answer as the prompt's default.
+    echo -e "${YELLOW}No AUR helper found, and nothing here to ask. Installing paru.${NC}"
+    echo -e "${YELLOW}Set HYPRSIMPLE_AUR_HELPER, or install yay first, to use yay instead.${NC}"
   fi
 
-  cd /tmp/yay
+  echo -e "${YELLOW}Installing $AUR_BUILD...${NC}"
+  sudo pacman -Syu
+  sudo pacman -S --needed git base-devel
+  # A build directory left behind by an earlier run holds that run's checkout,
+  # and reusing it silently builds whatever it happens to contain. Cloning
+  # fresh into a directory of our own costs nothing and cannot be a stale or
+  # someone else's /tmp/yay.
+  AUR_BUILD_DIR="$(mktemp -d)"
+  git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
+  cd "$AUR_BUILD_DIR/$AUR_BUILD"
   makepkg -si --noconfirm
   cd "$DOTFILES_DIR"
-  AUR_HELPER="yay"
+  rm -rf "$AUR_BUILD_DIR"
+  AUR_HELPER="$AUR_BUILD"
 fi
 
 echo -e "${GREEN}Using AUR helper: $AUR_HELPER${NC}"

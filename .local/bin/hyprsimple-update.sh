@@ -311,18 +311,25 @@ install_missing_packages() {
   $helper -S --needed --noconfirm "${missing[@]}" || true
 }
 
-if command -v yay &>/dev/null; then
-  AUR_HELPER="yay"
-elif command -v paru &>/dev/null; then
-  AUR_HELPER="paru"
-else
-  AUR_HELPER=""
+# Whichever helper is installed, not yay first. Read out of the repo just
+# pulled rather than out of ~/.local/bin, so the update that first ships this
+# file can use it on the same run that delivers it.
+AUR_DETECT="$HYPRSIMPLE_PATH/.local/bin/hyprsimple-aur-helper.sh"
+AUR_HELPER=""
+if [[ -r $AUR_DETECT ]]; then
+  # shellcheck source=/dev/null
+  source "$AUR_DETECT"
+  AUR_HELPER="$(aur_helper)" || AUR_HELPER=""
 fi
 
 echo -e "\n${YELLOW}Checking for newly required packages...${NC}"
 install_missing_packages "$HYPRSIMPLE_PATH/packages.txt" "sudo pacman"
 if [[ -n $AUR_HELPER ]]; then
   install_missing_packages "$HYPRSIMPLE_PATH/aur-packages.txt" "$AUR_HELPER"
+else
+  # Said rather than skipped in silence. An update that reports nothing about
+  # the AUR list reads as an update that found nothing to do there.
+  echo -e "${YELLOW}No AUR helper, so AUR packages were not checked. Install paru or yay.${NC}"
 fi
 
 # ---- Migrations ----------------------------------------------------------
