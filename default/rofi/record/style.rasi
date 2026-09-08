@@ -1,0 +1,94 @@
+/* The recording menu, opened by SUPER + R.
+ *
+ * rofi-colors.rasi is a symlink the theme switcher repoints on every theme
+ * change, so this menu repaints itself with the rest of the desktop. Every
+ * colour below comes from it and none is written here, or the menu would keep
+ * one theme's palette while everything else moved.
+ */
+@import "~/.config/rofi/rofi-colors.rasi"
+
+* {
+    font: "Iosevka Nerd Font 13";
+}
+
+configuration {
+    show-icons: false;
+}
+
+window {
+    /* transparency "real" gives the surface an alpha channel. Without it the
+       alpha byte in the palette is ignored and the panel renders solid. */
+    transparency:       "real";
+    location:           center;
+    anchor:             center;
+    width:              460px;
+    border-radius:      16px;
+    background-color:   @background;
+    border:             2px;
+    border-color:       @selected;
+}
+
+/* -theme replaces rofi's base theme outright, so an element left unset falls
+   back to rofi's built-in light defaults. Naming the children keeps the panel
+   on the theme's own surface. */
+mainbox {
+    spacing:            0px;
+    background-color:   transparent;
+    children:           [ "inputbar", "listview" ];
+}
+
+inputbar {
+    padding:            14px 16px;
+    background-color:   transparent;
+    text-color:         @foreground;
+    children:           [ "prompt", "entry" ];
+}
+
+prompt {
+    padding:            0px 8px 0px 0px;
+    background-color:   transparent;
+    text-color:         @selected;
+}
+
+entry {
+    background-color:   transparent;
+    text-color:         @foreground;
+    cursor:             text;
+    placeholder:        "Filter...";
+    placeholder-color:  @background-alt;
+}
+
+listview {
+    columns:            1;
+    /* Six entries when idle, one when a recording is running. fixed-height
+       false lets the panel shrink to whichever it is showing rather than
+       leaving four empty rows under a single Stop. */
+    lines:              6;
+    fixed-height:       false;
+    scrollbar:          false;
+    padding:            0px 8px 8px 8px;
+    spacing:            2px;
+    background-color:   transparent;
+}
+
+element {
+    padding:            9px 12px;
+    border-radius:      8px;
+    background-color:   transparent;
+    text-color:         @foreground;
+}
+
+/* The selection is marked with @selected, the theme accent, rather than with
+   @background-alt alone. background-alt comes from color0, which sits close to
+   the panel in most of the shipped themes, so a fill on its own is hard to
+   see. */
+element selected.normal {
+    background-color:   @background-alt;
+    text-color:         @selected;
+}
+
+element-text {
+    background-color:   transparent;
+    text-color:         inherit;
+    vertical-align:     0.5;
+}

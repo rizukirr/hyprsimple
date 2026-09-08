@@ -1,9 +1,13 @@
 local home = os.getenv("HOME")
-local rec  = home .. "/.local/bin/screen-record.sh"
 
-hl.bind("SUPER + R",               hl.dsp.exec_cmd(rec .. " region mic"),      { description = "Record Region (Mic)" })
-hl.bind("SUPER + SHIFT + R",       hl.dsp.exec_cmd(rec .. " output mic"),      { description = "Record Screen (Mic)" })
-hl.bind("SUPER + ALT + R",         hl.dsp.exec_cmd(rec .. " region internal"), { description = "Record Region (System Audio)" })
-hl.bind("SUPER + SHIFT + ALT + R", hl.dsp.exec_cmd(rec .. " output internal"), { description = "Record Screen (System Audio)" })
-hl.bind("SUPER + CTRL + R",        hl.dsp.exec_cmd(rec .. " region none"),     { description = "Record Region (No Audio)" })
-hl.bind("SUPER + CTRL + SHIFT + R",hl.dsp.exec_cmd(rec .. " output none"),     { description = "Record Screen (No Audio)" })
+-- One key, and the combination is chosen from a list.
+--
+-- There were six binds here, one per pairing of scope and audio source:
+-- SUPER + R, + SHIFT, + ALT, + SHIFT + ALT, + CTRL, + CTRL + SHIFT. Five of
+-- those are chords nobody remembers, and the keybinding viewer listed all six
+-- as separate entries for what is one action with two choices in it.
+--
+-- The menu also stops a recording that is running, so the same key both starts
+-- and stops and there is nothing to remember about which.
+hl.bind("SUPER + R", hl.dsp.exec_cmd(home .. "/.local/bin/hyprsimple-record-menu.sh"),
+  { description = "Record (menu: region or screen, mic, system audio or none)" })

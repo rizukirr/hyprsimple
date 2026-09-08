@@ -227,12 +227,11 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `SUPER + R` | Record region with mic audio |
-| `SUPER + SHIFT + R` | Record fullscreen with mic audio |
-| `SUPER + ALT + R` | Record region with system audio |
-| `SUPER + SHIFT + ALT + R` | Record fullscreen with system audio |
-| `SUPER + CTRL + R` | Record region without audio |
-| `SUPER + CTRL + SHIFT + R` | Record fullscreen without audio |
+| `SUPER + R` | Open the recording menu, or stop a recording that is running |
+
+The menu offers a region or the whole screen, each with microphone audio,
+system audio, or none. While something is recording it offers to stop instead,
+so the same key both starts and stops.
 
 ### Media & Brightness
 
@@ -298,6 +297,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 |--------|-------------|
 | `screenshot.sh` | Take a screenshot (`clipboard` / `window` / `region` / `monitor`) |
 | `screen-record.sh` | Start/stop screen recording (region or output; mic, internal, or no audio) |
+| `hyprsimple-record-menu.sh` | The rofi menu behind `SUPER + R`, which picks what to record and starts or stops it |
 | `screen-record-active.sh` | Report whether a screen recording is currently running |
 
 ### Network
