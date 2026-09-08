@@ -397,6 +397,86 @@ check "and nothing is announced as mirroring" \
 check "and wl-mirror is never run" "$(grep -c '^wl-mirror ' "$LOG")" "0"
 check "and the script exits non-zero" "$rc" "1"
 
+# --- toggle-idle.sh ----------------------------------------------------------
+#
+# It backgrounded hypridle, discarded its output and notified regardless, so a
+# hypridle that refused to start left the user told the screen would lock on
+# idle when nothing was going to lock it. Worse than the other
+# announce-regardless bugs here: the rest waste a keypress, this one says a
+# screen lock is armed when it is not.
+#
+# Its own stub directory, because pgrep has to answer differently before and
+# after the start, which the shared stub cannot do.
+IDLE="$TMP/idle"; mkdir -p "$IDLE"
+IDLE_STARTED="$IDLE/started"
+
+cat >"$IDLE/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf 'notify-send %s\n' "$*" >>"$CALL_LOG"
+STUBEOF
+cat >"$IDLE/pgrep" <<'STUBEOF'
+#!/bin/bash
+[[ -e $IDLE_STARTED ]] && exit 0
+exit 1
+STUBEOF
+cat >"$IDLE/uwsm" <<'STUBEOF'
+#!/bin/bash
+printf 'uwsm %s\n' "$*" >>"$CALL_LOG"
+[[ -n ${UWSM_FAILS:-} ]] && exit 1
+: >"$IDLE_STARTED"
+exit 0
+STUBEOF
+cat >"$IDLE/pkill" <<'STUBEOF'
+#!/bin/bash
+printf 'pkill %s\n' "$*" >>"$CALL_LOG"
+[[ -n ${PKILL_FAILS:-} ]] && exit 1
+rm -f "$IDLE_STARTED"
+exit 0
+STUBEOF
+chmod +x "$IDLE"/*
+
+run_idle() {
+  CALL_LOG="$LOG" IDLE_STARTED="$IDLE_STARTED" HYPRSIMPLE_IDLE_START_WAIT=0.1 \
+    PATH="$IDLE:/usr/bin:/bin" bash "$BIN/toggle-idle.sh" >/dev/null 2>&1
+  printf '%s' "$?" >"$TMP/idle-rc"
+}
+
+# hypridle refuses to start.
+rm -f "$IDLE_STARTED"; : >"$LOG"
+UWSM_FAILS=1 run_idle
+check "a hypridle that will not start is not reported as locking" \
+  "$(grep -c 'Now locking when idle' "$LOG")" "0"
+check "and the user is told the screen will not lock" \
+  "$(grep -c 'will not lock when idle' "$LOG")" "1"
+check "critically, because a lock that is not armed is worth interrupting for" \
+  "$(grep -c -- '-u critical' "$LOG")" "1"
+check "and the script exits non-zero" \
+  "$([[ $(cat "$TMP/idle-rc") != "0" ]] && echo nonzero || echo zero)" "nonzero"
+check "and it really did try to start it" "$(grep -c '^uwsm ' "$LOG")" "1"
+
+# hypridle starts and stays up.
+rm -f "$IDLE_STARTED"; : >"$LOG"
+run_idle
+check "a hypridle that starts is reported as locking" \
+  "$(grep -c 'Now locking when idle' "$LOG")" "1"
+check "and the script exits 0" "$(cat "$TMP/idle-rc")" "0"
+
+# Running again turns it off, because pgrep now finds it.
+: >"$LOG"
+run_idle
+check "a second press stops it" "$(grep -c 'Stopped locking when idle' "$LOG")" "1"
+check "and exits 0" "$(cat "$TMP/idle-rc")" "0"
+
+# The stop can fail too, and then idle locking is still on.
+: >"$IDLE_STARTED"; : >"$LOG"
+PKILL_FAILS=1 run_idle
+check "a stop that failed is not reported as stopped" \
+  "$(grep -c 'Stopped locking when idle' "$LOG")" "0"
+check "and says the screen still locks" \
+  "$(grep -c 'still locks when idle' "$LOG")" "1"
+check "and exits non-zero" \
+  "$([[ $(cat "$TMP/idle-rc") != "0" ]] && echo nonzero || echo zero)" "nonzero"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
