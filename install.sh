@@ -20,6 +20,31 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+UNATTENDED=1
+for arg in "$@"; do
+  case "$arg" in
+  --interactive)
+    UNATTENDED=0
+    ;;
+  -h | --help)
+    cat <<'USAGE'
+Usage: ./install.sh [--interactive]
+
+  (no argument)  Install without stopping to confirm. The sudo password is
+                 asked for once, at the start, and held for the whole run.
+  --interactive  Confirm each package operation, the way pacman does when it
+                 is run by hand.
+USAGE
+    exit 0
+    ;;
+  *)
+    echo -e "${RED}Unknown option: $arg${NC}"
+    echo "Run ./install.sh --help for what this takes."
+    exit 1
+    ;;
+  esac
+done
+
 # ======================================
 #  Logging & error reporting
 # ======================================
@@ -89,33 +114,12 @@ fi
 # The unattended path was the fallback and the interactive one was the default.
 #
 # --interactive puts the confirmations back for anyone who wants to read what
-# pacman is about to replace.
-UNATTENDED=1
-for arg in "$@"; do
-  case "$arg" in
-  --interactive)
-    UNATTENDED=0
-    ;;
-  -h | --help)
-    cat <<'USAGE'
-Usage: ./install.sh [--interactive]
-
-  (no argument)  Install without stopping to confirm. The sudo password is
-                 asked for once, at the start, and held for the whole run.
-  --interactive  Confirm each package operation, the way pacman does when it
-                 is run by hand.
-USAGE
-    exit 0
-    ;;
-  *)
-    echo -e "${RED}Unknown option: $arg${NC}"
-    echo "Run ./install.sh --help for what this takes."
-    exit 1
-    ;;
-  esac
-done
-
-# Passed to every package operation. An empty array expands to nothing, so the
+# pacman is about to replace. It is parsed at the top of this file rather than
+# here, because the logging block between the two truncates install.log, and
+# --help is exactly what someone runs while looking at a failed install whose
+# log the failure message told them to attach.
+#
+# Passed to every package operation. An empty array expands to nothing, so an
 # interactive run is the command that was there before this existed.
 CONFIRM=()
 if ((UNATTENDED)); then

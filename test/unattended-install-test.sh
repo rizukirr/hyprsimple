@@ -84,10 +84,19 @@ fi
 # argument parsing is lifted out of the shipped file, so what runs below is
 # what ships.
 
-sed -n '/^UNATTENDED=1$/,/^fi$/p' "$INSTALL" >"$TMP/args.sh"
+# Two pieces, because they sit apart in the file: the parsing is above the
+# logging block, which truncates install.log, so --help cannot destroy the log
+# of the failed install someone is looking at.
+{
+  sed -n '/^UNATTENDED=1$/,/^done$/p' "$INSTALL"
+  sed -n '/^CONFIRM=()$/,/^fi$/p' "$INSTALL"
+} >"$TMP/args.sh"
 check "the argument parsing was lifted out of install.sh" \
   "$(grep -c -- '--interactive)' "$TMP/args.sh")" "1"
 check "and it carries the flag array it sets" "$(grep -c 'CONFIRM=(--noconfirm)' "$TMP/args.sh")" "1"
+check "and the parsing really does come before the log is truncated" \
+  "$([[ $(grep -n '^UNATTENDED=1$' "$INSTALL" | cut -d: -f1) -lt $(grep -n '^: >"\$INSTALL_LOG"$' "$INSTALL" | cut -d: -f1) ]] && echo before || echo after)" \
+  "before"
 
 cat >>"$TMP/args.sh" <<'TAILEOF'
 printf 'unattended=%s flags=%s\n' "$UNATTENDED" "${CONFIRM[*]}"
