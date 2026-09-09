@@ -984,6 +984,17 @@ if [ -f "$HOME/.config/systemd/user/battery-monitor.timer" ]; then
   echo -e "${GREEN}Battery monitor enabled${NC}"
 fi
 
+# Bluetooth audio auto-switching.
+#
+# enable, not enable --now, for the reason above: the unit is wanted by
+# graphical-session.target, which is not up while the installer runs.
+if [ -f "$HOME/.config/systemd/user/hyprsimple-audio-autoswitch.service" ]; then
+  echo -e "${YELLOW}Enabling bluetooth audio auto-switching...${NC}"
+  systemctl --user daemon-reload
+  systemctl --user enable hyprsimple-audio-autoswitch.service
+  echo -e "${GREEN}Bluetooth audio auto-switching enabled${NC}"
+fi
+
 # hyprsunset, through the unit its own package ships rather than a bare uwsm
 # scope. autostart.lua used to run `uwsm app -- hyprsunset`, which has no
 # restart policy at all, and hyprsunset does not survive a suspend: measured on

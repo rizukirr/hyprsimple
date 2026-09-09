@@ -1,0 +1,26 @@
+# This file is yours: hyprsimple copies it once and never touches it again.
+# Run `systemctl --user daemon-reload` after editing.
+#
+# Turn the whole thing off with
+#   systemctl --user disable --now hyprsimple-audio-autoswitch.service
+
+[Unit]
+Description=Switch audio output to a bluetooth device when one connects
+After=graphical-session.target
+# Stops with the session, the same rule battery-monitor.service follows. A
+# watcher outliving the compositor would send notifications into a bus with no
+# display.
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/hyprsimple-audio-autoswitch.sh
+# `pactl subscribe` ends when pipewire-pulse restarts, which happens on its own
+# and is not a failure. Restarting is how this survives that.
+Restart=always
+RestartSec=2
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+[Install]
+WantedBy=graphical-session.target
