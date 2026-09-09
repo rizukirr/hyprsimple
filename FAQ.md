@@ -98,6 +98,43 @@ paru -S wl-screenrec-git   # or yay -S
 >
 > No package owns that symlink, so delete it once `rust` is rebuilt. Taking Arch's own build with `sudo pacman -S extra/rust` fixes it with no workaround to remember, at the cost of the CachyOS optimisations.
 
+## My bluetooth headset is connected but the sound still comes out of the speakers
+
+Fixed, and worth knowing why, because it is hyprsimple's own doing and it sticks.
+
+WirePlumber chooses the default output by priority, and a bluetooth sink already outranks the built-in one. On the machine this was reported from, `priority.session` reads 1010 for the headset and 1009 for the speakers, so a headset takes over by itself on a fresh install.
+
+What stops it is an explicitly chosen output. WirePlumber's `find-selected-default-node.lua` does
+
+```lua
+if current_configured_node == name then
+  priority = 30000 + priority
+```
+
+to whatever `default.configured.audio.sink` names, so the chosen output scores 31009 and no bluetooth device can outrank it. `SUPER + F10` writes that key through `pactl set-default-sink`. Pressing the audio switch once therefore turned bluetooth auto-switching off permanently, on every machine, and nothing said so.
+
+A user service now watches for a bluetooth output appearing and switches to it. Only on appearance, so a device already connected is left where it is, and switching away from it by hand is not undone.
+
+If you are on an install that predates the fix, run `hyprsimple-update` and the migration enables it. To switch by hand in the meantime, press `SUPER + F10`, or:
+
+```bash
+wpctl set-default "$(pactl list short sinks | grep bluez_output | cut -f1 | head -1)"
+```
+
+To see what is pinned:
+
+```bash
+cat ~/.local/state/wireplumber/default-nodes
+```
+
+The `default.configured.audio.sink.0`, `.1` and so on below it are the previous choices, kept as a fallback chain for when the current one is gone.
+
+To turn the auto-switching off:
+
+```bash
+systemctl --user disable --now hyprsimple-audio-autoswitch.service
+```
+
 ## A migration failed. What now?
 
 Migrations run once per machine, tracked in `~/.local/state/hyprsimple/migrations`. When one fails you are asked whether to skip it. Skipping records it under `.../migrations/skipped/` and continues.

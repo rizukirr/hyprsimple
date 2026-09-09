@@ -177,6 +177,16 @@ To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same
 
 Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is no longer read, and an update removes it once every file in it is one hyprsimple shipped. If you had edited one, the whole directory is left alone and you are told which file it was, so you can move it to `templates.user/`.
 
+## Audio
+
+Connecting a bluetooth headset or speaker moves the sound to it. Switching by
+hand with `SUPER + F10` still wins while that device stays connected, and the
+next one to connect takes over again. Turn it off with
+
+```bash
+systemctl --user disable --now hyprsimple-audio-autoswitch.service
+```
+
 ## Network
 
 `wifi` on its own rescans and lists the networks in range. `wifi "MY NETWORK"`
@@ -332,6 +342,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 
 | Script | Description |
 |--------|-------------|
+| `hyprsimple-audio-autoswitch.sh` | Move the sound to a bluetooth device when one connects, run as a user service |
 | `wifi.sh` | List and connect to WiFi networks, asking for the password when one is needed |
 | `wifi-powersave.sh` | Toggle WiFi power saving (`on` / `off`) |
 | `hotspot.sh` | Create a WiFi hotspot with internet sharing |
