@@ -97,8 +97,10 @@ chmod +x "$STUB/hyprshot"
 printf '#!/bin/bash
 exit 0
 ' >"$STUB/notify-send"; chmod +x "$STUB/notify-send"
+# Read from the region case itself. Counted across the whole file it also found
+# region-clipboard, which freezes the same way, and read 2.
 check "region freezes the screen" \
-  "$(grep -c -- '-m region --freeze' "$BIN/screenshot.sh")" "1"
+  "$(sed -n '/^region)/,/;;/p' "$BIN/screenshot.sh" | grep -c -- '-m region --freeze')" "1"
 
 # --- battery ---------------------------------------------------------------
 

@@ -179,13 +179,26 @@ check "and the README documents both rows" \
 # The key sets agreed while this was wrong, because both sides named the key.
 # Only the description differed, and descriptions are not compared. So the one
 # case that prompted the suite is pinned by name.
-clip_mode=$(grep -A1 'hl.bind("SUPER + CTRL + Print"' "$REPO/default/hypr/bindings/screenshot.lua" |
-  grep -oE 'screenshot\.sh [a-z]+' | awk '{print $2}')
-check "SUPER + CTRL + Print runs the clipboard mode" "$clip_mode" "clipboard"
+#
+# That row is gone: Print opens a menu now and the chords were removed. What the
+# wrong row got wrong survives in the menu, though. An entry says what it
+# captures, and the mode it runs has to capture that, so the whole screen entry
+# is pinned to a mode that grabs the output rather than a region.
+SHOT_MENU="$REPO/.local/bin/hyprsimple-screenshot-menu.sh"
+screen_clip_mode=$(python3 - "$SHOT_MENU" <<'PYEOF'
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+labels = re.findall(r'"([^"]+)"', re.search(r'labels=\((.*?)\n\)', src, re.S).group(1))
+modes = re.search(r'modes=\((.*?)\n\)', src, re.S).group(1).split()
+i = next(n for n, l in enumerate(labels) if "Whole screen" in l and "clipboard" in l)
+print(modes[i])
+PYEOF
+)
+check "the whole screen clipboard entry runs the clipboard mode" "$screen_clip_mode" "clipboard"
 check "and that mode captures the whole output, not a region" \
   "$(sed -n '/^clipboard)/,/;;/p' "$REPO/.local/bin/screenshot.sh" | grep -c -- '-m output')" "1"
-check "so the README says monitor rather than region" \
-  "$(sed -n "${start},${end}p" "$README" | grep -c 'SUPER + CTRL + Print` | Screenshot current monitor to clipboard')" "1"
+check "and the README documents Print as the menu" \
+  "$(sed -n "${start},${end}p" "$README" | grep -c 'Print` | Open the screenshot menu')" "1"
 
 # --- every shipped script appears in the README -------------------------------
 #
