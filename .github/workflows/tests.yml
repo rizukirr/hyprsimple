@@ -277,6 +277,9 @@ jobs:
       - name: record-menu-test
         run: bash test/record-menu-test.sh
 
+      - name: screenshot-menu-test
+        run: bash test/screenshot-menu-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

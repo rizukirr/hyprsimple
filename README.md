@@ -251,10 +251,9 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `Print` | Screenshot current monitor |
-| `SUPER + Print` | Screenshot active window |
-| `SUPER + ALT + Print` | Screenshot selected region |
-| `SUPER + CTRL + Print` | Screenshot current monitor to clipboard |
+| `Print` | Open the screenshot menu |
+
+The menu offers a region, a window or the whole screen, each saved to `~/Pictures/Screenshots` or copied to the clipboard.
 
 ### Screen Recording
 
@@ -333,7 +332,8 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 
 | Script | Description |
 |--------|-------------|
-| `screenshot.sh` | Take a screenshot (`clipboard` / `window` / `region` / `monitor`) |
+| `screenshot.sh` | Take a screenshot (`region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard`) |
+| `hyprsimple-screenshot-menu.sh` | The rofi menu behind `Print`, which picks what to capture and whether to save or copy it |
 | `screen-record.sh` | Start/stop screen recording (region or output; mic, internal, or no audio) |
 | `hyprsimple-record-menu.sh` | The rofi menu behind `SUPER + R`, which picks what to record and starts or stops it |
 | `screen-record-active.sh` | Report whether a screen recording is currently running |
