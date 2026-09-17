@@ -4,8 +4,14 @@
 local M = {}
 M.terminal = "ghostty"
 M.fileManager = "nautilus"
-M.menu = os.getenv("HOME") .. "/.config/rofi/launcher/launcher.sh"
-M.powermenu = os.getenv("HOME") .. "/.config/rofi/powermenu/powermenu.sh"
+-- The launcher and power menu scripts are yours, so rofi's -replace cannot be
+-- added to them from here. They go through hyprsimple-menu-exclusive.sh, which
+-- closes a menu that is already open first. Without it, SUPER + A did nothing
+-- while another menu was up, because rofi runs one instance at a time.
+M.menu = os.getenv("HOME") .. "/.local/bin/hyprsimple-menu-exclusive.sh "
+  .. os.getenv("HOME") .. "/.config/rofi/launcher/launcher.sh"
+M.powermenu = os.getenv("HOME") .. "/.local/bin/hyprsimple-menu-exclusive.sh "
+  .. os.getenv("HOME") .. "/.config/rofi/powermenu/powermenu.sh"
 M.browser = "brave --enable-features=UseOzonePlatform --ozone-platform=wayland"
 M.colorPicker = "hyprpicker"
 

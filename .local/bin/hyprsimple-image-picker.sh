@@ -99,6 +99,8 @@ args=(-dmenu -show-icons -markup-rows -format i -p "$prompt" -theme "$RASI"
       -theme-str "listview { columns: $columns; }")
 [[ -n $selected_row ]] && args+=(-selected-row "$selected_row")
 
-index=$(rofi "${args[@]}" <"$feed_file")
+# -replace: rofi runs one instance at a time, so without it the picker did
+# not open while another menu was up. It now closes that one and takes its place.
+index=$(rofi -replace "${args[@]}" <"$feed_file")
 [[ -n $index ]] || exit 0
 printf '%s\n' "${keys[$index]}"

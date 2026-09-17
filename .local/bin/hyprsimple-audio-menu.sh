@@ -68,7 +68,9 @@ done < <(devices "$sources")
 ((${#labels[@]} > 0)) || fail "No audio devices found"
 
 choice=$(printf '%s\n' "${labels[@]}" |
-  rofi -dmenu -i -format i -p "󰓃" -theme "$THEME") || exit 0
+  # -replace: rofi runs one instance at a time, so without it this menu did
+  # not open while another was up. It now closes that one and takes its place.
+  rofi -replace -dmenu -i -format i -p "󰓃" -theme "$THEME") || exit 0
 
 # Empty when the menu was dismissed, which is not a failure.
 [[ -n $choice ]] || exit 0

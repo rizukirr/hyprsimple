@@ -312,6 +312,8 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | Script | Description |
 |--------|-------------|
 | `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
+| `hyprsimple-clipboard-menu.sh` | The clipboard history menu behind `SUPER + V`, which copies only when an entry is picked |
+| `hyprsimple-menu-exclusive.sh` | Closes a rofi menu that is already open, then runs the command given, so one menu can replace another |
 | `hyprsimple-audio-menu.sh` | The rofi menu behind `SUPER + S`, which switches the speaker or the microphone |
 | `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
