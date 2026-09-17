@@ -80,7 +80,7 @@ check "and it opens the menu rather than the recorder" \
 check "so no bind passes a scope and audio mode itself any more" \
   "$(lua_code | grep -cE 'screen-record\.sh (region|output)')" "0"
 
-# ---- the six combinations, chosen by index ----------------------------------
+# ---- the nine combinations, chosen by index ---------------------------------
 #
 # Each entry is picked in turn and the recorder's arguments read back. The
 # mapping is the whole point of the menu, so every row is exercised rather than
@@ -89,11 +89,12 @@ check "so no bind passes a scope and audio mode itself any more" \
 recording no
 declare -a expected=(
   "region mic" "region internal" "region none"
+  "window mic" "window internal" "window none"
   "output mic" "output internal" "output none"
 )
 
 open_menu 0
-check "the idle menu offers six ways to record" "$(wc -l <"$INPUT")" "6"
+check "the idle menu offers nine ways to record" "$(wc -l <"$INPUT")" "9"
 
 wrong=()
 for i in "${!expected[@]}"; do
@@ -106,10 +107,10 @@ check "every entry starts the recorder it names" "$wrong_str" ""
 
 # The labels have to say which is which, or the list is six unlabelled rows.
 open_menu 0
-check "the menu names region and whole screen" \
-  "$(grep -cE 'Region|Whole screen' "$INPUT")" "6"
+check "the menu names region, window and whole screen" \
+  "$(grep -cE 'Region|Window|Whole screen' "$INPUT")" "9"
 check "and names all three audio sources" \
-  "$(grep -cE 'microphone|system audio|no audio' "$INPUT")" "6"
+  "$(grep -cE 'microphone|system audio|no audio' "$INPUT")" "9"
 
 # Every entry begins with an icon, and the icon is a real character.
 #
@@ -127,11 +128,11 @@ import re, sys
 
 labels = []
 for line in open(sys.argv[1]):
-    m = re.search(r'"([^"]*(?:Region|Whole screen|Stop)[^"]*)"', line)
+    m = re.search(r'"([^"]*(?:Region|Window|Whole screen|Stop)[^"]*)"', line)
     if m:
         labels.append(m.group(1))
 
-if len(labels) < 7:
+if len(labels) < 10:
     print(f"only {len(labels)} labels found")
     raise SystemExit(0)
 
@@ -154,8 +155,14 @@ for line in open(sys.argv[1]):
     m = re.search(r'\"([^\"]*Whole screen[^\"]*)\"', line)
     if m: print(f'{ord(m.group(1)[0]):05X}'); break
 " "$MENU")
-check "region and whole screen do not share an icon" \
-  "$([[ $region_cp != "$screen_cp" ]] && echo different || echo same)" "different"
+window_cp=$(python3 -c "
+import re,sys
+for line in open(sys.argv[1]):
+    m = re.search(r'\"([^\"]*Window[^\"]*)\"', line)
+    if m: print(f'{ord(m.group(1)[0]):05X}'); break
+" "$MENU")
+check "region, window and whole screen each have their own icon" \
+  "$(printf '%s\n' "$region_cp" "$window_cp" "$screen_cp" | sort -u | grep -c .)" "3"
 
 # And the font the menu asks rofi for actually has them, or they render as the
 # missing-glyph box. Skipped where fontconfig cannot answer, which is CI.
@@ -180,12 +187,12 @@ if [[ -n $menu_family ]] && grep -qiF "$menu_family" <<<"$installed_families"; t
   # dies of SIGPIPE. This suite sets pipefail, so the pipeline reported failure
   # for a grep that had succeeded and every icon read as uncovered.
   uncovered=()
-  for cp in "$region_cp" "$screen_cp"; do
+  for cp in "$region_cp" "$window_cp" "$screen_cp"; do
     families=$(fc-list -f '%{family[0]}\n' ":charset=$cp" 2>/dev/null)
     grep -qiF "${menu_font%% [0-9]*}" <<<"$families" || uncovered+=("U+$cp")
   done
   uncovered_str=""; (( ${#uncovered[@]} > 0 )) && uncovered_str="$(printf '%s ' "${uncovered[@]}")"
-  check "and the menu's font covers both icons" "$uncovered_str" ""
+  check "and the menu's font covers all three icons" "$uncovered_str" ""
 else
   pass "the menu's font is not installed here, so icon coverage is not checked"
 fi
@@ -198,7 +205,7 @@ check "with a recording running the menu offers one thing" "$(wc -l <"$INPUT")" 
 check "and that thing is stopping" "$(grep -c 'Stop recording' "$INPUT")" "1"
 check "which stops the recorder" "$(grep -c 'screen-record.sh stop' "$LOG")" "1"
 check "and it does not offer to start another" \
-  "$(grep -cE 'Region|Whole screen' "$INPUT")" "0"
+  "$(grep -cE 'Region|Window|Whole screen' "$INPUT")" "0"
 
 # ---- an answer that is not an index is refused ------------------------------
 #

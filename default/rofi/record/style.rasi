@@ -60,10 +60,10 @@ entry {
 
 listview {
     columns:            1;
-    /* Six entries when idle, one when a recording is running. fixed-height
+    /* Nine entries when idle, one when a recording is running. fixed-height
        false lets the panel shrink to whichever it is showing rather than
-       leaving four empty rows under a single Stop. */
-    lines:              6;
+       leaving eight empty rows under a single Stop. */
+    lines:              9;
     fixed-height:       false;
     scrollbar:          false;
     padding:            0px 8px 8px 8px;
