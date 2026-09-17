@@ -53,4 +53,6 @@ hyprctl binds |
     END            { flush() }
   ' |
   sort -u |
-  rofi -dmenu -p "󰌌" -i -theme ~/.config/rofi/keybindings/style.rasi
+  # -replace: rofi runs one instance at a time, so without it this menu did
+  # not open while another was up. It now closes that one and takes its place.
+  rofi -replace -dmenu -p "󰌌" -i -theme ~/.config/rofi/keybindings/style.rasi

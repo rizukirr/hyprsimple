@@ -32,5 +32,5 @@ hl.bind("SUPER + A", hl.dsp.exec_cmd(vars.menu),        { description = "App Lau
 -- a bind with no description has nothing to show there but the key itself.
 -- Naming it is what puts it in the list beside everything else.
 
-hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | rofi --show dmenu | cliphist decode | wl-copy'"),  { description = "Clipboard Manager" })
+hl.bind("SUPER + V", hl.dsp.exec_cmd(home .. "/.local/bin/hyprsimple-clipboard-menu.sh"),  { description = "Clipboard Manager" })
 hl.bind("SUPER + M", hl.dsp.exec_cmd("sh -c '" .. vars.colorPicker .. " | wl-copy'"),                           { description = "Color Picker" })
