@@ -222,6 +222,137 @@ check "without screenshot.sh the menu does not open" "$(wc -c <"$ARGS" | tr -d '
 check "and says what to run" "$(grep -c 'Run hyprsimple-update' "$NLOG")" "1"
 mv "$TMP/shooter.bak" "$HOME_DIR/.local/bin/screenshot.sh"
 
+# ---- it waits for the menu to be gone, not for a guessed moment -------------
+#
+# The capture used to wait a fixed 0.2 seconds. rofi's layer closes with the
+# slower of layersOut, which inherits global at speed 8, and fadeLayersOut,
+# which inherits fade at speed 5, in tenths of a second. hyprshot freezes the
+# screen before the selection, so the menu could still be in the shot.
+#
+# These runs use their own PATH. hyprctl answers from fixtures, and sleep logs
+# its argument instead of sleeping, so every wait is read back as a number and
+# the suite spends no time waiting.
+
+unset HYPRSIMPLE_SCREENSHOT_MENU_SETTLE
+WAIT="$TMP/waitbin"; mkdir -p "$WAIT"
+cp "$STUB/rofi" "$STUB/notify-send" "$WAIT/"
+for tool in cat jq; do ln -sf "$(command -v "$tool")" "$WAIT/$tool"; done
+cat >"$WAIT/sleep" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$1" >>"$SLEEP_LOG"
+STUBEOF
+# layers lists rofi for as many calls as ROFI_LINGER says, then a screen without
+# it. animations is whatever fixture the case wrote.
+cat >"$WAIT/hyprctl" <<'STUBEOF'
+#!/bin/bash
+case "$1" in
+layers)
+  n=$(cat "$LAYER_COUNT"); n=$((n + 1)); printf '%s' "$n" >"$LAYER_COUNT"
+  if ((n <= ROFI_LINGER)); then
+    printf '{"eDP-1":{"levels":{"0":[{"namespace":"hyprpaper"}],"2":[{"namespace":"waybar"}],"3":[{"namespace":"rofi"}]}}}'
+  else
+    printf '{"eDP-1":{"levels":{"0":[{"namespace":"hyprpaper"}],"2":[{"namespace":"waybar"}],"3":[]}}}'
+  fi
+  ;;
+animations)
+  cat "$ANIMATIONS"
+  ;;
+esac
+STUBEOF
+chmod +x "$WAIT/sleep" "$WAIT/hyprctl"
+
+check "the waiting runs reach the stub hyprctl, not the compositor" \
+  "$(PATH="$WAIT" command -v hyprctl)" "$WAIT/hyprctl"
+check "and the stub sleep, not a real one" \
+  "$(PATH="$WAIT" command -v sleep)" "$WAIT/sleep"
+
+# The shape hyprctl animations -j prints: animations first, beziers second. A
+# node that is not overridden reports speed 0 and inherits its parent's.
+animations() {
+  local global="$1" fade="$2" fade_on="$3" layers_out="$4" layers_out_on="$5"
+  local lo_over=false
+  [[ $layers_out != - ]] && lo_over=true
+  [[ $layers_out == - ]] && layers_out=0
+  cat >"$TMP/animations.json" <<JSONEOF
+[[
+  {"name":"global","overridden":true,"bezier":"default","enabled":true,"speed":$global,"style":""},
+  {"name":"fade","overridden":true,"bezier":"default","enabled":$fade_on,"speed":$fade,"style":""},
+  {"name":"fadeLayers","overridden":false,"bezier":"","enabled":true,"speed":0,"style":""},
+  {"name":"fadeLayersOut","overridden":false,"bezier":"","enabled":true,"speed":0,"style":""},
+  {"name":"layers","overridden":false,"bezier":"","enabled":true,"speed":0,"style":""},
+  {"name":"layersOut","overridden":$lo_over,"bezier":"","enabled":$layers_out_on,"speed":$layers_out,"style":""}
+],[]]
+JSONEOF
+}
+
+open_menu_waiting() {
+  local pick="$1" linger="$2" path="${3:-$WAIT}"
+  : >"$LOG"; : >"$NLOG"; : >"$TMP/sleeps"; printf '0' >"$TMP/layer-count"
+  ROFI_INPUT="$INPUT" ROFI_ARGS="$ARGS" ROFI_PICK="$pick" \
+    SHOT_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" \
+    SLEEP_LOG="$TMP/sleeps" LAYER_COUNT="$TMP/layer-count" ROFI_LINGER="$linger" \
+    ANIMATIONS="$TMP/animations.json" PATH="$path" \
+    "$BASH_BIN" "$HOME_DIR/.local/bin/hyprsimple-screenshot-menu.sh" >/dev/null 2>&1
+}
+polls() { grep -cx '0.05' "$TMP/sleeps"; }
+close_wait() { grep -vx '0.05' "$TMP/sleeps" | tail -1; }
+
+# hyprsimple's own settings: global 8, fade 5, nothing overridden below them.
+animations 8 5 true - true
+open_menu_waiting 0 3
+check "while rofi is still listed as a layer, the menu keeps waiting" "$(polls)" "3"
+check "and asks the compositor again after each wait" "$(cat "$TMP/layer-count")" "4"
+check "then waits out the slower close animation, 0.8 seconds, not 0.2" "$(close_wait)" "0.8"
+check "and only then takes the screenshot" "$(sed 's/^screenshot.sh //' "$LOG")" "region"
+
+# A config that makes the layer slide faster than it fades.
+animations 8 5 true 2 true
+open_menu_waiting 0 0
+check "a faster layersOut leaves the fade as the slower one, 0.5 seconds" "$(close_wait)" "0.5"
+check "with no polling when rofi is already gone" "$(polls)" "0"
+
+animations 8 5 false 2 false
+open_menu_waiting 0 0
+check "with both close animations disabled it waits no time" "$(close_wait)" "0"
+
+animations 60 50 true - true
+open_menu_waiting 0 0
+check "an absurdly slow animation is capped at two seconds" "$(close_wait)" "2"
+
+# A layer that never goes must not stop the screenshot for good.
+animations 8 5 true - true
+open_menu_waiting 0 1000
+check "a rofi layer that never goes is polled at most twenty times" "$(polls)" "20"
+check "and the screenshot is still taken" "$(sed 's/^screenshot.sh //' "$LOG")" "region"
+
+# Not on Hyprland: no hyprctl to ask.
+NOHYPR="$TMP/nohyprbin"; mkdir -p "$NOHYPR"
+cp "$WAIT/rofi" "$WAIT/notify-send" "$WAIT/sleep" "$NOHYPR/"
+ln -sf "$(command -v cat)" "$NOHYPR/cat"
+open_menu_waiting 0 0 "$NOHYPR"
+check "without hyprctl it falls back to one second" "$(cat "$TMP/sleeps")" "1"
+check "and still takes the screenshot" "$(sed 's/^screenshot.sh //' "$LOG")" "region"
+
+# hyprctl answering garbage reads as no answer rather than a zero wait.
+printf 'not json\n' >"$TMP/animations.json"
+open_menu_waiting 0 0
+check "an animations answer that is not json falls back to one second" "$(close_wait)" "1"
+
+# An explicit pause is used as given, and the compositor is not asked at all.
+animations 8 5 true - true
+: >"$LOG"; : >"$TMP/sleeps"; printf '0' >"$TMP/layer-count"
+ROFI_INPUT="$INPUT" ROFI_ARGS="$ARGS" ROFI_PICK=0 SHOT_LOG="$LOG" NOTIFY_LOG="$NLOG" \
+  HOME="$HOME_DIR" SLEEP_LOG="$TMP/sleeps" LAYER_COUNT="$TMP/layer-count" ROFI_LINGER=5 \
+  ANIMATIONS="$TMP/animations.json" HYPRSIMPLE_SCREENSHOT_MENU_SETTLE=0.3 PATH="$WAIT" \
+  "$BASH_BIN" "$HOME_DIR/.local/bin/hyprsimple-screenshot-menu.sh" >/dev/null 2>&1
+check "HYPRSIMPLE_SCREENSHOT_MENU_SETTLE is used as given" "$(cat "$TMP/sleeps")" "0.3"
+check "without asking the compositor anything" "$(cat "$TMP/layer-count")" "0"
+
+# Dismissing the menu takes no screenshot, so there is nothing to wait for.
+open_menu_waiting "" 3
+check "dismissing the menu waits for nothing" "$(wc -c <"$TMP/sleeps" | tr -d ' ')" "0"
+check "and asks the compositor nothing" "$(cat "$TMP/layer-count")" "0"
+
 # ---- it asks rofi for the themed style ---------------------------------------
 
 open_menu 0
