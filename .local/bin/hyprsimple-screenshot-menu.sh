@@ -55,9 +55,59 @@ if [[ ! $choice =~ ^[0-9]+$ ]] || ((choice >= ${#modes[@]})); then
   exit 1
 fi
 
-# rofi is still closing when this runs, and a frozen capture taken in that
-# moment can include the menu itself. hyprshot freezes the screen before the
-# selection, so the pause goes before it rather than after.
-sleep "${HYPRSIMPLE_SCREENSHOT_MENU_SETTLE:-0.2}"
+# Waits until the menu is off the screen, not for a guessed moment.
+#
+# hyprshot freezes the screen before the selection, so anything still drawn then
+# is in the shot. This used to sleep a fixed 0.2 seconds, and rofi takes longer
+# than that to leave. Its layer closes with the slower of two Hyprland
+# animations, both inherited from hyprsimple's own config: layersOut takes
+# global, speed 8, and fadeLayersOut takes fade, speed 5, where speed is tenths
+# of a second. So the menu was still fading out when the screen froze.
+#
+# Two steps. The rofi layer is polled until the compositor no longer lists it,
+# then the close animation is waited out, read from hyprctl rather than written
+# here so a theme or a user who changes the speeds is still right.
+wait_for_menu_to_close() {
+  # An explicit value wins, for anyone who wants a fixed pause, and for the
+  # suite, which runs with no compositor.
+  if [[ -n ${HYPRSIMPLE_SCREENSHOT_MENU_SETTLE:-} ]]; then
+    sleep "$HYPRSIMPLE_SCREENSHOT_MENU_SETTLE"
+    return
+  fi
+
+  # Not on Hyprland, or no jq, so nothing can be asked. A second covers the
+  # slowest close hyprsimple ships.
+  if ! command -v hyprctl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+    sleep 1
+    return
+  fi
+
+  # Capped at twenty polls, a second, so a layer that never goes cannot stop the
+  # screenshot from being taken at all.
+  local polls=0
+  while ((polls < 20)) && hyprctl layers -j 2>/dev/null |
+    jq -e '[.[].levels[][] | select(.namespace == "rofi")] | length > 0' >/dev/null 2>&1; do
+    sleep 0.05
+    polls=$((polls + 1))
+  done
+
+  # A leaf that is not overridden inherits from its parent, so each chain is
+  # walked to the first node that sets a value. A disabled animation takes no
+  # time. Capped at two seconds.
+  local close
+  close=$(hyprctl animations -j 2>/dev/null | jq -r '
+    def effective($a; $chain):
+      [$chain[] as $n | $a[$n] | select(. != null and .overridden == true)]
+      | (first // $a.global);
+    (.[0] | map({key: .name, value: .}) | from_entries) as $a
+    | [effective($a; ["layersOut", "layers", "global"]),
+       effective($a; ["fadeLayersOut", "fadeLayers", "fade", "global"])]
+    | map(if . == null then 0 elif .enabled then .speed / 10 else 0 end)
+    | [max, 2] | min' 2>/dev/null)
+  [[ $close =~ ^[0-9]+(\.[0-9]+)?$ ]] || close=1
+  sleep "$close"
+}
+
+wait_for_menu_to_close
 
 exec "$SHOOTER" "${modes[$choice]}"
