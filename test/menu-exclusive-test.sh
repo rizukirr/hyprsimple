@@ -81,13 +81,17 @@ for candidate in lua5.4 lua; do
   command -v "$candidate" >/dev/null 2>&1 && { LUA=$candidate; break; }
 done
 if [[ -n $LUA ]]; then
+  # A home under this suite's own temp directory. A literal path under /home
+  # is refused by committed-symlinks-test, which keeps any one machine's home
+  # out of tracked files.
+  LUA_HOME="$TMP/lua-home"
   eval_var() {
-    HOME=/home/someone "$LUA" -e "local M = dofile('$VARS'); io.write(M.$1)" 2>&1
+    HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.$1)" 2>&1
   }
   check "SUPER + A starts the launcher through the helper" "$(eval_var menu)" \
-    "/home/someone/.local/bin/hyprsimple-menu-exclusive.sh /home/someone/.config/rofi/launcher/launcher.sh"
+    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh $LUA_HOME/.config/rofi/launcher/launcher.sh"
   check "and so does the power menu" "$(eval_var powermenu)" \
-    "/home/someone/.local/bin/hyprsimple-menu-exclusive.sh /home/someone/.config/rofi/powermenu/powermenu.sh"
+    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh $LUA_HOME/.config/rofi/powermenu/powermenu.sh"
 else
   pass "no lua interpreter here, so vars.lua is not evaluated"
 fi
