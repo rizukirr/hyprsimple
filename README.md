@@ -179,8 +179,12 @@ Older installs have a copy of the templates at `~/.config/hypr/themes/templates`
 
 ## Audio
 
+`SUPER + S` opens the sound menu. It lists every speaker and every microphone, marks the ones in use, and switches whichever you pick. Noise suppression stays on the microphone you choose.
+
+A bluetooth microphone switches the headset into its call profile while it is in use, which lowers playback quality until recording stops. That is how bluetooth headsets work, not something hyprsimple can avoid.
+
 Connecting a bluetooth headset or speaker moves the sound to it. Switching by
-hand with `SUPER + F10` still wins while that device stays connected, and the
+hand with `SUPER + S` still wins while that device stays connected, and the
 next one to connect takes over again. Turn it off with
 
 ```bash
@@ -293,7 +297,7 @@ build fails during install.
 | `SUPER + N` | Toggle nightlight |
 | `SUPER + D` | Dismiss notifications |
 | `SUPER + SHIFT + I` | Toggle idle lock |
-| `SUPER + F10` | Switch audio output |
+| `SUPER + S` | Open the sound menu, to choose a speaker and a microphone |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
 | `SUPER + /` | Show all keybindings |
@@ -307,7 +311,8 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 
 | Script | Description |
 |--------|-------------|
-| `audio-switch.sh` | Cycle through available audio output devices |
+| `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
+| `hyprsimple-audio-menu.sh` | The rofi menu behind `SUPER + S`, which switches the speaker or the microphone |
 | `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
 

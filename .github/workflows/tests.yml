@@ -280,6 +280,9 @@ jobs:
       - name: screenshot-menu-test
         run: bash test/screenshot-menu-test.sh
 
+      - name: audio-menu-test
+        run: bash test/audio-menu-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
