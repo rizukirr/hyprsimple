@@ -265,8 +265,9 @@ The menu offers a region, a window or the whole screen, each saved to `~/Picture
 |-----|--------|
 | `SUPER + R` | Open the recording menu, or stop a recording that is running |
 
-The menu offers a region or the whole screen, each with microphone audio,
-system audio, or none. While something is recording it offers to stop instead,
+The menu offers a region, a window or the whole screen, each with microphone
+audio, system audio, or none. A window is recorded as the area it covered when
+you picked it, so moving it or covering it shows in the recording. While something is recording it offers to stop instead,
 so the same key both starts and stops.
 
 Recording uses `wl-screenrec` where it can and `wf-recorder` otherwise, and
@@ -341,7 +342,7 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 |--------|-------------|
 | `screenshot.sh` | Take a screenshot (`region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard`) |
 | `hyprsimple-screenshot-menu.sh` | The rofi menu behind `Print`, which picks what to capture and whether to save or copy it |
-| `screen-record.sh` | Start/stop screen recording (region or output; mic, internal, or no audio) |
+| `screen-record.sh` | Start/stop screen recording (region, window or output; mic, internal, or no audio) |
 | `hyprsimple-record-menu.sh` | The rofi menu behind `SUPER + R`, which picks what to record and starts or stops it |
 | `screen-record-active.sh` | Report whether a screen recording is currently running |
 

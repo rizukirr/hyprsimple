@@ -10,4 +10,4 @@ local home = os.getenv("HOME")
 -- The menu also stops a recording that is running, so the same key both starts
 -- and stops and there is nothing to remember about which.
 hl.bind("SUPER + R", hl.dsp.exec_cmd(home .. "/.local/bin/hyprsimple-record-menu.sh"),
-  { description = "Record (menu: region or screen, mic, system audio or none)" })
+  { description = "Record (menu: region, window or screen, mic, system audio or none)" })

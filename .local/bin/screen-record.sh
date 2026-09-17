@@ -7,7 +7,7 @@ if [[ ! -d "$OUTPUT_DIR" ]]; then
   exit 1
 fi
 
-SCOPE="$1"      # "region", "output", or "stop"
+SCOPE="$1"      # "region", "window", "output", or "stop"
 AUDIO_MODE="$2" # "mic", "internal", or "none"
 
 # The monitor of the default sink, which is what "system audio" means here.
@@ -154,6 +154,23 @@ toggle_screenrecording_indicator() {
   pkill -RTMIN+8 waybar
 }
 
+# The box of every window on screen, one per line, in slurp's "x,y wxh" form.
+#
+# From the workspaces the monitors are showing, including a special workspace
+# toggled open on one. Hidden and unmapped windows still report a box, and
+# offering one would record an empty patch of screen.
+visible_window_boxes() {
+  local monitors clients
+  monitors=$(hyprctl -j monitors 2>/dev/null) || return 1
+  clients=$(hyprctl -j clients 2>/dev/null) || return 1
+  jq -rn --argjson m "$monitors" --argjson c "$clients" '
+    [$m[] | .activeWorkspace.id, (.specialWorkspace.id | select(. != 0))] as $shown
+    | $c[]
+    | select(.mapped and (.hidden | not))
+    | select(.workspace.id as $w | any($shown[]; . == $w))
+    | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' 2>/dev/null
+}
+
 screenrecording_active() {
   pgrep -x wl-screenrec >/dev/null || pgrep -x wf-recorder >/dev/null
 }
@@ -168,6 +185,19 @@ fi
 
 if screenrecording_active; then
   stop_screenrecording
+elif [[ "$SCOPE" == "window" ]]; then
+  # A window's box when it was picked, recorded as a fixed area. Both recorders
+  # capture screen areas rather than windows, so moving the window afterwards,
+  # or covering it, shows up in the recording as whatever is in that area.
+  boxes=$(visible_window_boxes)
+  if [[ -z $boxes ]]; then
+    notify-send "No window on screen to record" -u critical -t 3000
+    exit 1
+  fi
+  # -r: only the boxes offered can be picked, so a click lands on a window
+  # rather than dragging out a region.
+  window=$(slurp -r <<<"$boxes") || exit 1
+  start_screenrecording -g "$window"
 elif [[ "$SCOPE" == "output" ]]; then
   output=$(slurp -o) || exit 1
   start_screenrecording -g "$output"

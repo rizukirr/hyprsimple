@@ -393,6 +393,89 @@ check "wf-recorder comes from the official repositories" \
 check "and is not in the AUR list" \
   "$(grep -cx 'wf-recorder' "$REPO/aur-packages.txt")" "0"
 
+# ---- recording a window ------------------------------------------------------
+#
+# The window scope offers slurp a box for every window on screen and records
+# the box picked. Only windows a monitor is showing count: those on the active
+# workspace of each monitor, or on a special workspace toggled open. A window on
+# a workspace nobody is looking at, a hidden one or an unmapped one still has a
+# box, and recording it would record an empty patch of screen.
+#
+# These runs put their own hyprctl and slurp ahead of everything else. hyprctl
+# answers from fixtures, and slurp records its arguments and the boxes it was
+# offered, then answers with the first. stdin is /dev/null, so a slurp reached
+# without boxes on its input reads nothing and returns, rather than waiting on
+# the suite's own stdin and hanging it.
+
+WIN="$TMP/winbin"; mkdir -p "$WIN"
+cat >"$WIN/hyprctl" <<'STUBEOF'
+#!/bin/bash
+case "$2" in
+monitors) cat "$MONITORS_JSON" ;;
+clients) cat "$CLIENTS_JSON" ;;
+esac
+STUBEOF
+cat >"$WIN/slurp" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >"$SLURP_ARGS"
+cat >"$SLURP_STDIN"
+[[ ${SLURP_CANCEL:-} == yes ]] && exit 1
+head -1 "$SLURP_STDIN"
+STUBEOF
+# Nothing is recording. This suite replaces its pgrep stub partway through to
+# drive the stop path, and these runs come after that, so without their own
+# every one of them stopped a recording instead of starting one, and the check
+# that no picker opens passed for the wrong reason.
+printf '#!/bin/bash\nexit 1\n' >"$WIN/pgrep"
+chmod +x "$WIN/hyprctl" "$WIN/slurp" "$WIN/pgrep"
+
+check "the window runs reach the stub hyprctl, not the compositor" \
+  "$(PATH="$WIN:$STUB:/usr/bin:/bin" command -v hyprctl)" "$WIN/hyprctl"
+
+cat >"$TMP/monitors.json" <<'JSONEOF'
+[
+  {"name":"eDP-1","activeWorkspace":{"id":1},"specialWorkspace":{"id":0}},
+  {"name":"HDMI-A-1","activeWorkspace":{"id":3},"specialWorkspace":{"id":-98}}
+]
+JSONEOF
+cat >"$TMP/clients.json" <<'JSONEOF'
+[
+  {"at":[10,20],"size":[800,600],"mapped":true,"hidden":false,"workspace":{"id":1}},
+  {"at":[1930,40],"size":[1280,720],"mapped":true,"hidden":false,"workspace":{"id":3}},
+  {"at":[2000,100],"size":[640,480],"mapped":true,"hidden":false,"workspace":{"id":-98}},
+  {"at":[0,0],"size":[500,500],"mapped":true,"hidden":false,"workspace":{"id":2}},
+  {"at":[5,5],"size":[300,300],"mapped":true,"hidden":true,"workspace":{"id":1}},
+  {"at":[7,7],"size":[200,200],"mapped":false,"hidden":false,"workspace":{"id":1}}
+]
+JSONEOF
+
+run_window() {
+  : >"$LOG"; : >"$NLOG"; : >"$TMP/slurp-args"; : >"$TMP/slurp-stdin"
+  set_gpu intel
+  CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
+    DEFAULT_SINK="$SINK" SOURCE_LIST="$SOURCES" HYPRSIMPLE_RECORDER_START_WAIT=0.05 \
+    MONITORS_JSON="$TMP/monitors.json" CLIENTS_JSON="${1:-$TMP/clients.json}" \
+    SLURP_ARGS="$TMP/slurp-args" SLURP_STDIN="$TMP/slurp-stdin" SLURP_CANCEL="${2:-}" \
+    PATH="$WIN:$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" window none >/dev/null 2>&1 </dev/null
+  kill_stubs
+}
+
+run_window
+check "a window is offered for every window on screen" \
+  "$(sort "$TMP/slurp-stdin" | tr '\n' ';')" "10,20 800x600;1930,40 1280x720;2000,100 640x480;"
+check "and slurp only lets one of those boxes be picked" "$(grep -cx -- '-r' "$TMP/slurp-args")" "1"
+check "and the box picked is what gets recorded" \
+  "$(grep -c -- '-g 10,20 800x600' "$LOG")" "1"
+
+printf '[]\n' >"$TMP/no-clients.json"
+run_window "$TMP/no-clients.json"
+check "with no window on screen nothing is recorded" "$(wc -l <"$LOG" | tr -d ' ')" "0"
+check "and it says why" "$(grep -c 'No window on screen' "$NLOG")" "1"
+check "rather than opening a picker with nothing in it" "$(wc -c <"$TMP/slurp-args" | tr -d ' ')" "0"
+
+run_window "" yes
+check "cancelling the window pick records nothing" "$(wc -l <"$LOG" | tr -d ' ')" "0"
+
 # This suite once left four processes named wf-recorder running, which made
 # waybar-refresh-test and notification-idiom-test see a recording in progress.
 # Assert the cleanup rather than trust it.

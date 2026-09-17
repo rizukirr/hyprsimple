@@ -21,7 +21,7 @@ if [[ ! -x $RECORDER ]]; then
 fi
 
 # Stopping is offered on its own when something is already recording. Showing
-# the six start options then would be offering to start a second recorder while
+# the nine start options then would be offering to start a second recorder while
 # the first holds the screen.
 #
 # The same test screen-record.sh uses, so the menu and the recorder cannot
@@ -35,6 +35,9 @@ else
     "󰗆  Region, microphone"
     "󰗆  Region, system audio"
     "󰗆  Region, no audio"
+    "󰖯  Window, microphone"
+    "󰖯  Window, system audio"
+    "󰖯  Window, no audio"
     "󰍹  Whole screen, microphone"
     "󰍹  Whole screen, system audio"
     "󰍹  Whole screen, no audio"
@@ -43,6 +46,9 @@ else
     "region mic"
     "region internal"
     "region none"
+    "window mic"
+    "window internal"
+    "window none"
     "output mic"
     "output internal"
     "output none"
