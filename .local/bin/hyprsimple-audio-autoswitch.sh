@@ -14,8 +14,8 @@
 #     priority = 30000 + priority
 #
 # to whatever default.configured.audio.sink names, so the chosen sink scores
-# 31009 and no bluetooth device can ever outrank it. audio-switch.sh, on
-# SUPER + F10, writes that key through `pactl set-default-sink`. Pressing the
+# 31009 and no bluetooth device can ever outrank it. Choosing a speaker by
+# hand, with the sound menu on SUPER + S or audio-switch.sh, writes that key through `pactl set-default-sink`. Pressing the
 # audio switch once therefore turned bluetooth auto-switching off for good, on
 # every machine, and nothing said so. Reported as a headset that connects and
 # then gets no sound.

@@ -111,11 +111,11 @@ if current_configured_node == name then
   priority = 30000 + priority
 ```
 
-to whatever `default.configured.audio.sink` names, so the chosen output scores 31009 and no bluetooth device can outrank it. `SUPER + F10` writes that key through `pactl set-default-sink`. Pressing the audio switch once therefore turned bluetooth auto-switching off permanently, on every machine, and nothing said so.
+to whatever `default.configured.audio.sink` names, so the chosen output scores 31009 and no bluetooth device can outrank it. Choosing a speaker by hand writes that key through `pactl set-default-sink`, which is what `SUPER + F10` did before the sound menu replaced it. Choosing once therefore turned bluetooth auto-switching off permanently, on every machine, and nothing said so.
 
 A user service now watches for a bluetooth output appearing and switches to it. Only on appearance, so a device already connected is left where it is, and switching away from it by hand is not undone.
 
-If you are on an install that predates the fix, run `hyprsimple-update` and the migration enables it. To switch by hand in the meantime, press `SUPER + F10`, or:
+If you are on an install that predates the fix, run `hyprsimple-update` and the migration enables it. To switch by hand in the meantime, open the sound menu with `SUPER + S`, or:
 
 ```bash
 wpctl set-default "$(pactl list short sinks | grep bluez_output | cut -f1 | head -1)"

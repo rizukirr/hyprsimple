@@ -10,8 +10,8 @@
 #     priority = 30000 + priority
 #
 # so the chosen sink scores 31009 and no bluetooth device can outrank it.
-# audio-switch.sh writes that key through `pactl set-default-sink`, so pressing
-# SUPER + F10 once turned bluetooth auto-switching off for good.
+# audio-switch.sh writes that key through `pactl set-default-sink`, so choosing
+# a speaker by hand once turned bluetooth auto-switching off for good.
 #
 # Nothing here touches the real audio. pactl and notify-send are stubs, the
 # script is pointed at the stub through HYPRSIMPLE_PACTL rather than by PATH

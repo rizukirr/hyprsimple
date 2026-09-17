@@ -10,5 +10,5 @@ hl.bind("SUPER + CTRL + V",  hl.dsp.exec_cmd(home .. "/.local/bin/virtual-mirror
 hl.bind("SUPER + N",         hl.dsp.exec_cmd(home .. "/.local/bin/toggle-nightlight.sh"),       { description = "Toggle Nightlight" })
 hl.bind("SUPER + SHIFT + I", hl.dsp.exec_cmd(home .. "/.local/bin/toggle-idle.sh"),             { description = "Toggle Idle Prevention" })
 hl.bind("SUPER + D",         hl.dsp.exec_cmd(home .. "/.local/bin/notification-dismiss.sh"),    { description = "Dismiss Notifications" })
-hl.bind("SUPER + F10",       hl.dsp.exec_cmd(home .. "/.local/bin/audio-switch.sh"),            { description = "Switch Audio Output" })
+hl.bind("SUPER + S",         hl.dsp.exec_cmd(home .. "/.local/bin/hyprsimple-audio-menu.sh"),   { description = "Sound (menu: choose speaker and microphone)" })
 hl.bind("SUPER + slash",     hl.dsp.exec_cmd(home .. "/.local/bin/show-keybindings.sh"),        { description = "Show Keybindings" })
