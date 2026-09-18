@@ -345,29 +345,30 @@ else
   fail "screen-record.sh stop stops a running recording without a selector"
 fi
 
-# ---- the bar carries the theme's background -----------------------------------
+# ---- the bar is transparent again ---------------------------------------------
 #
-# waybar's own window was transparent, so everything between the widgets was the
-# wallpaper and the bar took on whatever the top strip of the current image
-# happened to be: cream on one, grey on the next, rarely anything like the
-# terminal under it.
+# The bar carrying the theme background made it a solid slab across the top, so
+# it went back to showing the wallpaper through it. These check the migration
+# that undoes it on a machine the earlier release already reached.
 
-STYLE_MIGRATION="$REPO/migrations/1789040000.sh"
+STYLE_MIGRATION="$REPO/migrations/1789742641.sh"
 
 waybar_block() {
   awk '/^#waybar[[:space:]]*\{/ { inside = 1; next } inside && /^\}/ { inside = 0 } inside' "$1"
 }
 
-check "the shipped bar uses the theme background" \
-  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
-check "and is no longer transparent" \
-  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: transparent;')" "0"
+check "the shipped bar is transparent" \
+  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: transparent;')" "1"
+check "and does not carry the theme background" \
+  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "0"
 
-STYLE_BIN="$TMP/stylebin"; mkdir -p "$STYLE_BIN"
+STYLE_BIN="$TMP/stylebin"
+mkdir -p "$STYLE_BIN"
 for tool in awk cat grep mktemp rm bash; do ln -sf "$(command -v "$tool")" "$STYLE_BIN/$tool"; done
 style_home() {
   local h="$TMP/stylehome-$1"
-  rm -rf "$h"; mkdir -p "$h/.config/waybar" "$h/.local/bin"
+  rm -rf "$h"
+  mkdir -p "$h/.config/waybar" "$h/.local/bin"
   # A restart helper that records rather than restarting the real bar.
   cat >"$h/.local/bin/hyprsimple-restart-waybar.sh" <<'STUBEOF'
 #!/bin/bash
@@ -382,21 +383,55 @@ run_style_migration() {
     bash "$STYLE_MIGRATION" >"$TMP/styleout" 2>&1
 }
 
-h=$(style_home shipped)
-cp "$SHIPPED_STYLE" "$h/.config/waybar/style.css"
-before_other=$(grep -vF '  background: transparent;' "$SHIPPED_STYLE")
+# What the earlier release left behind: its one line, and nothing else changed.
+migrated_style() {
+  sed 's/^  background: transparent;$/  background: @bg-deep;/' "$SHIPPED_STYLE"
+}
+
+h=$(style_home migrated)
+migrated_style >"$h/.config/waybar/style.css"
 run_style_migration "$h"
-check "the migration gives an unedited bar the theme background" \
-  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
+check "the migration gives the bar its transparency back" \
+  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: transparent;')" "1"
 check "and leaves every other line alone" \
-  "$(grep -vF '  background: @bg-deep;' "$h/.config/waybar/style.css")" "$before_other"
+  "$(cat "$h/.config/waybar/style.css")" "$(cat "$SHIPPED_STYLE")"
 check "and restarts a running bar so it takes effect now" \
   "$(grep -c -- '--if-running' "$TMP/restarts")" "1"
 
 snapshot=$(cat "$h/.config/waybar/style.css")
 run_style_migration "$h"
 check "running it again changes nothing" "$(cat "$h/.config/waybar/style.css")" "$snapshot"
-check "and says it is already done" "$(grep -c 'already carries' "$TMP/styleout")" "1"
+check "and says it is already transparent" "$(grep -c 'transparent already' "$TMP/styleout")" "1"
+
+# A config refresh in between brings in the shipped comment as well, so that has
+# to go with the line it explains.
+h=$(style_home refreshed)
+cat >"$h/.config/waybar/style.css" <<'REFRESHED'
+#waybar {
+  /* The bar carries the theme's own background rather than showing the
+     wallpaper through it. Transparent meant the bar took on whatever the top
+     strip of the wallpaper happened to be, so it changed with every wallpaper
+     and drifted away from the terminal beside it, cream on one image and grey
+     on the next.
+
+     For the wallpaper faintly through it instead, use
+     background: alpha(@bg-deep, 0.85); */
+  background: @bg-deep;
+  color: @fg;
+}
+REFRESHED
+run_style_migration "$h"
+check "the comment that shipped with the line goes with it" \
+  "$(cat "$h/.config/waybar/style.css")" \
+  "$(printf '#waybar {\n  background: transparent;\n  color: @fg;\n}')"
+
+# A note of your own inside the block is not that comment.
+h=$(style_home yourcomment)
+printf '#waybar {\n  /* mine */\n  background: @bg-deep;\n  color: @fg;\n}\n' \
+  >"$h/.config/waybar/style.css"
+run_style_migration "$h"
+check "a comment of your own in the block survives" \
+  "$(grep -c '/\* mine \*/' "$h/.config/waybar/style.css")" "1"
 
 h=$(style_home own)
 printf '#waybar {\n  background: rgba(0,0,0,0.5);\n  color: @fg;\n}\n' >"$h/.config/waybar/style.css"
@@ -404,20 +439,21 @@ snapshot=$(cat "$h/.config/waybar/style.css")
 run_style_migration "$h"
 check "a #waybar block of your own is left exactly as it was" \
   "$(cat "$h/.config/waybar/style.css")" "$snapshot"
-check "and the line to set is printed" "$(grep -c 'background: @bg-deep;' "$TMP/styleout")" "1"
+check "and the line to set is printed" "$(grep -c 'background: transparent;' "$TMP/styleout")" "1"
 
-# A transparent background somewhere other than #waybar is not the one being
-# changed, so the edit has to stay inside that block.
+# The theme colour somewhere other than #waybar is a rule of your own, so the
+# edit has to stay inside that block.
 h=$(style_home elsewhere)
-printf '#waybar {\n  background: transparent;\n}\n\n#tray {\n  background: transparent;\n}\n' \
+printf '#waybar {\n  background: @bg-deep;\n}\n\n#tray {\n  background: @bg-deep;\n}\n' \
   >"$h/.config/waybar/style.css"
 run_style_migration "$h"
 check "only the bar's own background is changed" \
-  "$(grep -c 'background: transparent;' "$h/.config/waybar/style.css")" "1"
-check "and it is the bar that got the theme colour" \
-  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
+  "$(grep -c 'background: @bg-deep;' "$h/.config/waybar/style.css")" "1"
+check "and it is the bar that went transparent" \
+  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: transparent;')" "1"
 
-h="$TMP/stylehome-none"; mkdir -p "$h"
+h="$TMP/stylehome-none"
+mkdir -p "$h"
 run_style_migration "$h"
 check "a home with no waybar style gets none" \
   "$([[ -e $h/.config/waybar/style.css ]] && echo created || echo absent)" "absent"

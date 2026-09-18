@@ -11,15 +11,7 @@
 }
 
 #waybar {
-  /* The bar carries the theme's own background rather than showing the
-     wallpaper through it. Transparent meant the bar took on whatever the top
-     strip of the wallpaper happened to be, so it changed with every wallpaper
-     and drifted away from the terminal beside it, cream on one image and grey
-     on the next.
-
-     For the wallpaper faintly through it instead, use
-     background: alpha(@bg-deep, 0.85); */
-  background: @bg-deep;
+  background: transparent;
   color: @fg;
 }
 
