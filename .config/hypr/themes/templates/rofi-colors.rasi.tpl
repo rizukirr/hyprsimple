@@ -1,9 +1,10 @@
 * {
     background:     {{ background }}FF;
     background-tr:  {{ background }}DF;
-    background-alt: {{ color0 }}99;
+    background-alt: {{ surface }}FF;
     foreground:     {{ foreground }}FF;
-    selected:       {{ accent }}FF;
-    active:         {{ color2 }}FF;
-    urgent:         {{ color1 }}FF;
+    selected:       {{ ui_accent }}FF;
+    active:         {{ ui_success }}FF;
+    urgent:         {{ ui_danger }}FF;
+    muted:          {{ ui_muted }}FF;
 }

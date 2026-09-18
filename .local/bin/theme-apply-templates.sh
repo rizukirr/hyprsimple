@@ -79,6 +79,51 @@ done <"$COLORS_FILE" >"$sed_script"
 #
 # Computed rather than written into every colors.toml, so a theme of your own
 # gets a readable bar without having to know the key exists.
+# Nudge a colour until it can be read on the surface it will sit on.
+#
+# The templates pasted palette slots straight into interface text, with nothing
+# checking they land on the background they are drawn on. Measured across the
+# shipped themes, 37 of 40 had at least one pair below 3:1 and every light theme
+# did: everforest-light put its "info" colour at 1.5 on the waybar widgets and
+# its selected rofi row at 1.0.
+#
+# The hue is kept and only the lightness moves, towards white on a dark surface
+# and towards black on a light one, so a theme keeps its own colours and only
+# stops being invisible. A colour that already reads is returned untouched, so
+# nothing changes where nothing was wrong.
+readable_for() {
+  awk -v col="$1" -v surf="$2" -v want="$3" '
+    function chan(h,   v) {
+      v = strtonum("0x" h) / 255
+      return (v <= 0.04045) ? v / 12.92 : ((v + 0.055) / 1.055) ^ 2.4
+    }
+    function lum(hex) {
+      return 0.2126 * chan(substr(hex, 2, 2)) + 0.7152 * chan(substr(hex, 4, 2)) + 0.0722 * chan(substr(hex, 6, 2))
+    }
+    function contrast(a, b,   la, lb, t) {
+      la = lum(a); lb = lum(b)
+      if (la < lb) { t = la; la = lb; lb = t }
+      return (la + 0.05) / (lb + 0.05)
+    }
+    function part(hex, i) { return strtonum("0x" substr(hex, i, 2)) }
+    function mix(a, b, amt,   r, g, bl) {
+      r  = part(a, 2) + (part(b, 2) - part(a, 2)) * amt
+      g  = part(a, 4) + (part(b, 4) - part(a, 4)) * amt
+      bl = part(a, 6) + (part(b, 6) - part(a, 6)) * amt
+      return sprintf("#%02x%02x%02x", int(r + 0.5), int(g + 0.5), int(bl + 0.5))
+    }
+    BEGIN {
+      if (contrast(col, surf) >= want) { print col; exit }
+      target = (lum(surf) > 0.18) ? "#000000" : "#ffffff"
+      out = col
+      for (i = 1; i <= 20; i++) {
+        out = mix(col, target, i * 0.05)
+        if (contrast(out, surf) >= want) { print out; exit }
+      }
+      print target
+    }'
+}
+
 surface_for() {
   awk -v fg="$1" -v bg="$2" -v c0="$3" '
     function chan(h,   v) {
@@ -128,6 +173,50 @@ fi
   printf 's|{{ surface }}|%s|g\n' "$surface"
   printf 's|{{ surface_strip }}|%s|g\n' "${surface#\#}"
   printf 's|{{ surface_rgb }}|%s|g\n' "$(hex_to_rgb "$surface")"
+} >>"$sed_script"
+
+# Interface colours, each one made readable on the thing it is drawn on: the
+# waybar pills sit on the surface above, the clock calendar and the rofi menu on
+# the theme background.
+#
+# A value here is only ever nudged, never replaced, so a theme keeps its own
+# colours. The terminal palette is not touched at all: colour0 to colour15 stay
+# exactly as the scheme publishes them, including the pale whites a light theme
+# has, because a light Solarized really does define its brightest white as its
+# own background.
+ui_key() {
+  local name="$1" value="$2"
+  printf 's|{{ %s }}|%s|g\n' "$name" "$value"
+  printf 's|{{ %s_strip }}|%s|g\n' "$name" "${value#\#}"
+  printf 's|{{ %s_rgb }}|%s|g\n' "$name" "$(hex_to_rgb "$value")"
+}
+
+palette_value() {
+  sed -n "s/^$1[[:space:]]*=[[:space:]]*\"\(#[0-9A-Fa-f]\{6\}\)\".*/\1/p" "$COLORS_FILE" | head -1
+}
+
+accent_value=$(palette_value accent)
+{
+  # On the widget surface.
+  for pair in ui_success:color2 ui_warning:color3 ui_danger:color1 \
+    ui_info:color6 ui_secondary:color5 ui_accent_dim:color4; do
+    from=$(palette_value "${pair#*:}")
+    [[ -n $from ]] && ui_key "${pair%%:*}" "$(readable_for "$from" "$surface" 3.0)"
+  done
+  [[ -n $accent_value ]] && ui_key "ui_accent" "$(readable_for "$accent_value" "$surface" 3.0)"
+
+  # On the theme background.
+  for pair in ui_calendar_day:color5 ui_calendar_weekday:color3; do
+    from=$(palette_value "${pair#*:}")
+    [[ -n $from ]] && ui_key "${pair%%:*}" "$(readable_for "$from" "$bg_value" 3.0)"
+  done
+
+  # Dimmer on purpose, but still visible: placeholder text and notification
+  # borders were landing at 1.0 to 1.4, which is invisible rather than subtle.
+  muted_from=$(palette_value color8)
+  [[ -n $muted_from ]] && ui_key "ui_muted" "$(readable_for "$muted_from" "$bg_value" 2.5)"
+  border_from=$(palette_value color7)
+  [[ -n $border_from ]] && ui_key "ui_border" "$(readable_for "$border_from" "$bg_value" 2.0)"
 } >>"$sed_script"
 
 # Generate configs from templates

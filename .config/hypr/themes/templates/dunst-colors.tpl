@@ -1,17 +1,17 @@
 [global]
-    frame_color = "{{ color7 }}"
+    frame_color = "{{ ui_border }}"
 
 [urgency_low]
     background = "{{ background }}"
     foreground = "{{ foreground }}"
-    frame_color = "{{ color7 }}"
+    frame_color = "{{ ui_border }}"
 
 [urgency_normal]
     background = "{{ background }}"
     foreground = "{{ foreground }}"
-    frame_color = "{{ accent }}"
+    frame_color = "{{ ui_accent }}"
 
 [urgency_critical]
     background = "{{ background }}"
     foreground = "{{ foreground }}"
-    frame_color = "{{ color1 }}"
+    frame_color = "{{ ui_danger }}"

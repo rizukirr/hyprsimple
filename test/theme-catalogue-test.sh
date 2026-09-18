@@ -163,18 +163,19 @@ else
   pass "ghostty's themes are not installed here, so the names are not resolved"
 fi
 
-# ---- waybar is readable on every theme -----------------------------------------
+# ---- the interface is readable on every theme ---------------------------------
 #
-# The widget pills took colour0 straight, which is the terminal's black. On a
-# dark theme that is a near-black behind light text. On a light theme it is
-# still black while the text is dark, so waybar was unreadable: catppuccin-latte
-# measured 1.3 and flexoki-light 1.0, which is text the same colour as what it
-# sits on. material-ocean, a dark theme, was 1.8.
+# The templates pasted palette slots straight into interface text, with nothing
+# checking they land on the surface they are drawn on. colour0 is the terminal's
+# black: on a dark theme a near-black behind light text, on a light theme still
+# black while the text is dark. Measured before the fix, 37 of 40 themes had at
+# least one pair below 3:1 and every light theme did, catppuccin-latte at 1.3
+# on its waybar widgets, everforest-light at 1.0 on its selected rofi row.
 #
-# Rendered through the real renderer rather than by repeating its rule here, so
-# this measures what waybar is actually given.
+# Every theme is rendered through the real renderer and the generated files are
+# measured, rather than the rule being repeated here.
 
-waybar_report=$(python3 - "$THEMES" "$REPO" "$TMP" <<'PYEOF'
+ui_report=$(python3 - "$THEMES" "$REPO" "$TMP" <<'PYEOF'
 import os, re, shutil, subprocess, sys
 themes, repo, tmp = sys.argv[1], sys.argv[2], sys.argv[3]
 home = os.path.join(tmp, "render-home")
@@ -201,30 +202,86 @@ for name in sorted(os.listdir(themes)):
     subprocess.run([os.path.join(repo, ".local/bin/theme-apply-templates.sh"), work],
                    capture_output=True,
                    env=dict(os.environ, HYPRSIMPLE_PATH=repo, HOME=home))
-    out = os.path.join(work, "generated/waybar-colors.css")
-    if not os.path.isfile(out):
-        bad.append(f"{name}: nothing rendered")
+    gen = os.path.join(work, "generated")
+    files = {n: os.path.join(gen, n) for n in
+             ("waybar-colors.css", "rofi-colors.rasi", "theme-clock.jsonc")}
+    text = {}
+    for n, path in files.items():
+        if not os.path.isfile(path):
+            bad.append(f"{name}: {n} was not rendered")
+            continue
+        text[n] = open(path).read()
+        if "{{" in text[n]:
+            bad.append(f"{name}: {n} left a placeholder unrendered")
+    if len(text) < len(files):
         continue
-    css = open(out).read()
-    if "{{" in css:
-        bad.append(f"{name}: a placeholder was left unrendered")
+
+    bar = dict(re.findall(r'@define-color ([a-z-]+) (#[0-9a-fA-F]{6})', text["waybar-colors.css"]))
+    need = {"fg", "bg-widget", "bg-deep", "success", "warning", "danger", "info",
+            "secondary", "accent", "accent-dim", "muted"}
+    if not need <= set(bar):
+        bad.append(f"{name}: waybar colours missing {sorted(need - set(bar))}")
         continue
-    got = dict(re.findall(r'@define-color (fg|bg-widget|bg-deep) (#[0-9a-fA-F]{6})', css))
-    if len(got) < 3:
-        bad.append(f"{name}: waybar colours missing {set(['fg','bg-widget','bg-deep']) - set(got)}")
-        continue
-    text = contrast(got["fg"], got["bg-widget"])
-    if text < 3.0:
-        bad.append(f"{name}: waybar text {text:.1f} on its widgets")
+    # Everything waybar draws sits on the widget surface.
+    for key in ("fg", "success", "warning", "danger", "info", "secondary", "accent", "accent-dim"):
+        c = contrast(bar[key], bar["bg-widget"])
+        if c < 3.0:
+            bad.append(f"{name}: waybar {key} {c:.1f}")
     # And the widget has to belong to the bar it sits on. Readability alone let
     # a pure black pill through on a pale theme.
-    near = contrast(got["bg-deep"], got["bg-widget"])
+    near = contrast(bar["bg-deep"], bar["bg-widget"])
     if near > 3.0:
         bad.append(f"{name}: widget {near:.1f} away from the bar behind it")
+
+    menu = dict(re.findall(r'(\w[\w-]*):\s+(#[0-9a-fA-F]{6})', text["rofi-colors.rasi"]))
+    need = {"background", "background-alt", "foreground", "selected", "active", "urgent", "muted"}
+    if not need <= set(menu):
+        bad.append(f"{name}: rofi colours missing {sorted(need - set(menu))}")
+        continue
+    for key, on in (("selected", "background-alt"), ("foreground", "background"),
+                    ("active", "background"), ("urgent", "background")):
+        c = contrast(menu[key], menu[on])
+        if c < 3.0:
+            bad.append(f"{name}: rofi {key} on {on} {c:.1f}")
+    # Placeholder text is meant to be dim, not absent. It was landing at 1.0.
+    c = contrast(menu["muted"], menu["background"])
+    if c < 2.3:
+        bad.append(f"{name}: rofi placeholder {c:.1f}")
+
+    for colour in re.findall(r"color='(#[0-9a-fA-F]{6})'", text["theme-clock.jsonc"]):
+        c = contrast(colour, bar["bg-deep"])
+        if c < 3.0:
+            bad.append(f"{name}: clock {colour} {c:.1f}")
 print("; ".join(bad))
 PYEOF
 )
-check "waybar text is readable on every theme, and its widgets belong to the bar" "$waybar_report" ""
+check "every interface colour is readable on what it is drawn on, on every theme" "$ui_report" ""
+
+# The terminal palette is deliberately not in that check. colour0 to colour15
+# stay exactly as each scheme publishes them, pale whites included: Solarized
+# Light really does define its brightest white as its own background, and
+# changing it would make this project's Solarized not Solarized.
+untouched=$(python3 - "$THEMES" "$REPO" "$TMP" <<'PYEOF'
+import os, re, sys
+themes, repo, tmp = sys.argv[1], sys.argv[2], sys.argv[3]
+bad = []
+for name in sorted(os.listdir(themes)):
+    d = os.path.join(themes, name)
+    if name.startswith("templates") or not os.path.isdir(d):
+        continue
+    gen = os.path.join(tmp, "render", name, "generated", "ghostty.conf")
+    if not os.path.isfile(gen):
+        continue
+    want = dict(re.findall(r'^color(\d+)\s*=\s*"(#[0-9A-Fa-f]{6})"\s*$',
+                           open(os.path.join(d, "colors.toml")).read(), re.M))
+    got = dict(re.findall(r'^palette\s*=\s*(\d+)=(#[0-9A-Fa-f]{6})\s*$', open(gen).read(), re.M))
+    for slot, value in want.items():
+        if slot in got and got[slot].lower() != value.lower():
+            bad.append(f"{name}: colour{slot} {value} became {got[slot]}")
+print("; ".join(bad))
+PYEOF
+)
+check "and the terminal palette is passed through untouched" "$untouched" ""
 
 # A colors.toml that does not define colour0, which a theme of your own may
 # well not. The surface is computed from three keys, and without a fallback the

@@ -43,7 +43,7 @@ entry {
     text-color:         @foreground;
     cursor:             text;
     placeholder:        "Filter...";
-    placeholder-color:  @background-alt;
+    placeholder-color:  @muted;
 }
 
 listview {
