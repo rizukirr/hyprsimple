@@ -45,7 +45,11 @@ deliver_theme_configs "$THEME_PATH"
 # 9. Wallpaper (copy so hyprpaper detects change)
 WALLPAPER=""
 if [[ -d "$THEME_PATH/backgrounds" ]]; then
-  WALLPAPER=$(find "$THEME_PATH/backgrounds" -type f \( -name "*.png" -o -name "*.jpg" \) | sort | head -1)
+  # -L, so a wallpaper that is a symlink counts. Without it every theme whose
+  # backgrounds hold a link had no wallpaper at all: find -type f does not match
+  # a symlink, and the themes added with the colorscheme catalogue share one
+  # image that way until they have their own.
+  WALLPAPER=$(find -L "$THEME_PATH/backgrounds" -type f \( -name "*.png" -o -name "*.jpg" \) | sort | head -1)
 elif [[ -f "$THEME_PATH/wallpaper.jpg" ]]; then
   WALLPAPER="$THEME_PATH/wallpaper.jpg"
 fi
