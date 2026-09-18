@@ -34,7 +34,7 @@ for dir in "$THEMES_DIR"/*/; do
   # a symlink, and the themes added with the colorscheme catalogue share one
   # image that way until they have their own.
   wallpaper=$(find -L "$dir/backgrounds" -maxdepth 1 -type f \
-    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -n 1)
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | sort | head -n 1)
 
   printf '%s\t%s  %s\t%s\n' "$name" "$(swatches_for "$dir/colors.toml")" "${name//-/ }" "$wallpaper"
 done

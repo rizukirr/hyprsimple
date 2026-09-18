@@ -190,6 +190,57 @@ done < <(
 )
 check "every scan of a theme's backgrounds follows symlinks" "${unfollowed[*]:-}" ""
 
+# ---- every wallpaper format works everywhere -----------------------------------
+#
+# The switchers matched *.png and *.jpg only while the pickers also took .jpeg,
+# so a .jpeg wallpaper appeared in the grid and then could not be set, and a
+# .webp one was invisible everywhere. hyprpaper links libwebp and reads all
+# four, and ImageMagick makes thumbnails from all four.
+#
+# The sets are read out of the scripts, so a scan that drifts is caught.
+formats_report=$(python3 - "$REPO" <<'PYEOF'
+import glob, os, re, sys
+repo = sys.argv[1]
+want = {"jpg", "jpeg", "png", "webp"}
+bad = []
+found = 0
+for path in sorted(glob.glob(os.path.join(repo, ".local/bin/*.sh"))):
+    src = re.sub(r"^[ \t]*#.*$", "", open(path).read(), flags=re.M)
+    for line in src.splitlines():
+        if "find" not in line or ("backgrounds" not in line and "BG_DIR" not in line):
+            continue
+        found += 1
+        exts = {e.lower() for e in re.findall(r"-i?name\s+[\"']\*\.([A-Za-z]+)[\"']", line)}
+        # The formats may be on the next lines of the same command, so widen to
+        # the whole statement when the line alone names none.
+        if not exts:
+            start = src.index(line)
+            exts = {e.lower() for e in re.findall(r"-i?name\s+[\"']\*\.([A-Za-z]+)[\"']", src[start:start + 400])}
+        if exts != want:
+            bad.append(f"{os.path.basename(path)}: {sorted(exts) or 'none'}")
+if found < 4:
+    bad.append(f"only {found} wallpaper scans found, which is fewer than there are")
+print("; ".join(bad))
+PYEOF
+)
+check "every wallpaper scan accepts jpg, jpeg, png and webp" "$formats_report" ""
+
+# Driven rather than only read: a theme whose only wallpaper is a webp has to
+# reach the picker.
+webp_themes="$TMP/webp-themes/themes"
+mkdir -p "$webp_themes/webponly/backgrounds"
+cp "$THEMES/deep-sea/colors.toml" "$webp_themes/webponly/"
+printf 'not really an image\n' >"$webp_themes/webponly/backgrounds/0-wall.webp"
+webp_row=$(THEMES_DIR="$webp_themes" XDG_CACHE_HOME="$TMP/webp-cache" \
+  "$BASH_BIN" "$REPO/.local/bin/hyprsimple-theme-picker.sh" 2>/dev/null)
+check "a theme whose only wallpaper is a webp is listed with it" \
+  "$(printf '%s\n' "$webp_row" | awk -F'\t' '{print $3}' | grep -c '0-wall.webp')" "1"
+
+# rofi paints its launcher and power menu background through gdk-pixbuf, which
+# reads webp only with this loader installed.
+check "the webp pixbuf loader is installed for rofi" \
+  "$(grep -cx 'webp-pixbuf-loader' "$REPO/packages.txt")" "1"
+
 # ---- the interface is readable on every theme ---------------------------------
 #
 # The templates pasted palette slots straight into interface text, with nothing
