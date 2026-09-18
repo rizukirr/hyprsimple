@@ -49,7 +49,12 @@ if [[ -d "$THEME_PATH/backgrounds" ]]; then
   # backgrounds hold a link had no wallpaper at all: find -type f does not match
   # a symlink, and the themes added with the colorscheme catalogue share one
   # image that way until they have their own.
-  WALLPAPER=$(find -L "$THEME_PATH/backgrounds" -type f \( -name "*.png" -o -name "*.jpg" \) | sort | head -1)
+  # jpg, jpeg, png and webp, matched without regard to case, and the same set in
+  # every script that looks for a wallpaper. The switchers took *.png and *.jpg
+  # only, so a .jpeg wallpaper appeared in the picker and then could not be set,
+  # and a .webp one was invisible everywhere. hyprpaper links libwebp and reads
+  # all four.
+  WALLPAPER=$(find -L "$THEME_PATH/backgrounds" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) | sort | head -1)
 elif [[ -f "$THEME_PATH/wallpaper.jpg" ]]; then
   WALLPAPER="$THEME_PATH/wallpaper.jpg"
 fi
