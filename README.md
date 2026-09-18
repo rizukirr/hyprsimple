@@ -22,7 +22,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 ## Features
 
-- **16 themes** with one-key switching, all apps update at once (waybar, rofi, ghostty, hyprlock, dunst, btop)
+- **40 themes** with one-key switching, all apps update at once (waybar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
 - **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers** with picker and cycle support
 - **Per-theme backgrounds** for app launcher and power menu
