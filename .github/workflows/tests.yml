@@ -286,6 +286,9 @@ jobs:
       - name: menu-exclusive-test
         run: bash test/menu-exclusive-test.sh
 
+      - name: theme-catalogue-test
+        run: bash test/theme-catalogue-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test
