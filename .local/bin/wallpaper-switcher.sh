@@ -36,7 +36,12 @@ fi
 # backgrounds hold a link had no wallpaper at all: find -type f does not match
 # a symlink, and the themes added with the colorscheme catalogue share one
 # image that way until they have their own.
-mapfile -t WALLPAPERS < <(find -L "$BG_DIR" -type f \( -name "*.png" -o -name "*.jpg" \) | sort)
+# jpg, jpeg, png and webp, matched without regard to case, and the same set in
+# every script that looks for a wallpaper. The switchers took *.png and *.jpg
+# only, so a .jpeg wallpaper appeared in the picker and then could not be set,
+# and a .webp one was invisible everywhere. hyprpaper links libwebp and reads
+# all four.
+mapfile -t WALLPAPERS < <(find -L "$BG_DIR" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) | sort)
 
 if (( ${#WALLPAPERS[@]} == 0 )); then
   notify-send "Wallpaper" "No wallpapers found"

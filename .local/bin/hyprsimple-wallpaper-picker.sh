@@ -35,7 +35,7 @@ BG_DIR=$(dirname "$CURRENT" 2>/dev/null)
 # a symlink, and the themes added with the colorscheme catalogue share one
 # image that way until they have their own.
 find -L "$BG_DIR" -maxdepth 1 -type f \
-  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null |
+  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null |
   sort |
   while read -r image; do
     base=$(basename "$image")
