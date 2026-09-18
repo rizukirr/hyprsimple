@@ -345,5 +345,82 @@ else
   fail "screen-record.sh stop stops a running recording without a selector"
 fi
 
+# ---- the bar carries the theme's background -----------------------------------
+#
+# waybar's own window was transparent, so everything between the widgets was the
+# wallpaper and the bar took on whatever the top strip of the current image
+# happened to be: cream on one, grey on the next, rarely anything like the
+# terminal under it.
+
+STYLE_MIGRATION="$REPO/migrations/1789040000.sh"
+
+waybar_block() {
+  awk '/^#waybar[[:space:]]*\{/ { inside = 1; next } inside && /^\}/ { inside = 0 } inside' "$1"
+}
+
+check "the shipped bar uses the theme background" \
+  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
+check "and is no longer transparent" \
+  "$(waybar_block "$REPO/.config/waybar/style.css" | grep -c 'background: transparent;')" "0"
+
+STYLE_BIN="$TMP/stylebin"; mkdir -p "$STYLE_BIN"
+for tool in awk cat grep mktemp rm bash; do ln -sf "$(command -v "$tool")" "$STYLE_BIN/$tool"; done
+style_home() {
+  local h="$TMP/stylehome-$1"
+  rm -rf "$h"; mkdir -p "$h/.config/waybar" "$h/.local/bin"
+  # A restart helper that records rather than restarting the real bar.
+  cat >"$h/.local/bin/hyprsimple-restart-waybar.sh" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$RESTART_LOG"
+STUBEOF
+  chmod +x "$h/.local/bin/hyprsimple-restart-waybar.sh"
+  printf '%s' "$h"
+}
+run_style_migration() {
+  : >"$TMP/restarts"
+  HOME="$1" RESTART_LOG="$TMP/restarts" PATH="$STYLE_BIN" \
+    bash "$STYLE_MIGRATION" >"$TMP/styleout" 2>&1
+}
+
+h=$(style_home shipped)
+cp "$SHIPPED_STYLE" "$h/.config/waybar/style.css"
+before_other=$(grep -vF '  background: transparent;' "$SHIPPED_STYLE")
+run_style_migration "$h"
+check "the migration gives an unedited bar the theme background" \
+  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
+check "and leaves every other line alone" \
+  "$(grep -vF '  background: @bg-deep;' "$h/.config/waybar/style.css")" "$before_other"
+check "and restarts a running bar so it takes effect now" \
+  "$(grep -c -- '--if-running' "$TMP/restarts")" "1"
+
+snapshot=$(cat "$h/.config/waybar/style.css")
+run_style_migration "$h"
+check "running it again changes nothing" "$(cat "$h/.config/waybar/style.css")" "$snapshot"
+check "and says it is already done" "$(grep -c 'already carries' "$TMP/styleout")" "1"
+
+h=$(style_home own)
+printf '#waybar {\n  background: rgba(0,0,0,0.5);\n  color: @fg;\n}\n' >"$h/.config/waybar/style.css"
+snapshot=$(cat "$h/.config/waybar/style.css")
+run_style_migration "$h"
+check "a #waybar block of your own is left exactly as it was" \
+  "$(cat "$h/.config/waybar/style.css")" "$snapshot"
+check "and the line to set is printed" "$(grep -c 'background: @bg-deep;' "$TMP/styleout")" "1"
+
+# A transparent background somewhere other than #waybar is not the one being
+# changed, so the edit has to stay inside that block.
+h=$(style_home elsewhere)
+printf '#waybar {\n  background: transparent;\n}\n\n#tray {\n  background: transparent;\n}\n' \
+  >"$h/.config/waybar/style.css"
+run_style_migration "$h"
+check "only the bar's own background is changed" \
+  "$(grep -c 'background: transparent;' "$h/.config/waybar/style.css")" "1"
+check "and it is the bar that got the theme colour" \
+  "$(waybar_block "$h/.config/waybar/style.css" | grep -c 'background: @bg-deep;')" "1"
+
+h="$TMP/stylehome-none"; mkdir -p "$h"
+run_style_migration "$h"
+check "a home with no waybar style gets none" \
+  "$([[ -e $h/.config/waybar/style.css ]] && echo created || echo absent)" "absent"
+
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
