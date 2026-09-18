@@ -55,7 +55,7 @@ entry {
     text-color:         @foreground;
     cursor:             text;
     placeholder:        "Filter...";
-    placeholder-color:  @background-alt;
+    placeholder-color:  @muted;
 }
 
 listview {
@@ -79,9 +79,9 @@ element {
 }
 
 /* The selection is marked with @selected, the theme accent, rather than with
-   @background-alt alone. background-alt comes from color0, which sits close to
-   the panel in most of the shipped themes, so a fill on its own is hard to
-   see. */
+   @background-alt alone. background-alt is a shade of the panel, so a fill on
+   its own is hard to see. Both are derived to be readable on what they sit on,
+   so this works the same way on a light theme as on a dark one. */
 element selected.normal {
     background-color:   @background-alt;
     text-color:         @selected;

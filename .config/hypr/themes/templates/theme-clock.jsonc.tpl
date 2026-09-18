@@ -9,9 +9,9 @@
           "on-scroll": 1,
           "format": {
             "months": "<span color='{{ foreground }}'><b>{}</b></span>",
-            "days": "<span color='{{ color5 }}'><b>{}</b></span>",
-            "weekdays": "<span color='{{ color3 }}'><b>{}</b></span>",
-            "today": "<span color='{{ accent }}'><b><u>{}</u></b></span>"
+            "days": "<span color='{{ ui_calendar_day }}'><b>{}</b></span>",
+            "weekdays": "<span color='{{ ui_calendar_weekday }}'><b>{}</b></span>",
+            "today": "<span color='{{ ui_accent }}'><b><u>{}</u></b></span>"
           }
         }
     }
