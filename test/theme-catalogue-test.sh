@@ -119,8 +119,13 @@ for name in sorted(os.listdir(root)):
         # theme that is not there, and gsettings takes it without complaint.
         if not re.fullmatch(r"(Yaru|Papirus)(-[A-Za-z]+)*", icon):
             bad.append(f"{name}: icon theme {icon!r} is not one hyprsimple installs")
-        elif os.path.isdir("/usr/share/icons") and not os.path.isdir(f"/usr/share/icons/{icon}"):
-            bad.append(f"{name}: icon theme {icon!r} is not installed")
+        else:
+            # Only where that icon family is installed at all. A CI runner has
+            # /usr/share/icons with neither Yaru nor Papirus in it, and testing
+            # for the directory alone failed every theme there.
+            family = icon.split("-")[0]
+            if os.path.isdir(f"/usr/share/icons/{family}") and not os.path.isdir(f"/usr/share/icons/{icon}"):
+                bad.append(f"{name}: icon theme {icon!r} is not installed")
 
     bgdir = os.path.join(d, "backgrounds")
     entries = os.listdir(bgdir) if os.path.isdir(bgdir) else []
