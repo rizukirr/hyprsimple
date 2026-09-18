@@ -1,5 +1,5 @@
 @define-color fg {{ foreground }};
-@define-color bg-widget {{ color0 }};
+@define-color bg-widget {{ surface }};
 @define-color bg-deep {{ background }};
 @define-color accent {{ accent }};
 @define-color accent-bright {{ color6 }};

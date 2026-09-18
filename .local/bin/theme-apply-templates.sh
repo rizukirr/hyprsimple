@@ -68,6 +68,68 @@ while IFS='=' read -r key value; do
   fi
 done <"$COLORS_FILE" >"$sed_script"
 
+# A surface to sit text on, for the widget pills in waybar.
+#
+# Those used colour0 directly, which is the terminal's black. On a dark theme
+# that is a near-black behind light text and reads fine. On a light theme it is
+# still black, while the text is dark, so the waybar text was unreadable:
+# measured across the shipped themes, seven light ones and material-ocean fell
+# below 3:1, catppuccin-latte at 1.3 and flexoki-light at 1.0, which is text and
+# background the same colour.
+#
+# Computed rather than written into every colors.toml, so a theme of your own
+# gets a readable bar without having to know the key exists.
+surface_for() {
+  awk -v fg="$1" -v bg="$2" -v c0="$3" '
+    function chan(h,   v) {
+      v = strtonum("0x" h) / 255
+      return (v <= 0.04045) ? v / 12.92 : ((v + 0.055) / 1.055) ^ 2.4
+    }
+    function lum(hex) {
+      return 0.2126 * chan(substr(hex, 2, 2)) + 0.7152 * chan(substr(hex, 4, 2)) + 0.0722 * chan(substr(hex, 6, 2))
+    }
+    function contrast(a, b,   la, lb, t) {
+      la = lum(a); lb = lum(b)
+      if (la < lb) { t = la; la = lb; lb = t }
+      return (la + 0.05) / (lb + 0.05)
+    }
+    function part(hex, i,   v) { return strtonum("0x" substr(hex, i, 2)) }
+    function mix(a, b, amt,   r, g, bl) {
+      r  = part(a, 2) + (part(b, 2) - part(a, 2)) * amt
+      g  = part(a, 4) + (part(b, 4) - part(a, 4)) * amt
+      bl = part(a, 6) + (part(b, 6) - part(a, 6)) * amt
+      return sprintf("#%02x%02x%02x", int(r + 0.5), int(g + 0.5), int(bl + 0.5))
+    }
+    BEGIN {
+      # The theme own colour0 where it is readable and sits near the theme
+      # background, so dark themes look exactly as they did. Readability alone
+      # is not enough: ayu-light pairs dark grey text with a pure black
+      # colour0, which clears 3:1 and still puts a black pill on a pale bar.
+      if (contrast(fg, c0) >= 3.0 && contrast(bg, c0) <= 3.0) { print c0; exit }
+      # Otherwise a shade of the background, lifted towards the text. That
+      # stays the theme own colour and works the same way on light and dark.
+      print mix(bg, fg, 0.12)
+    }'
+}
+
+fg_value=$(sed -n 's/^foreground[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6\}\)".*/\1/p' "$COLORS_FILE" | head -1)
+bg_value=$(sed -n 's/^background[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6\}\)".*/\1/p' "$COLORS_FILE" | head -1)
+c0_value=$(sed -n 's/^color0[[:space:]]*=[[:space:]]*"\(#[0-9A-Fa-f]\{6\}\)".*/\1/p' "$COLORS_FILE" | head -1)
+
+if [[ -n $fg_value && -n $bg_value && -n $c0_value ]]; then
+  surface=$(surface_for "$fg_value" "$bg_value" "$c0_value")
+else
+  # A colors.toml missing one of the three gets the old behaviour rather than
+  # an empty substitution, which would leave {{ surface }} in the output.
+  surface="${c0_value:-${bg_value:-#000000}}"
+fi
+
+{
+  printf 's|{{ surface }}|%s|g\n' "$surface"
+  printf 's|{{ surface_strip }}|%s|g\n' "${surface#\#}"
+  printf 's|{{ surface_rgb }}|%s|g\n' "$(hex_to_rgb "$surface")"
+} >>"$sed_script"
+
 # Generate configs from templates
 mkdir -p "$THEME_DIR/generated"
 

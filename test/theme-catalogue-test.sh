@@ -163,6 +163,80 @@ else
   pass "ghostty's themes are not installed here, so the names are not resolved"
 fi
 
+# ---- waybar is readable on every theme -----------------------------------------
+#
+# The widget pills took colour0 straight, which is the terminal's black. On a
+# dark theme that is a near-black behind light text. On a light theme it is
+# still black while the text is dark, so waybar was unreadable: catppuccin-latte
+# measured 1.3 and flexoki-light 1.0, which is text the same colour as what it
+# sits on. material-ocean, a dark theme, was 1.8.
+#
+# Rendered through the real renderer rather than by repeating its rule here, so
+# this measures what waybar is actually given.
+
+waybar_report=$(python3 - "$THEMES" "$REPO" "$TMP" <<'PYEOF'
+import os, re, shutil, subprocess, sys
+themes, repo, tmp = sys.argv[1], sys.argv[2], sys.argv[3]
+home = os.path.join(tmp, "render-home")
+os.makedirs(home, exist_ok=True)
+
+def rel(h):
+    h = h.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    f = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+
+def contrast(a, b):
+    la, lb = sorted((rel(a), rel(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+bad = []
+for name in sorted(os.listdir(themes)):
+    d = os.path.join(themes, name)
+    if name.startswith("templates") or not os.path.isdir(d):
+        continue
+    work = os.path.join(tmp, "render", name)
+    os.makedirs(work, exist_ok=True)
+    shutil.copy(os.path.join(d, "colors.toml"), work)
+    subprocess.run([os.path.join(repo, ".local/bin/theme-apply-templates.sh"), work],
+                   capture_output=True,
+                   env=dict(os.environ, HYPRSIMPLE_PATH=repo, HOME=home))
+    out = os.path.join(work, "generated/waybar-colors.css")
+    if not os.path.isfile(out):
+        bad.append(f"{name}: nothing rendered")
+        continue
+    css = open(out).read()
+    if "{{" in css:
+        bad.append(f"{name}: a placeholder was left unrendered")
+        continue
+    got = dict(re.findall(r'@define-color (fg|bg-widget|bg-deep) (#[0-9a-fA-F]{6})', css))
+    if len(got) < 3:
+        bad.append(f"{name}: waybar colours missing {set(['fg','bg-widget','bg-deep']) - set(got)}")
+        continue
+    text = contrast(got["fg"], got["bg-widget"])
+    if text < 3.0:
+        bad.append(f"{name}: waybar text {text:.1f} on its widgets")
+    # And the widget has to belong to the bar it sits on. Readability alone let
+    # a pure black pill through on a pale theme.
+    near = contrast(got["bg-deep"], got["bg-widget"])
+    if near > 3.0:
+        bad.append(f"{name}: widget {near:.1f} away from the bar behind it")
+print("; ".join(bad))
+PYEOF
+)
+check "waybar text is readable on every theme, and its widgets belong to the bar" "$waybar_report" ""
+
+# A colors.toml that does not define colour0, which a theme of your own may
+# well not. The surface is computed from three keys, and without a fallback the
+# substitution is empty and waybar is handed "@define-color bg-widget ;".
+partial="$TMP/partial"
+mkdir -p "$partial"
+printf 'foreground = "#eeeeee"\nbackground = "#202020"\n' >"$partial/colors.toml"
+HYPRSIMPLE_PATH="$REPO" HOME="$TMP/render-home" \
+  "$BASH_BIN" "$REPO/.local/bin/theme-apply-templates.sh" "$partial" >/dev/null 2>&1
+check "a theme missing colour0 still renders a colour for the widgets" \
+  "$(grep -cE '^@define-color bg-widget #[0-9a-fA-F]{6};' "$partial/generated/waybar-colors.css")" "1"
+
 # ---- the migration -------------------------------------------------------------
 
 MBIN="$TMP/bin"; mkdir -p "$MBIN"
