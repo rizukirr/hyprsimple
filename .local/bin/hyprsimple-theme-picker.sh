@@ -29,7 +29,11 @@ for dir in "$THEMES_DIR"/*/; do
   # overrides of them. Neither is a theme.
   [[ $name == templates || $name == templates.user ]] && continue
 
-  wallpaper=$(find "$dir/backgrounds" -maxdepth 1 -type f \
+  # -L, so a wallpaper that is a symlink counts. Without it every theme whose
+  # backgrounds hold a link had no wallpaper at all: find -type f does not match
+  # a symlink, and the themes added with the colorscheme catalogue share one
+  # image that way until they have their own.
+  wallpaper=$(find -L "$dir/backgrounds" -maxdepth 1 -type f \
     \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -n 1)
 
   printf '%s\t%s  %s\t%s\n' "$name" "$(swatches_for "$dir/colors.toml")" "${name//-/ }" "$wallpaper"

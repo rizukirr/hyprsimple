@@ -32,7 +32,11 @@ if [[ ! -d $BG_DIR ]]; then
 fi
 
 # Get all wallpapers sorted
-mapfile -t WALLPAPERS < <(find "$BG_DIR" -type f \( -name "*.png" -o -name "*.jpg" \) | sort)
+# -L, so a wallpaper that is a symlink counts. Without it every theme whose
+# backgrounds hold a link had no wallpaper at all: find -type f does not match
+# a symlink, and the themes added with the colorscheme catalogue share one
+# image that way until they have their own.
+mapfile -t WALLPAPERS < <(find -L "$BG_DIR" -type f \( -name "*.png" -o -name "*.jpg" \) | sort)
 
 if (( ${#WALLPAPERS[@]} == 0 )); then
   notify-send "Wallpaper" "No wallpapers found"

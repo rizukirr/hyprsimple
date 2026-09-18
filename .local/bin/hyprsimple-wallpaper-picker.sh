@@ -30,7 +30,11 @@ BG_DIR=$(dirname "$CURRENT" 2>/dev/null)
 
 [[ -d $BG_DIR ]] || exit 0
 
-find "$BG_DIR" -maxdepth 1 -type f \
+# -L, so a wallpaper that is a symlink counts. Without it every theme whose
+# backgrounds hold a link had no wallpaper at all: find -type f does not match
+# a symlink, and the themes added with the colorscheme catalogue share one
+# image that way until they have their own.
+find -L "$BG_DIR" -maxdepth 1 -type f \
   \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null |
   sort |
   while read -r image; do

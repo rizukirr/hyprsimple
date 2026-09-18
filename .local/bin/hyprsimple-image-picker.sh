@@ -42,11 +42,15 @@ done
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
-# Keyed by the source path rather than a caller-supplied name, so two producers
-# naming the same image share one entry and cannot collide.
+# Keyed by the image the path resolves to rather than by a caller-supplied
+# name, so two producers naming the same image share one entry and cannot
+# collide, and so do two themes whose wallpapers are links to one file. The
+# themes added with the colorscheme catalogue share a single image that way, and
+# keying on the path alone had ImageMagick convert it once per theme: 32 runs of
+# a quarter of a second each, every one producing the same thumbnail.
 thumbnail_for() {
   local src="$1" hash thumb
-  hash=$(printf '%s' "$src" | md5sum | cut -d' ' -f1)
+  hash=$(printf '%s' "$(readlink -f "$src" 2>/dev/null || printf '%s' "$src")" | md5sum | cut -d' ' -f1)
   thumb="$CACHE_DIR/$hash.jpg"
 
   if [[ $thumb -nt $src ]]; then

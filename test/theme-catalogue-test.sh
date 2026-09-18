@@ -163,6 +163,33 @@ else
   pass "ghostty's themes are not installed here, so the names are not resolved"
 fi
 
+# ---- every theme's wallpaper is findable ---------------------------------------
+#
+# The scripts locate a wallpaper with find, and a symlink is not a regular file.
+# `find -type f` therefore returned nothing for every theme whose wallpaper is a
+# link, which is the 32 added with the catalogue: no preview in the theme
+# picker, and nothing to set when switching to one.
+
+rows=$(THEMES_DIR="$THEMES" XDG_CACHE_HOME="$TMP/picker-cache" \
+  "$BASH_BIN" "$REPO/.local/bin/hyprsimple-theme-picker.sh" 2>/dev/null)
+check "the picker lists every theme" "$(printf '%s\n' "$rows" | grep -c .)" "${#names[@]}"
+check "and every row carries a wallpaper" \
+  "$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "" {print $1}' | paste -sd' ')" ""
+
+# The rule rather than the four instances, so a scan added later is caught.
+unfollowed=()
+while IFS= read -r hit; do
+  [[ -n $hit ]] && unfollowed+=("${hit%%:*}")
+done < <(
+  for f in "$REPO/.local/bin"/*.sh; do
+    sed 's/^[[:space:]]*#.*//' "$f" |
+      grep -nE 'find .*(backgrounds|BG_DIR)' |
+      grep -v 'find -L' |
+      sed "s|^|$(basename "$f"):|"
+  done
+)
+check "every scan of a theme's backgrounds follows symlinks" "${unfollowed[*]:-}" ""
+
 # ---- the interface is readable on every theme ---------------------------------
 #
 # The templates pasted palette slots straight into interface text, with nothing
