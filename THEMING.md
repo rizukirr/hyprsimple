@@ -1,13 +1,8 @@
 # Making your own theme
 
-A theme in hyprsimple is one directory of colours. You write sixteen palette
-entries and a few named colours into `colors.toml`, and a theme switch renders
-them into waybar, rofi, dunst, hyprlock, ghostty, btop and Hyprland's own
-borders, then reloads each of those programs.
+A theme in hyprsimple is one directory of colours. You write sixteen palette entries and a few named colours into `colors.toml`, and a theme switch renders them into waybar, rofi, dunst, hyprlock, ghostty, btop and Hyprland's own borders, then reloads each of those programs.
 
-Everything here happens in `~/.config/hypr/themes/`, which is yours. hyprsimple
-copies it once at install and never overwrites it, so a theme you add stays
-through every update.
+Everything here happens in `~/.config/hypr/themes/`, which is yours. hyprsimple copies it once at install and never overwrites it, so a theme you add stays through every update.
 
 ## The short version
 
@@ -18,9 +13,7 @@ $EDITOR my-theme/colors.toml
 theme-switcher.sh my-theme
 ```
 
-Pick a wallpaper for it with `SUPER + SHIFT + W`, or drop images into
-`my-theme/backgrounds/`. Your theme then appears in the picker on
-`SUPER + SHIFT + T` alongside the shipped ones.
+Pick a wallpaper for it with `SUPER + SHIFT + W`, or drop images into `my-theme/backgrounds/`. Your theme then appears in the picker on `SUPER + SHIFT + T` alongside the shipped ones.
 
 ## What goes in the directory
 
@@ -37,8 +30,7 @@ Only `colors.toml` is required. Everything else has a sensible default.
 
 ## colors.toml
 
-Hex strings, six digits, with the leading `#`. These are the keys the renderer
-reads:
+Hex strings, six digits, with the leading `#`. These are the keys the renderer reads:
 
 ```toml
 accent = "#1A76C9"
@@ -66,9 +58,7 @@ color14 = "#2A93DD"   # bright cyan
 color15 = "#ffffff"   # bright white
 ```
 
-The sixteen palette entries reach the terminal exactly as you write them. They
-are never adjusted, because a scheme's own black really is black and its own
-white really is white, and a terminal is expected to show them that way.
+The sixteen palette entries reach the terminal exactly as you write them. They are never adjusted, because a scheme's own black really is black and its own white really is white, and a terminal is expected to show them that way.
 
 The interface is a different matter, and hyprsimple computes it for you.
 
@@ -76,30 +66,17 @@ The interface is a different matter, and hyprsimple computes it for you.
 
 Two kinds of colour are derived from the palette rather than taken from it.
 
-The widget surface, which is what the waybar pills sit on. `color0` is used
-where it reads against the text and is not far from the background. Otherwise
-the surface is the background lifted twelve percent towards the foreground,
-which keeps it the theme's own colour and works the same way on a light theme
-as on a dark one.
+The widget surface, which is what the waybar pills sit on. `color0` is used where it reads against the text and is not far from the background. Otherwise the surface is the background lifted twelve percent towards the foreground, which keeps it the theme's own colour and works the same way on a light theme as on a dark one.
 
-The interface colours, which are the palette entries above nudged until they can
-actually be read on what they are drawn on. Success, warning, danger, info,
-secondary and the accent are checked against the widget surface. The calendar
-day and weekday are checked against the background. Muted text and borders are
-checked at a lower bar, because they are meant to be quiet rather than invisible.
+The interface colours, which are the palette entries above nudged until they can actually be read on what they are drawn on. Success, warning, danger, info, secondary and the accent are checked against the widget surface. The calendar day and weekday are checked against the background. Muted text and borders are checked at a lower bar, because they are meant to be quiet rather than invisible.
 
-A colour that already reads is returned untouched, and a colour that does not
-keeps its hue while its lightness moves, towards white on a dark surface and
-towards black on a light one. So a theme keeps its character and stops having
-white text on cream.
+A colour that already reads is returned untouched, and a colour that does not keeps its hue while its lightness moves, towards white on a dark surface and towards black on a light one. So a theme keeps its character and its text stays readable on every surface it lands on.
 
-You do not have to do anything to get this. Write a palette you like and the
-interface follows.
+You do not have to do anything to get this. Write a palette you like and the interface follows.
 
 ## What gets generated, and where it lands
 
-Rendering writes into `<theme>/generated/`, and a switch puts each file where
-its program reads it:
+Rendering writes into `<theme>/generated/`, and a switch puts each file where its program reads it:
 
 | Generated file | Where it goes |
 | --- | --- |
@@ -112,8 +89,7 @@ its program reads it:
 | `ghostty.conf` | appended to `~/.config/ghostty/config`, unless the theme has a `ghostty-theme` file |
 | `btop.theme` | copied to `~/.config/btop/themes/current.theme`, and btop is pointed at it |
 
-Nothing in `generated/` is worth editing. It is overwritten on every switch and
-on every update that changes a template.
+Nothing in `generated/` is worth editing. It is overwritten on every switch and on every update that changes a template.
 
 ## Trying it out
 
@@ -122,62 +98,30 @@ theme-switcher.sh my-theme                              # apply it
 theme-apply-templates.sh ~/.config/hypr/themes/my-theme  # re-render without switching
 ```
 
-A switch re-renders first, so editing `colors.toml` and switching again is
-enough while you are working on it. The keybinding for the picker is
-`SUPER + SHIFT + T`, and `SUPER + SHIFT + W` picks a wallpaper within the
-current theme.
+A switch re-renders first, so editing `colors.toml` and switching again is enough while you are working on it. The keybinding for the picker is `SUPER + SHIFT + T`, and `SUPER + SHIFT + W` picks a wallpaper within the current theme.
 
-If the change does not show, the program probably needs its config reread.
-Switching again is the blunt way. waybar and dunst can also be restarted on
-their own with `hyprsimple-restart-waybar.sh` and
-`systemctl --user restart dunst`.
+If the change does not show, the program probably needs its config reread. Switching again is the blunt way. waybar and dunst can also be restarted on their own with `hyprsimple-restart-waybar.sh` and `systemctl --user restart dunst`.
 
 ## Changing how a colour is used
 
-The mapping from palette to interface lives in templates, one per program, in
-`~/.local/share/hyprsimple/.config/hypr/themes/templates/`. They are plain text
-with `{{ key }}` placeholders, where `key` is any name from `colors.toml` or any
-of the derived names such as `surface` or `ui_danger`. Two variants exist for
-each: `{{ key_strip }}` drops the leading `#`, and `{{ key_rgb }}` gives
-`30,30,46`.
+The mapping from palette to interface lives in templates, one per program, in `~/.local/share/hyprsimple/.config/hypr/themes/templates/`. They are plain text with `{{ key }}` placeholders, where `key` is any name from `colors.toml` or any of the derived names such as `surface` or `ui_danger`. Two variants exist for each: `{{ key_strip }}` drops the leading `#`, and `{{ key_rgb }}` gives `30,30,46`.
 
-The install owns those files, so a template change from hyprsimple reaches you
-on the next update. To change one yourself, copy it into
-`~/.config/hypr/themes/templates.user/` under the same name and edit it there.
-That directory wins over the install, and a template in it with no shipped
-counterpart is rendered too, so you can add outputs of your own.
+The install owns those files, so a template change from hyprsimple reaches you on the next update. To change one yourself, copy it into `~/.config/hypr/themes/templates.user/` under the same name and edit it there. That directory wins over the install, and a template in it with no shipped counterpart is rendered too, so you can add outputs of your own.
 
-Editing the shipped templates in place does nothing: they are replaced on
-update.
+Editing the shipped templates in place does nothing: they are replaced on update.
 
 ## Your theme and updates
 
-An update never touches a theme hyprsimple does not ship. The catalogue
-migration adds themes that are missing and removes the eight that came from
-omarchy, and only when their `colors.toml` is still byte-identical to what was
-shipped. A theme of your own is not in either list.
+An update never touches a theme hyprsimple does not ship. The catalogue migration adds themes that are missing and removes the eight that came from omarchy, and only when their `colors.toml` is still byte-identical to what was shipped. A theme of your own is not in either list.
 
-The one thing an update does reach into is `generated/`, which is re-rendered
-when the templates change. Since that directory is output, nothing of yours is
-lost.
+The one thing an update does reach into is `generated/`, which is re-rendered when the templates change. Since that directory is output, nothing of yours is lost.
 
 ## Sharing it
 
-Themes live in `.config/hypr/themes/` in the repository, with the same layout as
-above. Two things to know before opening a pull request:
+Themes live in `.config/hypr/themes/` in the repository, with the same layout as above. Two things to know before opening a pull request:
 
-Wallpapers have to pass the image policy, which CI checks on every pull request
-that touches themes. Run `bin/hyprsimple-dev-optimize-images` and it will fix
-what it can.
+Wallpapers have to pass the image policy, which CI checks on every pull request that touches themes. Run `bin/hyprsimple-dev-optimize-images` and it will fix what it can.
 
-`test/theme-catalogue-test.sh` checks the catalogue: a `colors.toml` with the
-keys the templates need, swatches distinct enough to tell themes apart in the
-picker, an icon theme hyprsimple installs, at least one wallpaper of its own
-that is not an absolute symlink, `light.mode` matching what the background
-luminance says, and enough contrast in waybar and rofi between the text and
-what it sits on. Run it before pushing and it names whichever of those a new
-theme is missing.
+`test/theme-catalogue-test.sh` checks the catalogue: a `colors.toml` with the keys the templates need, swatches distinct enough to tell themes apart in the picker, an icon theme hyprsimple installs, at least one wallpaper of its own that is not an absolute symlink, `light.mode` matching what the background luminance says, and enough contrast in waybar and rofi between the text and what it sits on. Run it before pushing and it names whichever of those a new theme is missing.
 
-If the scheme is a well known one, taking the palette from that project's own
-ghostty theme in `/usr/share/ghostty/themes/` gives you the colours its authors
-publish rather than an approximation.
+If the scheme is a well known one, taking the palette from that project's own ghostty theme in `/usr/share/ghostty/themes/` gives you the colours its authors publish rather than an approximation.
