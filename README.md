@@ -171,6 +171,8 @@ belong to the theme rather than to you.
 
 #### Theme templates
 
+Writing a theme of your own is covered in [THEMING.md](THEMING.md), from `colors.toml` to the files each program reads.
+
 Themes are rendered from the `.tpl` files in `~/.local/share/hyprsimple/.config/hypr/themes/templates`, and the install owns them, so a template change reaches you through `hyprsimple-update` with no migration.
 
 To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same name and edit it there. That directory wins over the install, and a file in it with no shipped counterpart is rendered too, so you can add templates of your own.
