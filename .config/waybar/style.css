@@ -17,7 +17,7 @@
 
 #workspaces {
   border-radius: 1rem;
-  background-color: @bg-widget;
+  background-color: @bg-deep;
   margin: 5px 0 0 1rem;
 }
 
@@ -51,7 +51,7 @@ tooltip label {
 
 #network,
 #bluetooth {
-    background-color: @bg-widget;
+    background-color: @bg-deep;
     padding: 0.5rem 0.5rem;
     margin: 5px 0 0 0;
 }
@@ -59,7 +59,7 @@ tooltip label {
 
 #cpu,
 #memory {
-    background-color: @bg-widget;
+    background-color: @bg-deep;
     padding: 0.5rem 0.5rem;
     margin: 5px 0 0 0;
 }
@@ -72,7 +72,7 @@ tooltip label {
 #pulseaudio,
 #custom-lock,
 #custom-power {
-  background-color: @bg-widget;
+  background-color: @bg-deep;
   padding: 0.5rem 0.5rem;
   margin: 5px 0 0 0;
 }
@@ -162,7 +162,7 @@ tooltip label {
 
 
 #custom-muslimtify {
-    background-color: @bg-widget;
+    background-color: @bg-deep;
     color: @warning;
     border: 1.5px solid alpha(@warning, 0.35);
     border-radius: 1.5rem 1.5rem 0.3rem 0.3rem;
@@ -197,7 +197,7 @@ tooltip label {
    #custom-muslimtify is deliberately not the model here: its rounded-top shape
    is particular to that widget. */
 #custom-screenrecording.active {
-    background-color: @bg-widget;
+    background-color: @bg-deep;
     color: @danger;
     border-radius: 1rem;
     /* The vertical half matches every other module, so the row lines up. The
