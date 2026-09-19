@@ -424,7 +424,7 @@ check "the migration removes the omarchy themes" "${left[*]:-}" ""
 check "and adds the new ones" \
   "$([[ -d $h/.config/hypr/themes/dracula && -d $h/.config/hypr/themes/solarized-light ]] && echo added || echo missing)" "added"
 check "with their colours, wallpapers and icon theme" \
-  "$([[ -f $h/.config/hypr/themes/dracula/colors.toml && -e $h/.config/hypr/themes/dracula/backgrounds/0-deep-sea.jpg && -f $h/.config/hypr/themes/dracula/icon-theme ]] && echo complete || echo incomplete)" \
+  "$([[ -f $h/.config/hypr/themes/dracula/colors.toml && -n $(find "$h/.config/hypr/themes/dracula/backgrounds" -type f -print -quit) && -f $h/.config/hypr/themes/dracula/icon-theme ]] && echo complete || echo incomplete)" \
   "complete"
 check "and says how many it added and removed" \
   "$(grep -cE 'Added [0-9]+ theme|Removed [0-9]+ theme' "$TMP/out")" "2"
@@ -487,6 +487,108 @@ check "a home with no themes directory is left alone" \
 
 check "the README counts the themes it ships" \
   "$(grep -c "\*\*${#names[@]} themes\*\*" "$REPO/README.md")" "1"
+
+# ---- every theme has a wallpaper of its own -----------------------------------
+#
+# The catalogue arrived with one picture shared between the themes, a symlink to
+# deep-sea's in each, until there was one for each. There is now.
+
+shared=()
+oversized=()
+badname=()
+for d in "$THEMES"/*/; do
+  name=$(basename "$d")
+  [[ $name == templates* ]] && continue
+  while IFS= read -r wall; do
+    base=$(basename "$wall")
+    [[ -L $wall ]] && shared+=("$name/$base")
+    (($(stat -c %s "$wall") > 2097152)) && oversized+=("$name/$base")
+    [[ $base =~ ^[0-9]+-.+\.(jpg|jpeg|png|webp)$ ]] || badname+=("$name/$base")
+  done < <(find "$d/backgrounds" -mindepth 1 -maxdepth 1)
+done
+check "no theme borrows another theme's wallpaper" "${shared[*]:-}" ""
+# Everyone who installs hyprsimple clones these, so a 16 MiB png is everybody's
+# download. The largest here is about 1 MiB.
+check "no wallpaper is larger than 2 MiB" "${oversized[*]:-}" ""
+check "every wallpaper is numbered and in a format the switchers read" "${badname[*]:-}" ""
+
+# ---- the wallpaper migration ---------------------------------------------------
+
+WALLPAPER_MIGRATION="$REPO/migrations/1789790910.sh"
+
+run_wallpaper_migration() {
+  : >"$TMP/switches"
+  HOME="$1" HYPRSIMPLE_PATH="$REPO" SESSION_UP="${SESSION_UP:-}" \
+    SWITCH_LOG="$TMP/switches" PATH="$MBIN" \
+    "$BASH_BIN" "$WALLPAPER_MIGRATION" >"$TMP/wallout" 2>&1
+}
+# An install as the catalogue left it: the placeholder link and nothing else.
+placeholder_home() {
+  local h="$TMP/$1"
+  rm -rf "$h"
+  mkdir -p "$h/.local/bin" "$h/.config/rofi"
+  cat >"$h/.local/bin/theme-switcher.sh" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$SWITCH_LOG"
+STUBEOF
+  chmod +x "$h/.local/bin/theme-switcher.sh"
+  for name in dracula nord zenburn; do
+    mkdir -p "$h/.config/hypr/themes/$name/backgrounds"
+    ln -s "../../deep-sea/backgrounds/2-deep-sea.jpg" \
+      "$h/.config/hypr/themes/$name/backgrounds/0-deep-sea.jpg"
+  done
+  printf '%s' "$h"
+}
+
+h=$(placeholder_home wallpaper-placeholder)
+run_wallpaper_migration "$h"
+check "the placeholder is replaced by the theme's own wallpaper" \
+  "$([[ -e $h/.config/hypr/themes/dracula/backgrounds/0-deep-sea.jpg ]] && echo left || echo gone)" "gone"
+check "and what arrives is the file hyprsimple ships" \
+  "$(find "$h/.config/hypr/themes/dracula/backgrounds" -mindepth 1 -printf '%f\n' | paste -sd' ')" \
+  "$(find "$THEMES/dracula/backgrounds" -mindepth 1 -printf '%f\n' | paste -sd' ')"
+check "and it is a real file rather than another link" \
+  "$(find "$h/.config/hypr/themes/dracula/backgrounds" -type f | wc -l)" "1"
+check "and it says how many themes it reached" \
+  "$(grep -cE '3 theme\(s\) now have their own wallpaper' "$TMP/wallout")" "1"
+
+snapshot=$(find "$h/.config/hypr/themes" -mindepth 1 -printf '%P\n' | sort | paste -sd' ')
+run_wallpaper_migration "$h"
+check "running it again changes nothing" \
+  "$(find "$h/.config/hypr/themes" -mindepth 1 -printf '%P\n' | sort | paste -sd' ')" "$snapshot"
+check "and says every theme has its own already" \
+  "$(grep -c 'already has its own wallpaper' "$TMP/wallout")" "1"
+
+# A picture of your own in there, beside the link or instead of it, means the
+# directory is yours.
+h=$(placeholder_home wallpaper-yours)
+printf 'mine\n' >"$h/.config/hypr/themes/nord/backgrounds/1-mine.jpg"
+rm "$h/.config/hypr/themes/zenburn/backgrounds/0-deep-sea.jpg"
+printf 'mine\n' >"$h/.config/hypr/themes/zenburn/backgrounds/0-mine.jpg"
+run_wallpaper_migration "$h"
+check "a wallpaper added beside the placeholder keeps the directory yours" \
+  "$(find "$h/.config/hypr/themes/nord/backgrounds" -mindepth 1 -printf '%f\n' | sort | paste -sd' ')" \
+  "0-deep-sea.jpg 1-mine.jpg"
+check "and a directory with your own wallpaper in it is left alone" \
+  "$(find "$h/.config/hypr/themes/zenburn/backgrounds" -mindepth 1 -printf '%f\n' | paste -sd' ')" \
+  "0-mine.jpg"
+check "so only the untouched theme is changed" \
+  "$(grep -cE '1 theme\(s\) now have' "$TMP/wallout")" "1"
+
+# The wallpaper on screen is a copy in ~/.cache, so the theme in use has to be
+# applied again or it keeps showing deep-sea.
+h=$(placeholder_home wallpaper-active)
+ln -sf "$h/.config/hypr/themes/nord/generated/rofi-colors.rasi" "$h/.config/rofi/rofi-colors.rasi"
+SESSION_UP=yes run_wallpaper_migration "$h"
+check "the theme in use is applied again so the new wallpaper shows" \
+  "$(cat "$TMP/switches")" "nord"
+check "and it says so" "$(grep -c 'nord is the theme in use' "$TMP/wallout")" "1"
+
+h=$(placeholder_home wallpaper-nothemes)
+rm -rf "$h/.config/hypr/themes"
+run_wallpaper_migration "$h"
+check "a home with no themes directory is left alone" \
+  "$(grep -c 'nothing to change' "$TMP/wallout")" "1"
 
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Enforce the repo image policy: long edge <= MAX_EDGE, JPEG at QUALITY, no metadata.
+# Enforce the repo image policy: long edge <= MAX_EDGE, JPEG or webp at QUALITY,
+# no metadata.
 #
 #   hyprsimple-dev-optimize-images           rewrite offending images in place
 #   hyprsimple-dev-optimize-images --check   report offenders, write nothing, exit 1 if any
@@ -78,7 +79,11 @@ for f in "${targets[@]}"; do
   bytes=$(stat -c%s "$f")
   kb_per_mp=$((bytes / 1024 * 1000000 / (w * h)))
 
-  if [[ $f == *.jpg ]] && ((long <= MAX_EDGE)) && ((kb_per_mp <= MAX_KB_PER_MP)); then
+  # webp counts as well as jpg. The wallpapers are photographs and webp carries
+  # them at about half the bytes, which is half the download for everyone who
+  # installs hyprsimple. Every script that looks for a wallpaper has read webp
+  # since #165, so nothing here has to stay jpeg to be usable.
+  if [[ $f == *.jpg || $f == *.webp ]] && ((long <= MAX_EDGE)) && ((kb_per_mp <= MAX_KB_PER_MP)); then
     continue
   fi
 
@@ -88,8 +93,13 @@ for f in "${targets[@]}"; do
     continue
   fi
 
-  out="${f%.*}.jpg"
-  tmp="$(mktemp --suffix=.jpg)"
+  # A webp is rewritten as a webp. Anything else becomes a jpeg, which is what
+  # this has always produced, so a png dropped in is still converted rather than
+  # left in the format that made it large.
+  ext=jpg
+  [[ $f == *.webp ]] && ext=webp
+  out="${f%.*}.$ext"
+  tmp="$(mktemp --suffix=".$ext")"
   im_convert "$f[0]" -resize "${MAX_EDGE}x${MAX_EDGE}>" -quality "$QUALITY" -strip "$tmp"
 
   # Never trade a small file for a bigger one. Same-name case included: if the
