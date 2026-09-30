@@ -252,14 +252,14 @@ echo ""
 # Write a named block of exports into a uwsm env file, replacing one an earlier
 # run wrote rather than adding a second.
 #
-# All three callers were `cat >>`, which is right on a first install and wrong
-# on every one after it. Re-running the installer is a documented step: the
+# Both callers were `cat >>`, which is right on a first install and wrong on
+# every one after it. Re-running the installer is a documented step: the
 # failed-packages message tells you to install the missing ones by hand and
 # re-run this script, so a second run is expected rather than unusual. Two runs
 # left
 #
-#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
-#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
+#   export __GLX_VENDOR_LIBRARY_NAME=nvidia
+#   export __GLX_VENDOR_LIBRARY_NAME=nvidia
 #
 # and a block more on each run after that. uwsm reads the file once at login
 # and the last export of a name wins, so nothing breaks visibly, which is
