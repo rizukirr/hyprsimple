@@ -47,8 +47,7 @@ sed -n '/^detect_and_install_nvidia() {/,/^}/p' "$REPO/install.sh" >"$FUNCS"
 # a reason that has nothing to do with what it is testing.
 sed -n '/^set_env_block() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
-for marker in 'detect_and_install_nvidia() {' 'set_env_block() {' 'other_gpu' '__GLX_VENDOR_LIBRARY_NAME' \
-  'supergfxctl' 'NVIDIA setup complete (arch: $GPU_ARCH)'; do
+for marker in 'detect_and_install_nvidia() {' 'set_env_block() {' 'other_gpu' '__GLX_VENDOR_LIBRARY_NAME'; do
   if grep -qF -- "$marker" "$FUNCS"; then
     pass "extracted source contains $marker"
   else
@@ -73,13 +72,7 @@ cat >"$STUB/pacman" <<'STUBEOF'
 #!/bin/bash
 case "${1:-}" in
   -Si) exit 1 ;;
-  -Qq)
-    [[ $2 == nvidia-utils ]] && exit 0
-    # Whether the AUR build landed is the test's to say, the way INSTALLED is
-    # in nvidia-install-test.sh. Asked of this stub and never of PATH, because
-    # a machine that has the real supergfxctl would otherwise answer for it.
-    [[ $2 == supergfxctl && ${GFX_INSTALLED:-yes} == yes ]] && exit 0
-    exit 1 ;;
+  -Qq) [[ $2 == nvidia-utils ]] && exit 0; exit 1 ;;
 esac
 printf 'pacman %s\n' "$*" >>"$CALL_LOG"
 exit 0
@@ -92,10 +85,7 @@ cat >"$STUB/sudo" <<'STUBEOF'
 #!/bin/bash
 "$@"
 STUBEOF
-# systemctl is stubbed for the same reason pacman is. The sudo stub runs what
-# follows it, so without this `sudo systemctl enable --now supergfxd` would
-# reach the real one.
-for t in mkinitcpio paru systemctl; do
+for t in mkinitcpio paru; do
   printf '#!/bin/bash\nprintf "%s %%s\\n" "$*" >>"$CALL_LOG"\nexit 0\n' "$t" >"$STUB/$t"
 done
 chmod +x "$STUB"/*
@@ -103,20 +93,15 @@ chmod +x "$STUB"/*
 MODULES="$TMP/modules/$(uname -r)"; mkdir -p "$MODULES"; printf 'linux\n' >"$MODULES/pkgbase"
 
 HOME_DIR="$TMP/home"
-# Where install.sh is told to put supergfxd's config. Set on every run, so no
-# scenario here can write to /etc.
-GFX_CONF="$TMP/etc/supergfxd.conf"
-mkdir -p "$TMP/etc"
 run_nvidia() {
   rm -rf "${TMP:?}/home"; mkdir -p "$HOME_DIR/.config/uwsm"
   : >"$LOG"
   HOME="$HOME_DIR" CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" IGPU="$1" \
-    GFX_INSTALLED="${2:-yes}" HYPRSIMPLE_SUPERGFXD_CONF="$GFX_CONF" \
     HYPRSIMPLE_MODULES_DIR="$TMP/modules" \
     bash -c '
       set -uo pipefail
       RED=""; GREEN=""; YELLOW=""; NC=""
-      AUR_HELPER="paru"; AUR_CONFIRM=(); DOTFILES_DIR="'"$REPO"'"; FAILED_PACKAGES=()
+      AUR_HELPER="paru"; DOTFILES_DIR="'"$REPO"'"; FAILED_PACKAGES=()
       source "'"$FUNCS"'"
       detect_and_install_nvidia
     ' >"$TMP/out" 2>&1
@@ -143,6 +128,19 @@ check "the driver is still installed on a hybrid machine" \
 check "and the setup still reports completion" \
   "$(grep -c 'NVIDIA setup complete' "$TMP/out")" "1"
 
+# --- GPU switching is not set up here ----------------------------------------
+#
+# For a short while the installer built supergfxctl from the AUR and started
+# its daemon on every hybrid machine, whether or not anyone wanted the card
+# switched. toggle-hybrid-gpu.sh sets that up on its first run now, so the
+# installer's part is to say the toggle exists.
+
+run_nvidia intel
+check "the installer does not install supergfxctl on a hybrid machine" \
+  "$(grep -c 'supergfxctl' "$LOG")" "0"
+check "and names the toggle that sets it up" \
+  "$(grep -c 'toggle-hybrid-gpu.sh' "$TMP/out")" "1"
+
 # --- an NVIDIA-only machine still gets it -----------------------------------
 
 run_nvidia none
@@ -150,55 +148,6 @@ check "with no iGPU the GLX vendor is still exported" \
   "$(env_file | grep -c 'export __GLX_VENDOR_LIBRARY_NAME=nvidia')" "1"
 check "and the backend with it" "$(env_file | grep -c 'NVD_BACKEND=direct')" "1"
 check "and the initramfs is rebuilt" "$(grep -c '^mkinitcpio' "$LOG")" "1"
-
-# --- a hybrid machine gets supergfxctl, and the means to switch --------------
-#
-# Nothing in hyprsimple could turn the discrete card off, or back on. A laptop
-# was found in supergfxd's Vfio mode with its card unusable, put there by hand
-# with a switcher hyprsimple knew nothing about. The installer now sets that
-# switcher up on the one kind of machine that needs it.
-
-rm -f "$GFX_CONF"
-run_nvidia intel
-check "on a hybrid machine the AUR helper is asked for supergfxctl" \
-  "$(grep -c '^paru .*supergfxctl' "$LOG")" "1"
-check "and supergfxd's config is written" \
-  "$([[ -f $GFX_CONF ]] && echo yes || echo no)" "yes"
-check "in Hybrid mode, which is what the machine already is" \
-  "$(grep -c '"mode": "Hybrid"' "$GFX_CONF" 2>/dev/null)" "1"
-check "and the service is enabled and started" \
-  "$(grep -c '^systemctl enable --now supergfxd' "$LOG")" "1"
-check "and the toggle is named" \
-  "$(grep -c 'toggle-hybrid-gpu.sh' "$TMP/out")" "1"
-
-# A re-run must not undo a choice. install.sh is meant to be run again, and a
-# machine its owner switched to Integrated has to stay there.
-printf '{\n  "mode": "Integrated"\n}\n' >"$GFX_CONF"
-before="$(cat "$GFX_CONF")"
-run_nvidia intel
-check "an existing config is left exactly as it was" "$(cat "$GFX_CONF")" "$before"
-check "and the service is still enabled" \
-  "$(grep -c '^systemctl enable --now supergfxd' "$LOG")" "1"
-
-# The AUR build is a Rust compile and can fail. That must cost the machine GPU
-# switching and nothing else.
-rm -f "$GFX_CONF"
-run_nvidia intel no
-check "a build that did not land leaves the function returning 0" "$?" "0"
-check "and writes no config" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
-check "and starts no service" "$(grep -c '^systemctl' "$LOG")" "0"
-check "and says the switch is unavailable" \
-  "$(grep -c 'supergfxctl did not install' "$TMP/out")" "1"
-check "and the setup still reports completion" \
-  "$(grep -c 'NVIDIA setup complete' "$TMP/out")" "1"
-
-# A machine whose only card is NVIDIA has nothing to switch between.
-rm -f "$GFX_CONF"
-run_nvidia none
-check "an NVIDIA-only machine is not given supergfxctl" \
-  "$(grep -c 'supergfxctl' "$LOG")" "0"
-check "and gets no config" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
-check "and no service call" "$(grep -c '^systemctl' "$LOG")" "0"
 
 # --- the migration, for machines already carrying the block -----------------
 

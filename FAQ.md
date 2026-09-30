@@ -165,7 +165,7 @@ Attach the link to your [issue](https://github.com/rizukirr/hyprsimple/issues).
 
 ## How do I turn the NVIDIA GPU off, or back on? (hybrid laptops)
 
-On a laptop with an integrated GPU and an NVIDIA one, the installer sets up [supergfxctl](https://gitlab.com/asus-linux/supergfxctl), and hyprsimple ships a toggle for it. Run it from a terminal:
+On a laptop with an integrated GPU and an NVIDIA one, hyprsimple ships a toggle that switches the NVIDIA card off and on through [supergfxctl](https://gitlab.com/asus-linux/supergfxctl). Run it from a terminal:
 
 ```bash
 toggle-hybrid-gpu.sh
@@ -180,10 +180,10 @@ It switches between two modes and says which one it asked for:
 
 A switch to or from `Hybrid` finishes at your next logout, so log out and back in after running it. `supergfxctl -g` prints the mode you are in.
 
-If you installed hyprsimple before it set supergfxctl up, the toggle prints the two commands that do. It is an AUR package that compiles from source.
+The first run sets supergfxctl up and switches nothing. Your AUR helper builds the package from source and asks before it starts, `/etc/supergfxd.conf` is written if there is none, and the `supergfxd` service is started. Run the toggle again after that to switch. The installer does none of this.
 
 > [!NOTE]
-> supergfxctl conflicts with other GPU switchers such as optimus-manager, system76-power and bbswitch. Use one of them, not two.
+> supergfxctl conflicts with other GPU switchers such as optimus-manager, system76-power and bbswitch. Use one of them, not two. The toggle will not set supergfxctl up while one of those is installed.
 
 ## Boot hangs with `[FAILED] Failed to start Load Kernel Modules`, then freezes after login (NVIDIA hybrid laptops)
 

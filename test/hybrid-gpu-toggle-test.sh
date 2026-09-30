@@ -18,6 +18,11 @@
 # The real supergfxctl is never reachable from here. PATH holds the stub and a
 # directory with `timeout` in it, and nothing else, so a machine that has
 # supergfxctl installed cannot have its GPU mode changed by running this suite.
+#
+# The first run, which sets supergfxctl up, is held to the same rule. Its AUR
+# helper, pacman, sudo and systemctl are stubs, HOME is a temp directory, and
+# the config path points into it, so nothing is built, no service is started
+# and /etc is never written.
 
 set -uo pipefail
 
@@ -43,7 +48,11 @@ fi
 # Resolved before PATH is narrowed, since neither is a builtin.
 BASH_BIN="$(command -v bash)"
 TOOLS="$TMP/tools"; mkdir -p "$TOOLS"
-ln -s "$(command -v timeout)" "$TOOLS/timeout"
+# tee is what the config is written through, and ln is how the stub AUR helper
+# makes supergfxctl appear. Neither can change anything outside TMP here.
+for tool in timeout tee ln; do
+  ln -s "$(command -v "$tool")" "$TOOLS/$tool"
+done
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
 STATE="$TMP/state"; mkdir -p "$STATE"
@@ -103,16 +112,27 @@ arrange() {
   : >"$CMDLINE"
 }
 
+# Where the first run is told to look and write. Set on every run, so no case
+# here can read the real ~/.local/bin or write the real /etc/supergfxd.conf.
+HOME_DIR="$TMP/home"
+GFX_CONF="$TMP/etc/supergfxd.conf"
+SETUP_LOG="$TMP/setup-calls"
+# The PATH of a machine with no supergfxctl. Filled in by arrange_setup below.
+SETUP_BIN="$TMP/setup-bin"
+
 rc=0
 run_toggle() {
-  : >"$LOG"
+  : >"$LOG"; : >"$SETUP_LOG"
   PATH="${TOGGLE_PATH:-$STUB:$TOOLS}" GFX_STATE="$STATE" CALL_LOG="$LOG" \
+    HOME="$HOME_DIR" HYPRSIMPLE_SUPERGFXD_CONF="$GFX_CONF" SETUP_LOG="$SETUP_LOG" \
+    SETUP_BIN="$SETUP_BIN" GFX_STUB="$STUB/supergfxctl" \
     HYPRSIMPLE_CMDLINE_FILE="$CMDLINE" \
     "$BASH_BIN" "$TOGGLE" >"$TMP/out" 2>&1
   rc=$?
 }
 requests() { tr '\n' ' ' <"$LOG"; }
 said() { grep -c -- "$1" "$TMP/out"; }
+setup_calls() { grep -c -- "$1" "$SETUP_LOG"; }
 
 # --- the two directions ------------------------------------------------------
 
@@ -181,14 +201,114 @@ check "a silent daemon exits 1" "$rc" "1"
 check "and sends no request" "$(requests)" ""
 check "and points at the service" "$(said 'systemctl status supergfxd')" "1"
 
-# --- supergfxctl not installed -----------------------------------------------
+# --- the first run, which sets supergfxctl up --------------------------------
+#
+# install.sh did this on every hybrid machine for a short while. It is done
+# here now, by whoever runs the toggle, and each case below starts from a
+# machine that has no supergfxctl.
+#
+# SETUP_BIN is that machine's PATH: an AUR helper, pacman, sudo and systemctl,
+# all stubs, and no supergfxctl until the helper "builds" it by linking the
+# stub daemon in.
 
-arrange Hybrid
-TOGGLE_PATH="$TOOLS" run_toggle
-check "without supergfxctl it exits 1" "$rc" "1"
-check "and sends no request" "$(requests)" ""
-check "and says how to install it" "$(said 'S supergfxctl')" "1"
-check "and how to start the service" "$(said 'systemctl enable --now supergfxd')" "1"
+arrange_setup() {
+  arrange Hybrid
+  rm -rf "${SETUP_BIN:?}" "${HOME_DIR:?}" "${TMP:?}/etc"
+  mkdir -p "$SETUP_BIN" "$HOME_DIR/.local/bin" "$TMP/etc"
+  cp "$REPO/.local/bin/hyprsimple-aur-helper.sh" "$HOME_DIR/.local/bin/"
+
+  cat >"$SETUP_BIN/paru" <<'STUBEOF'
+#!/bin/bash
+printf 'paru %s\n' "$*" >>"$SETUP_LOG"
+[[ -e $GFX_STATE/build_fails ]] && exit 1
+[[ -e $GFX_STATE/build_noop ]] && exit 0
+ln -s "$GFX_STUB" "$SETUP_BIN/supergfxctl"
+STUBEOF
+  cat >"$SETUP_BIN/pacman" <<'STUBEOF'
+#!/bin/bash
+[[ ${1:-} == -Qq && -e $GFX_STATE/has_$2 ]] && exit 0
+exit 1
+STUBEOF
+  cat >"$SETUP_BIN/sudo" <<'STUBEOF'
+#!/bin/bash
+printf 'sudo %s\n' "$*" >>"$SETUP_LOG"
+"$@"
+STUBEOF
+  cat >"$SETUP_BIN/systemctl" <<'STUBEOF'
+#!/bin/bash
+printf 'systemctl %s\n' "$*" >>"$SETUP_LOG"
+[[ -e $GFX_STATE/systemctl_fails ]] && exit 1
+exit 0
+STUBEOF
+  chmod +x "$SETUP_BIN"/*
+  local flag
+  for flag in "$@"; do : >"$STATE/$flag"; done
+}
+run_setup() { TOGGLE_PATH="$SETUP_BIN:$TOOLS" run_toggle; }
+
+arrange_setup
+run_setup
+check "with no supergfxctl, the first run exits 0" "$rc" "0"
+check "and asks the AUR helper for it, with no flag that stops the helper asking" \
+  "$(grep '^paru ' "$SETUP_LOG")" "paru -S supergfxctl"
+check "and writes supergfxd's config" "$([[ -f $GFX_CONF ]] && echo yes || echo no)" "yes"
+check "in Hybrid mode, which is how the machine was already running" \
+  "$(grep -c '"mode": "Hybrid"' "$GFX_CONF" 2>/dev/null)" "1"
+check "and enables and starts the service" \
+  "$(setup_calls '^systemctl enable --now supergfxd$')" "1"
+check "and switches nothing on that run" "$(requests)" ""
+check "and says to run it again to switch" "$(said 'run toggle-hybrid-gpu.sh again')" "1"
+
+# A config that is already there is somebody's choice of mode.
+arrange_setup
+printf '{\n  "mode": "Integrated"\n}\n' >"$GFX_CONF"
+before="$(<"$GFX_CONF")"
+run_setup
+check "an existing config is left exactly as it was" "$(<"$GFX_CONF")" "$before"
+check "and the service is still started" \
+  "$(setup_calls '^systemctl enable --now supergfxd$')" "1"
+
+# The build is a Rust compile and can fail, or be declined at the helper's own
+# prompt. Either way nothing else may be touched.
+arrange_setup build_fails
+run_setup
+check "a helper that fails exits 1" "$rc" "1"
+check "and writes no config" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
+check "and calls no sudo and no systemctl" "$(setup_calls '^sudo \|^systemctl ')" "0"
+
+arrange_setup build_noop
+run_setup
+check "a helper that exits 0 without installing anything still exits 1" "$rc" "1"
+check "and writes no config either" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
+check "and starts no service" "$(setup_calls '^systemctl ')" "0"
+
+arrange_setup
+rm -f "$SETUP_BIN/paru"
+run_setup
+check "with no AUR helper it exits 1" "$rc" "1"
+check "and names both helpers it could use" "$(said 'paru or yay')" "1"
+check "and calls no sudo and no systemctl" "$(setup_calls '^sudo \|^systemctl ')" "0"
+
+arrange_setup
+rm -f "$HOME_DIR/.local/bin/hyprsimple-aur-helper.sh"
+run_setup
+check "with the shared helper file missing it exits 1" "$rc" "1"
+check "and points at hyprsimple-update" "$(said 'hyprsimple-update')" "1"
+check "and the AUR helper is not run" "$(setup_calls '^paru ')" "0"
+
+for other in optimus-manager system76-power bbswitch bbswitch-dkms; do
+  arrange_setup "has_$other"
+  run_setup
+  check "with $other installed it exits 1" "$rc" "1"
+  check "and names $other" "$(said "$other is installed")" "1"
+  check "and does not run the AUR helper ($other)" "$(setup_calls '^paru ')" "0"
+done
+
+arrange_setup systemctl_fails
+run_setup
+check "a service that will not start exits 1" "$rc" "1"
+check "and points at its status" "$(said 'systemctl status supergfxd')" "1"
+check "and does not say it is set up" "$(said 'is set up in Hybrid mode')" "0"
 
 # --- the kernel command line -------------------------------------------------
 
