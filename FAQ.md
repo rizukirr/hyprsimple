@@ -163,24 +163,28 @@ Attach the link to your [issue](https://github.com/rizukirr/hyprsimple/issues).
 > [!NOTE]
 > The report includes your hostname and package list. Review it before uploading. `hyprsimple-debug --print` dumps it to the terminal without uploading, and `--no-sudo` skips the dmesg section so you are not prompted for a password.
 
-## How do I turn the NVIDIA GPU off, or back on? (hybrid laptops)
+## Does the NVIDIA GPU drain my battery? (hybrid laptops)
 
-On a laptop with an integrated GPU and an NVIDIA one, the installer sets up [supergfxctl](https://gitlab.com/asus-linux/supergfxctl), and hyprsimple ships a toggle for it. Run it from a terminal:
+On a laptop with an integrated GPU and an NVIDIA one, the desktop runs on the integrated GPU and the NVIDIA card sleeps whenever nothing is using it. The installer turns that on with one udev rule, `/etc/udev/rules.d/71-hyprsimple-nvidia-pm.rules`, unless your distribution already ships one: CachyOS does, in `cachyos-settings`, and the installer leaves it alone.
+
+To see the card's state, find its address and read its runtime status:
 
 ```bash
-toggle-hybrid-gpu.sh
+lspci -D | grep -i nvidia
+cat /sys/bus/pci/devices/<address>/power/runtime_status
 ```
 
-It switches between two modes and says which one it asked for:
+`suspended` means it is asleep. `active` means something is using it, or woke it: `lspci -k` and `nvidia-smi` both do. Run one program on the card with `prime-run <program>`.
 
-| Mode | What it means |
-|------|---------------|
-| `Hybrid` | The NVIDIA card is powered. The desktop still runs on the integrated GPU, and `prime-run <program>` puts one program on the NVIDIA card |
-| `Integrated` | The NVIDIA card is off and only the integrated GPU runs, which is the mode for battery life |
+The rule takes effect when the driver binds, so a fresh install needs the reboot it was going to need anyway.
 
-A switch to or from `Hybrid` finishes at your next logout, so log out and back in after running it. `supergfxctl -g` prints the mode you are in.
+If you want the card switched off outright, so that nothing can wake it, [supergfxctl](https://gitlab.com/asus-linux/supergfxctl) does that. It is an AUR package that compiles from source:
 
-If you installed hyprsimple before it set supergfxctl up, the toggle prints the two commands that do. It is an AUR package that compiles from source.
+```bash
+paru -S supergfxctl        # or: yay -S supergfxctl
+sudo systemctl enable --now supergfxd
+supergfxctl -m Integrated  # and log out to finish the switch
+```
 
 > [!NOTE]
 > supergfxctl conflicts with other GPU switchers such as optimus-manager, system76-power and bbswitch. Use one of them, not two.
@@ -213,9 +217,6 @@ prime-run glxinfo | grep "OpenGL renderer"   # still loads the dGPU on demand
 > ```bash
 > sudo pacman -S --needed nvidia-prime mesa-utils
 > ```
-
-> [!WARNING]
-> This parameter works against `Hybrid` mode in `toggle-hybrid-gpu.sh`. `modprobe.blacklist=` only stops the driver loading at boot, so the toggle warns and carries on. `module_blacklist=` looks similar and is much stricter: the kernel refuses the driver completely, nothing on the machine can use the card, and the toggle will not switch to `Hybrid` until the parameter is removed.
 
 > [!NOTE]
 > Scope the change to the bleeding-edge entry only, and leave your LTS entry untouched as a fallback. The community `nomodeset` workaround also boots, but disables **all** KMS (including the iGPU) and breaks Wayland. Blacklisting only NVIDIA with `modprobe.blacklist=nvidia*` avoids that. For GRUB, add the same `modprobe.blacklist=...` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, then run `grub-mkconfig -o /boot/grub/grub.cfg`.

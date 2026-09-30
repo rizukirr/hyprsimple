@@ -26,7 +26,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
 - **Per-theme backgrounds** for app launcher and power menu
-- **Hardware auto-detection** at install (NVIDIA, hybrid GPU switching, Vulkan, Intel iGPU, WiFi, battery)
+- **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
 - **Wayland-native** session via uwsm, no X11 dependencies
 - **Modular Hyprland config** split into focused files
 - **GTK/QT theming** with auto light/dark mode per theme
@@ -367,7 +367,6 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `toggle_cpu_mode.sh` | Switch CPU governor between performance and powersave |
 | `hyprsimple-hw-intel-laptop.sh` | Exit 0 on an Intel laptop new enough for thermald (used as a condition) |
 | `toggle-idle.sh` | Toggle hypridle (lock-on-idle) on/off |
-| `toggle-hybrid-gpu.sh` | Turn the NVIDIA GPU off or back on through supergfxctl, on a hybrid laptop. Run it from a terminal |
 | `hypr-logout.sh` | Gracefully close all windows and stop the Hyprland session |
 
 ### Input & Notifications
