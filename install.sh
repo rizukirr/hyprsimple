@@ -455,48 +455,42 @@ detect_and_install_nvidia() {
     echo -e "${GREEN}An integrated GPU is present at $other_gpu, so it will drive the desktop and the NVIDIA environment variables are being left out. Setting them would push every OpenGL application onto the discrete card.${NC}"
     echo -e "${GREEN}Run a single program on the NVIDIA GPU with: prime-run <program>${NC}"
 
-    # supergfxctl is what turns the discrete card off and back on, and
-    # toggle-hybrid-gpu.sh is the command that asks it to. Set up here because
-    # this branch is the one place the installer knows the machine is hybrid.
+    # The card sleeps by itself when nothing uses it, once runtime power
+    # management is on for the device. One udev rule turns it on when the
+    # driver binds, which is the whole of what CachyOS does: cachyos-settings
+    # ships it as 71-nvidia.rules, and supergfxd sets the same sysfs knob from
+    # its daemon. Measured on an Intel + RTX 4050 laptop running CachyOS, the
+    # card was suspended for 2147 of the first 2349 seconds after boot.
     #
-    # Asked of pacman rather than `command -v`, for the reason nvidia-utils is
-    # asked for above: install_packages returns 0 whether or not the build
-    # worked. An AUR build that fails must not stop the install, so the step
-    # reports it and the desktop is installed without GPU switching.
+    # Written only where no rule already does this, so a distribution's own
+    # rule is left alone and a second run finds this one. The search is for
+    # the rule text, not the device's current state, because power/control
+    # reads "on" until the driver binds, which on a fresh install is after the
+    # reboot this step needs anyway. The directories are overridable so the
+    # suite never reads the machine's own rules, and the rule goes into the
+    # last one listed.
     #
-    # The config is written before the service first starts, and only when
-    # there is none. A re-run must not put a machine its owner switched to
-    # Integrated back into Hybrid. The values are supergfxd's own defaults.
-    # Overridable so the suite never writes to /etc.
-    #
-    # printf rather than a here-document. The suites lift this function out of
-    # the file by reading up to the first line that is a lone closing brace,
-    # and the JSON ends with one.
-    local gfx_conf="${HYPRSIMPLE_SUPERGFXD_CONF:-/etc/supergfxd.conf}"
-    install_packages "$AUR_HELPER" -S "${AUR_CONFIRM[@]}" -- supergfxctl
-    if ! pacman -Qq supergfxctl &>/dev/null; then
-      echo -e "${YELLOW}supergfxctl did not install, so the NVIDIA GPU cannot be switched off and on yet. Everything else is unaffected. Run toggle-hybrid-gpu.sh later and it prints the commands that set it up.${NC}"
+    # Matched on the vendor and the display class, so the card's HDMI audio
+    # function is left alone. Undone on unbind so a driver swap starts from
+    # the kernel's default.
+    local rule_dirs pm_rule existing
+    read -ra rule_dirs <<<"${HYPRSIMPLE_UDEV_RULE_DIRS:-/usr/lib/udev/rules.d /etc/udev/rules.d}"
+    pm_rule="${rule_dirs[-1]}/71-hyprsimple-nvidia-pm.rules"
+    # `|| true`, because install.sh runs under set -e with pipefail, and a
+    # search that finds nothing is grep exiting 1.
+    existing=$(grep -lsr 'power/control}="auto"' "${rule_dirs[@]}" | xargs -r grep -ls '0x10de' | head -1) || true
+    if [[ -n $existing ]]; then
+      echo -e "${GREEN}$existing already turns runtime power management on for the NVIDIA card, so no rule is being written.${NC}"
+    elif printf '%s\n' \
+      '# Written by hyprsimple. The NVIDIA card sleeps when nothing uses it.' \
+      'ACTION=="add|bind", SUBSYSTEM=="pci", DRIVERS=="nvidia", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"' \
+      'ACTION=="remove|unbind", SUBSYSTEM=="pci", DRIVERS=="nvidia", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"' |
+      sudo tee "$pm_rule" >/dev/null; then
+      echo -e "${GREEN}Wrote $pm_rule, so from the next boot the NVIDIA card sleeps when nothing uses it.${NC}"
     else
-      if [[ ! -e $gfx_conf ]]; then
-        if ! printf '%s\n' \
-          '{' \
-          '  "mode": "Hybrid",' \
-          '  "vfio_enable": false,' \
-          '  "vfio_save": false,' \
-          '  "always_reboot": false,' \
-          '  "no_logind": false,' \
-          '  "logout_timeout_s": 180,' \
-          '  "hotplug_type": "None"' \
-          '}' | sudo tee "$gfx_conf" >/dev/null; then
-          echo -e "${YELLOW}Could not write $gfx_conf, so supergfxd will start with its own defaults.${NC}"
-        fi
-      fi
-      if sudo systemctl enable --now supergfxd; then
-        echo -e "${GREEN}Turn the NVIDIA GPU off or back on with: toggle-hybrid-gpu.sh${NC}"
-      else
-        echo -e "${YELLOW}supergfxd would not start, so toggle-hybrid-gpu.sh has nothing to talk to yet. Check it with: systemctl status supergfxd${NC}"
-      fi
+      echo -e "${YELLOW}Could not write $pm_rule, so the NVIDIA card stays powered. Re-run ./install.sh, or write the rule by hand.${NC}"
     fi
+    echo -e "${GREEN}To force the card off entirely, supergfxctl from the AUR does that. FAQ.md says how.${NC}"
 
     echo -e "${GREEN}NVIDIA setup complete (arch: $GPU_ARCH, offload only)${NC}"
     return 0

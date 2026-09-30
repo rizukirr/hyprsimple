@@ -48,7 +48,7 @@ sed -n '/^detect_and_install_nvidia() {/,/^}/p' "$REPO/install.sh" >"$FUNCS"
 sed -n '/^set_env_block() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 for marker in 'detect_and_install_nvidia() {' 'set_env_block() {' 'other_gpu' '__GLX_VENDOR_LIBRARY_NAME' \
-  'supergfxctl' 'NVIDIA setup complete (arch: $GPU_ARCH)'; do
+  '71-hyprsimple-nvidia-pm.rules' 'NVIDIA setup complete (arch: $GPU_ARCH)'; do
   if grep -qF -- "$marker" "$FUNCS"; then
     pass "extracted source contains $marker"
   else
@@ -73,13 +73,7 @@ cat >"$STUB/pacman" <<'STUBEOF'
 #!/bin/bash
 case "${1:-}" in
   -Si) exit 1 ;;
-  -Qq)
-    [[ $2 == nvidia-utils ]] && exit 0
-    # Whether the AUR build landed is the test's to say, the way INSTALLED is
-    # in nvidia-install-test.sh. Asked of this stub and never of PATH, because
-    # a machine that has the real supergfxctl would otherwise answer for it.
-    [[ $2 == supergfxctl && ${GFX_INSTALLED:-yes} == yes ]] && exit 0
-    exit 1 ;;
+  -Qq) [[ $2 == nvidia-utils ]] && exit 0; exit 1 ;;
 esac
 printf 'pacman %s\n' "$*" >>"$CALL_LOG"
 exit 0
@@ -92,9 +86,8 @@ cat >"$STUB/sudo" <<'STUBEOF'
 #!/bin/bash
 "$@"
 STUBEOF
-# systemctl is stubbed for the same reason pacman is. The sudo stub runs what
-# follows it, so without this `sudo systemctl enable --now supergfxd` would
-# reach the real one.
+# systemctl is stubbed so that a call the function should no longer make is
+# logged rather than reaching the real one through the sudo stub.
 for t in mkinitcpio paru systemctl; do
   printf '#!/bin/bash\nprintf "%s %%s\\n" "$*" >>"$CALL_LOG"\nexit 0\n' "$t" >"$STUB/$t"
 done
@@ -103,15 +96,17 @@ chmod +x "$STUB"/*
 MODULES="$TMP/modules/$(uname -r)"; mkdir -p "$MODULES"; printf 'linux\n' >"$MODULES/pkgbase"
 
 HOME_DIR="$TMP/home"
-# Where install.sh is told to put supergfxd's config. Set on every run, so no
-# scenario here can write to /etc.
-GFX_CONF="$TMP/etc/supergfxd.conf"
-mkdir -p "$TMP/etc"
+# Where install.sh is told to look for udev rules, and to write its own. Set on
+# every run, so no scenario here can read or write /etc. The system directory
+# stands in for /usr/lib/udev/rules.d and the local one for /etc/udev/rules.d.
+SYS_RULES="$TMP/sys-rules"
+ETC_RULES="$TMP/etc-rules"
+PM_RULE="$ETC_RULES/71-hyprsimple-nvidia-pm.rules"
 run_nvidia() {
   rm -rf "${TMP:?}/home"; mkdir -p "$HOME_DIR/.config/uwsm"
   : >"$LOG"
   HOME="$HOME_DIR" CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" IGPU="$1" \
-    GFX_INSTALLED="${2:-yes}" HYPRSIMPLE_SUPERGFXD_CONF="$GFX_CONF" \
+    HYPRSIMPLE_UDEV_RULE_DIRS="$SYS_RULES $ETC_RULES" \
     HYPRSIMPLE_MODULES_DIR="$TMP/modules" \
     bash -c '
       set -uo pipefail
@@ -121,6 +116,8 @@ run_nvidia() {
       detect_and_install_nvidia
     ' >"$TMP/out" 2>&1
 }
+# Both rule directories empty, which is what stock Arch looks like.
+fresh_rules() { rm -rf "$SYS_RULES" "$ETC_RULES"; mkdir -p "$SYS_RULES" "$ETC_RULES"; }
 env_file() { cat "$HOME_DIR/.config/uwsm/env" 2>/dev/null; }
 
 # --- a hybrid machine gets no global override -------------------------------
@@ -151,54 +148,77 @@ check "with no iGPU the GLX vendor is still exported" \
 check "and the backend with it" "$(env_file | grep -c 'NVD_BACKEND=direct')" "1"
 check "and the initramfs is rebuilt" "$(grep -c '^mkinitcpio' "$LOG")" "1"
 
-# --- a hybrid machine gets supergfxctl, and the means to switch --------------
+# --- a hybrid machine gets the runtime power rule, and no switcher -----------
 #
-# Nothing in hyprsimple could turn the discrete card off, or back on. A laptop
-# was found in supergfxd's Vfio mode with its card unusable, put there by hand
-# with a switcher hyprsimple knew nothing about. The installer now sets that
-# switcher up on the one kind of machine that needs it.
+# The card sleeps by itself once runtime power management is on for the
+# device, which one udev rule does. That is what CachyOS ships in
+# cachyos-settings, and it replaces the supergfxctl build, its daemon and the
+# toggle that asked it to switch the card off and on.
 
-rm -f "$GFX_CONF"
+fresh_rules
 run_nvidia intel
-check "on a hybrid machine the AUR helper is asked for supergfxctl" \
-  "$(grep -c '^paru .*supergfxctl' "$LOG")" "1"
-check "and supergfxd's config is written" \
-  "$([[ -f $GFX_CONF ]] && echo yes || echo no)" "yes"
-check "in Hybrid mode, which is what the machine already is" \
-  "$(grep -c '"mode": "Hybrid"' "$GFX_CONF" 2>/dev/null)" "1"
-check "and the service is enabled and started" \
-  "$(grep -c '^systemctl enable --now supergfxd' "$LOG")" "1"
-check "and the toggle is named" \
-  "$(grep -c 'toggle-hybrid-gpu.sh' "$TMP/out")" "1"
+check "on a hybrid machine nothing is asked for supergfxctl" \
+  "$(grep -c 'supergfxctl' "$LOG")" "0"
+check "and no service is enabled" "$(grep -c '^systemctl' "$LOG")" "0"
+check "and the rule is written" "$([[ -f $PM_RULE ]] && echo yes || echo no)" "yes"
+check "turning runtime power management on when the driver binds" \
+  "$(grep -c 'ACTION=="add|bind".*ATTR{power/control}="auto"' "$PM_RULE")" "1"
+check "and off again when it unbinds" \
+  "$(grep -c 'ACTION=="remove|unbind".*ATTR{power/control}="on"' "$PM_RULE")" "1"
+check "and the output says the card will sleep" \
+  "$(grep -c 'sleeps when nothing uses it' "$TMP/out")" "1"
+check "and names supergfxctl as the way to force it off" \
+  "$(grep -c 'supergfxctl' "$TMP/out")" "1"
 
-# A re-run must not undo a choice. install.sh is meant to be run again, and a
-# machine its owner switched to Integrated has to stay there.
-printf '{\n  "mode": "Integrated"\n}\n' >"$GFX_CONF"
-before="$(cat "$GFX_CONF")"
+# A second run finds the rule the first one wrote.
+before="$(cat "$PM_RULE")"
 run_nvidia intel
-check "an existing config is left exactly as it was" "$(cat "$GFX_CONF")" "$before"
-check "and the service is still enabled" \
-  "$(grep -c '^systemctl enable --now supergfxd' "$LOG")" "1"
+check "a second run leaves the rule as it was" "$(cat "$PM_RULE")" "$before"
+check "and says a rule is already there" \
+  "$(grep -c 'already turns runtime power management on' "$TMP/out")" "1"
+check "and does not write a second file" "$(find "$ETC_RULES" -type f | wc -l)" "1"
 
-# The AUR build is a Rust compile and can fail. That must cost the machine GPU
-# switching and nothing else.
-rm -f "$GFX_CONF"
-run_nvidia intel no
-check "a build that did not land leaves the function returning 0" "$?" "0"
-check "and writes no config" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
-check "and starts no service" "$(grep -c '^systemctl' "$LOG")" "0"
-check "and says the switch is unavailable" \
-  "$(grep -c 'supergfxctl did not install' "$TMP/out")" "1"
+# A distribution that ships the rule itself, as cachyos-settings does in
+# 71-nvidia.rules, is left alone.
+fresh_rules
+cat >"$SYS_RULES/71-nvidia.rules" <<'RULEEOF'
+# Enable runtime PM for NVIDIA VGA/3D controller devices on driver bind
+ACTION=="add|bind", SUBSYSTEM=="pci", DRIVERS=="nvidia", \
+    ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", \
+    TEST=="power/control", ATTR{power/control}="auto"
+RULEEOF
+run_nvidia intel
+check "a rule the distribution ships means none is written" \
+  "$([[ -e $PM_RULE ]] && echo yes || echo no)" "no"
+check "and the output names the file it found" \
+  "$(grep -c '71-nvidia.rules already turns' "$TMP/out")" "1"
+
+# A rule that sets power/control for something other than NVIDIA is not the
+# one being looked for.
+fresh_rules
+printf 'ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{power/control}="auto"\n' \
+  >"$SYS_RULES/50-intel-pm.rules"
+run_nvidia intel
+check "a power rule for another vendor does not count" \
+  "$([[ -f $PM_RULE ]] && echo yes || echo no)" "yes"
+
+# The write can fail. That must cost the machine the rule and nothing else.
+fresh_rules
+rm -rf "$ETC_RULES"
+run_nvidia intel
+check "a write that failed leaves the function returning 0" "$?" "0"
+check "and says the card stays powered" \
+  "$(grep -c 'stays powered' "$TMP/out")" "1"
 check "and the setup still reports completion" \
   "$(grep -c 'NVIDIA setup complete' "$TMP/out")" "1"
 
-# A machine whose only card is NVIDIA has nothing to switch between.
-rm -f "$GFX_CONF"
+# A machine whose only card is NVIDIA drives the display with it, so the card
+# never sleeps and the rule would change nothing.
+fresh_rules
 run_nvidia none
-check "an NVIDIA-only machine is not given supergfxctl" \
-  "$(grep -c 'supergfxctl' "$LOG")" "0"
-check "and gets no config" "$([[ -e $GFX_CONF ]] && echo yes || echo no)" "no"
-check "and no service call" "$(grep -c '^systemctl' "$LOG")" "0"
+check "an NVIDIA-only machine gets no rule" \
+  "$([[ -e $PM_RULE ]] && echo yes || echo no)" "no"
+check "and is not offered supergfxctl" "$(grep -c 'supergfxctl' "$TMP/out")" "0"
 
 # --- the migration, for machines already carrying the block -----------------
 
