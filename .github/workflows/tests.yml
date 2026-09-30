@@ -184,6 +184,9 @@ jobs:
       - name: hybrid-gpu-env-test
         run: bash test/hybrid-gpu-env-test.sh
 
+      - name: hybrid-gpu-toggle-test
+        run: bash test/hybrid-gpu-toggle-test.sh
+
       - name: nvidia-install-test
         run: bash test/nvidia-install-test.sh
 

@@ -163,6 +163,28 @@ Attach the link to your [issue](https://github.com/rizukirr/hyprsimple/issues).
 > [!NOTE]
 > The report includes your hostname and package list. Review it before uploading. `hyprsimple-debug --print` dumps it to the terminal without uploading, and `--no-sudo` skips the dmesg section so you are not prompted for a password.
 
+## How do I turn the NVIDIA GPU off, or back on? (hybrid laptops)
+
+On a laptop with an integrated GPU and an NVIDIA one, the installer sets up [supergfxctl](https://gitlab.com/asus-linux/supergfxctl), and hyprsimple ships a toggle for it. Run it from a terminal:
+
+```bash
+toggle-hybrid-gpu.sh
+```
+
+It switches between two modes and says which one it asked for:
+
+| Mode | What it means |
+|------|---------------|
+| `Hybrid` | The NVIDIA card is powered. The desktop still runs on the integrated GPU, and `prime-run <program>` puts one program on the NVIDIA card |
+| `Integrated` | The NVIDIA card is off and only the integrated GPU runs, which is the mode for battery life |
+
+A switch to or from `Hybrid` finishes at your next logout, so log out and back in after running it. `supergfxctl -g` prints the mode you are in.
+
+If you installed hyprsimple before it set supergfxctl up, the toggle prints the two commands that do. It is an AUR package that compiles from source.
+
+> [!NOTE]
+> supergfxctl conflicts with other GPU switchers such as optimus-manager, system76-power and bbswitch. Use one of them, not two.
+
 ## Boot hangs with `[FAILED] Failed to start Load Kernel Modules`, then freezes after login (NVIDIA hybrid laptops)
 
 On NVIDIA Optimus laptops (Intel/AMD iGPU + NVIDIA dGPU) running a bleeding-edge kernel (`linux-cachyos` 7.0.x with `nvidia-open`, for example), the NVIDIA driver's GSP firmware init can intermittently deadlock while the **initramfs** brings the dGPU up at boot. Symptoms:
@@ -191,6 +213,9 @@ prime-run glxinfo | grep "OpenGL renderer"   # still loads the dGPU on demand
 > ```bash
 > sudo pacman -S --needed nvidia-prime mesa-utils
 > ```
+
+> [!WARNING]
+> This parameter works against `Hybrid` mode in `toggle-hybrid-gpu.sh`. `modprobe.blacklist=` only stops the driver loading at boot, so the toggle warns and carries on. `module_blacklist=` looks similar and is much stricter: the kernel refuses the driver completely, nothing on the machine can use the card, and the toggle will not switch to `Hybrid` until the parameter is removed.
 
 > [!NOTE]
 > Scope the change to the bleeding-edge entry only, and leave your LTS entry untouched as a fallback. The community `nomodeset` workaround also boots, but disables **all** KMS (including the iGPU) and breaks Wayland. Blacklisting only NVIDIA with `modprobe.blacklist=nvidia*` avoids that. For GRUB, add the same `modprobe.blacklist=...` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, then run `grub-mkconfig -o /boot/grub/grub.cfg`.
