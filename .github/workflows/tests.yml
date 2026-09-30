@@ -190,6 +190,9 @@ jobs:
       - name: nvidia-install-test
         run: bash test/nvidia-install-test.sh
 
+      - name: intel-video-test
+        run: bash test/intel-video-test.sh
+
       - name: hw-predicate-test
         run: bash test/hw-predicate-test.sh
 

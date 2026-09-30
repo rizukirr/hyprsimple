@@ -547,6 +547,39 @@ detect_and_install_vulkan() {
   fi
 }
 
+# Hardware video decoding on an Intel GPU.
+#
+# The installer set up a browser and ffmpeg and no VA-API driver for Intel, so
+# on an Intel laptop, and on every hybrid laptop whose desktop runs on the
+# integrated GPU, video was decoded on the CPU. Measured with the driver in
+# place: Brave, started with no flags, put its decoding on the Intel video
+# engine by itself, and libva found the driver with no LIBVA_DRIVER_NAME set.
+#
+# Both drivers, and no attempt to tell GPU generations apart. intel-media-driver
+# is for Broadwell and newer and libva-intel-driver for what came before. libva
+# tries the first and falls back to the second, so it does the choosing.
+#
+# The lspci pattern is the one detect_and_install_vulkan uses for Intel,
+# written out a second time here. The two steps agree about whether this
+# machine has an Intel GPU for as long as both copies stay the same.
+detect_and_install_intel_video() {
+  echo -e "${YELLOW}Detecting an Intel GPU for video decoding...${NC}"
+
+  if ! lspci | grep -iE "(VGA|Display).*Intel" >/dev/null 2>&1; then
+    echo -e "${GREEN}No Intel GPU detected, skipping${NC}"
+    return 0
+  fi
+
+  install_packages sudo pacman -S --noconfirm -- intel-media-driver libva-intel-driver
+
+  # install_packages returns 0 whether or not anything landed, so ask.
+  if pacman -Qq intel-media-driver &>/dev/null || pacman -Qq libva-intel-driver &>/dev/null; then
+    echo -e "${GREEN}Intel video decode driver installed, so video is decoded on the GPU${NC}"
+  else
+    echo -e "${YELLOW}The Intel video decode drivers did not install, so video will be decoded on the CPU. Both are in the official repositories, so pacman can install intel-media-driver and libva-intel-driver later.${NC}"
+  fi
+}
+
 detect_and_setup_multi_gpu() {
   echo -e "${YELLOW}Detecting GPUs...${NC}"
 
@@ -1004,6 +1037,7 @@ echo -e "${YELLOW}Running hardware detection...${NC}"
 
 detect_and_install_nvidia || true
 detect_and_install_vulkan || true
+detect_and_install_intel_video || true
 detect_and_setup_multi_gpu || true
 
 echo -e "${GREEN}Hardware detection complete${NC}"
