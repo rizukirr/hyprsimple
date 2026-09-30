@@ -170,7 +170,7 @@ On a laptop with an integrated GPU and an NVIDIA one, the desktop runs on the in
 To see the card's state, find its address and read its runtime status:
 
 ```bash
-lspci -D | grep -i nvidia
+lspci -D -d 10de: | grep -vi audio
 cat /sys/bus/pci/devices/<address>/power/runtime_status
 ```
 
