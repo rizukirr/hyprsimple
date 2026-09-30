@@ -548,9 +548,12 @@ detect_and_install_vulkan() {
 # place: Brave, started with no flags, put its decoding on the Intel video
 # engine by itself, and libva found the driver with no LIBVA_DRIVER_NAME set.
 #
-# Both drivers, and no attempt to tell GPU generations apart. intel-media-driver
-# is for Broadwell and newer and libva-intel-driver for what came before. libva
-# tries the first and falls back to the second, so it does the choosing.
+# One driver, intel-media-driver, which covers Broadwell (2014) and newer.
+# chwd on CachyOS installs the same package on this class of GPU. An Intel GPU
+# older than that decodes video on the CPU: telling the generations apart
+# takes a list of device IDs, and the decision on 2026-10-01 was to leave the
+# list out rather than maintain it. --needed, so a driver the distribution
+# already installed is left alone.
 #
 # The lspci pattern is the one detect_and_install_vulkan uses for Intel,
 # written out a second time here. The two steps agree about whether this
@@ -563,13 +566,13 @@ detect_and_install_intel_video() {
     return 0
   fi
 
-  install_packages sudo pacman -S --noconfirm -- intel-media-driver libva-intel-driver
+  install_packages sudo pacman -S --needed --noconfirm -- intel-media-driver
 
   # install_packages returns 0 whether or not anything landed, so ask.
-  if pacman -Qq intel-media-driver &>/dev/null || pacman -Qq libva-intel-driver &>/dev/null; then
+  if pacman -Qq intel-media-driver &>/dev/null; then
     echo -e "${GREEN}Intel video decode driver installed, so video is decoded on the GPU${NC}"
   else
-    echo -e "${YELLOW}The Intel video decode drivers did not install, so video will be decoded on the CPU. Both are in the official repositories, so pacman can install intel-media-driver and libva-intel-driver later.${NC}"
+    echo -e "${YELLOW}The Intel video decode driver did not install, so video will be decoded on the CPU. It is in the official repositories, so pacman can install intel-media-driver later.${NC}"
   fi
 }
 

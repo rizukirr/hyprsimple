@@ -10,9 +10,9 @@
 #   LIBVA_DRIVER_NAME unset         libva opened iHD_drv_video.so by itself
 #   the driver files hidden         libva tried iHD, then i965, then gave up
 #
-# The last row is a hyprsimple install before this, and it is also why both
-# drivers are installed: libva does the choosing between them, so nothing here
-# has to tell one GPU generation from another.
+# The last row is a hyprsimple install before this. One driver is installed,
+# intel-media-driver, which covers Broadwell and newer. Older Intel GPUs decode
+# on the CPU, a trade taken over carrying a list of device IDs.
 #
 # install.sh installs them on a fresh machine and a migration on one already
 # installed. Both are driven here against stubs. Nothing installs anything, and
@@ -41,7 +41,7 @@ sed -n '/^install_packages() {/,/^}/p' "$REPO/install.sh" >>"$FUNCS"
 # An extraction that produced nothing would let every "pacman is not called"
 # check below pass for the wrong reason.
 for marker in 'detect_and_install_intel_video() {' 'install_packages() {' \
-  'intel-media-driver' 'libva-intel-driver'; do
+  'intel-media-driver' '--needed'; do
   if grep -qF -- "$marker" "$FUNCS"; then
     pass "extracted source contains $marker"
   else
@@ -121,9 +121,10 @@ installs() { grep -c '^pacman -S ' "$LOG"; }
 
 for gpus in "intel-vga" "intel-display" "intel-vga nvidia"; do
   run_install "$gpus"
-  check "[$gpus] pacman is asked for the drivers once" "$(installs)" "1"
+  check "[$gpus] pacman is asked for the driver once" "$(installs)" "1"
   check "[$gpus] for intel-media-driver" "$(grep -c 'intel-media-driver' "$LOG")" "1"
-  check "[$gpus] and for libva-intel-driver" "$(grep -c 'libva-intel-driver' "$LOG")" "1"
+  check "[$gpus] and not for libva-intel-driver" "$(grep -c 'libva-intel-driver' "$LOG")" "0"
+  check "[$gpus] only if it is missing" "$(grep -c -- '--needed' "$LOG")" "1"
   check "[$gpus] without stopping to ask" "$(grep -c -- '--noconfirm' "$LOG")" "1"
   check "[$gpus] and the step returns 0" "$rc" "0"
 done
@@ -142,15 +143,15 @@ done
 
 run_install "intel-vga" "" 1
 check "with pacman failing the step still returns 0" "$rc" "0"
-check "and both packages are recorded as failed" \
-  "$(grep '^FAILED=' "$TMP/out")" "FAILED=intel-media-driver libva-intel-driver"
+check "and the package is recorded as failed" \
+  "$(grep '^FAILED=' "$TMP/out")" "FAILED=intel-media-driver"
 check "and it says video will be decoded on the CPU" \
   "$(grep -c 'decoded on the CPU' "$TMP/out")" "1"
 check "and does not say a driver was installed" \
   "$(grep -c 'driver installed' "$TMP/out")" "0"
 
-run_install "intel-vga" "intel-media-driver libva-intel-driver"
-check "with the drivers present it says video is decoded on the GPU" \
+run_install "intel-vga" "intel-media-driver"
+check "with the driver present it says video is decoded on the GPU" \
   "$(grep -c 'decoded on the GPU' "$TMP/out")" "1"
 
 # --- the installer actually runs the step ------------------------------------
@@ -172,23 +173,19 @@ run_migration() {
 }
 
 run_migration "intel-vga"
-check "with neither driver installed the migration installs once" "$(installs)" "1"
-check "both of them, only if needed, and without asking" \
-  "$(cat "$LOG")" "pacman -S --needed --noconfirm intel-media-driver libva-intel-driver"
+check "with the driver missing the migration installs once" "$(installs)" "1"
+check "only if needed, and without asking" \
+  "$(cat "$LOG")" "pacman -S --needed --noconfirm intel-media-driver"
 check "and exits 0" "$rc" "0"
 check "and says the browser has to be restarted" "$(grep -c 'Restart your browser' "$TMP/out")" "1"
 
 run_migration "intel-vga" "intel-media-driver"
-check "with one driver installed it asks only for the other" \
-  "$(cat "$LOG")" "pacman -S --needed --noconfirm libva-intel-driver"
-
-run_migration "intel-display nvidia" "libva-intel-driver"
-check "whichever one that is" \
-  "$(cat "$LOG")" "pacman -S --needed --noconfirm intel-media-driver"
-
-run_migration "intel-vga" "intel-media-driver libva-intel-driver"
-check "with both installed it installs nothing" "$(installs)" "0"
+check "with the driver installed it installs nothing" "$(installs)" "0"
 check "and exits 0" "$rc" "0"
+
+# A machine that got both drivers from an earlier run keeps them.
+run_migration "intel-display nvidia" "intel-media-driver libva-intel-driver"
+check "with both installed it installs nothing either" "$(installs)" "0"
 
 for gpus in "amd" "nvidia"; do
   run_migration "$gpus"
