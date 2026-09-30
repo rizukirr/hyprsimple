@@ -6,20 +6,19 @@
 #   export LIBVA_DRIVER_NAME=nvidia
 #   export __GLX_VENDOR_LIBRARY_NAME=nvidia
 #
-# On a hybrid laptop it does not drive the desktop. detect_and_setup_multi_gpu
-# prefers Intel, then AMD, then NVIDIA, and points AQ_DRM_DEVICES at what it
-# picks, so Hyprland renders on the integrated GPU. Those variables then send
-# every OpenGL application to the discrete card, whose frames have to be copied
-# back to the GPU that owns the display, and which never powers down.
+# On a hybrid laptop it does not drive the desktop. Aquamarine starts on the
+# GPU the firmware booted with, which is the integrated one, so Hyprland
+# renders there. Those variables then send every OpenGL application to the
+# discrete card, whose frames have to be copied back to the GPU that owns the
+# display, and which never powers down.
 #
 # Measured on an Optimus laptop, inside the running session's own environment:
 #
 #   with the block     OpenGL renderer string: NVIDIA GeForce RTX 4050 Laptop GPU
 #   with it unset      OpenGL renderer string: Mesa Intel(R) Graphics (RPL-P)
 #
-# Upstream writes the same block and has no equivalent of
-# detect_and_setup_multi_gpu, so there it is consistent. hyprsimple added the
-# GPU selection and left this half alone, and the two contradicted each other.
+# Upstream writes the same block on every NVIDIA machine. Here it is written
+# only where the NVIDIA card is the one driving the display.
 #
 # A desktop whose only card is NVIDIA still needs the block and keeps it. Both
 # answers are exercised here.

@@ -430,22 +430,21 @@ detect_and_install_nvidia() {
   fi
 
   # On a hybrid machine the desktop is rendered by the integrated GPU:
-  # detect_and_setup_multi_gpu below prefers Intel, then AMD, then NVIDIA, and
-  # points AQ_DRM_DEVICES at whichever it picks. Exporting
-  # __GLX_VENDOR_LIBRARY_NAME=nvidia on top of that sends every OpenGL
-  # application to the discrete card anyway, so frames are rendered on the dGPU
-  # and copied back to the iGPU that owns the display, and the dGPU never
-  # powers down. Measured on an Optimus laptop with this block in place,
-  # glxinfo reported "NVIDIA GeForce RTX 4050 Laptop GPU"; with the same three
-  # variables unset, "Mesa Intel(R) Graphics (RPL-P)". Choosing the discrete
-  # card per application is what prime-run is for.
+  # aquamarine enumerates every card and starts on the one the firmware booted
+  # with, which is the integrated one. Exporting __GLX_VENDOR_LIBRARY_NAME=nvidia
+  # on top of that sends every OpenGL application to the discrete card anyway,
+  # so frames are rendered on the dGPU and copied back to the iGPU that owns
+  # the display, and the dGPU never powers down. Measured on an Optimus laptop
+  # with this block in place, glxinfo reported "NVIDIA GeForce RTX 4050 Laptop
+  # GPU". With the same three variables unset, "Mesa Intel(R) Graphics
+  # (RPL-P)". Choosing the discrete card per application is what prime-run is
+  # for.
   #
-  # Upstream writes this block unconditionally and has no equivalent of
-  # detect_and_setup_multi_gpu, so there it is consistent with the rest of the
-  # configuration. Here it contradicted it.
+  # Upstream writes this block on every NVIDIA machine. Here it is written only
+  # where the NVIDIA card is the one driving the display.
   #
-  # The same two lspci forms detect_and_setup_multi_gpu uses, so the two
-  # functions cannot disagree about what this machine is.
+  # The same two lspci forms migration 1788623900 uses, so the installer and
+  # the migration cannot disagree about what this machine is.
   local other_gpu
   other_gpu=$(lspci -D | grep -iE "VGA.*Intel" | head -1 | cut -d' ' -f1 || true)
   [[ -z $other_gpu ]] &&
@@ -572,58 +571,6 @@ detect_and_install_intel_video() {
   else
     echo -e "${YELLOW}The Intel video decode drivers did not install, so video will be decoded on the CPU. Both are in the official repositories, so pacman can install intel-media-driver and libva-intel-driver later.${NC}"
   fi
-}
-
-detect_and_setup_multi_gpu() {
-  echo -e "${YELLOW}Detecting GPUs...${NC}"
-
-  # Detect GPUs (priority: Intel > AMD > NVIDIA)
-  INTEL_PCI=$(lspci -D | grep -iE "VGA.*Intel" | head -1 | cut -d' ' -f1 || true)
-  AMD_PCI=$(lspci -D -d ::0300 | grep -i "AMD" | head -1 | cut -d' ' -f1 || true)
-  NVIDIA_PCI=$(lspci -D | grep -iE "VGA.*NVIDIA" | head -1 | cut -d' ' -f1 || true)
-
-  GPU_SYMLINK=""
-  GPU_VENDOR=""
-  GPU_PCI=""
-
-  if [[ -n $INTEL_PCI ]]; then
-    GPU_VENDOR="Intel"
-    GPU_PCI="$INTEL_PCI"
-    GPU_SYMLINK="intel-gpu"
-    echo -e "${GREEN}Intel GPU detected at: $GPU_PCI${NC}"
-  elif [[ -n $AMD_PCI ]]; then
-    GPU_VENDOR="AMD"
-    GPU_PCI="$AMD_PCI"
-    GPU_SYMLINK="amd-gpu"
-    echo -e "${GREEN}AMD GPU detected at: $GPU_PCI${NC}"
-  elif [[ -n $NVIDIA_PCI ]]; then
-    GPU_VENDOR="NVIDIA"
-    GPU_PCI="$NVIDIA_PCI"
-    GPU_SYMLINK="nvidia-gpu"
-    echo -e "${GREEN}NVIDIA GPU detected at: $GPU_PCI${NC}"
-  else
-    echo -e "${YELLOW}No GPU detected, skipping GPU setup${NC}"
-    return 0
-  fi
-
-  # Create udev rule for consistent GPU device path
-  UDEV_RULE_FILE="/etc/udev/rules.d/99-${GPU_SYMLINK}.rules"
-  sudo tee "$UDEV_RULE_FILE" <<EOF >/dev/null
-KERNEL=="card[0-9]*", KERNELS=="$GPU_PCI", SUBSYSTEM=="drm", SUBSYSTEMS=="pci", SYMLINK+="dri/$GPU_SYMLINK"
-EOF
-
-  echo -e "${GREEN}$GPU_VENDOR GPU udev rule created: /dev/dri/$GPU_SYMLINK -> $GPU_PCI${NC}"
-
-  # Reload udev rules to create symlinks
-  sudo udevadm control --reload
-  sudo udevadm trigger
-
-  # Write to env-hyprland (uwsm users should use this file per Hyprland docs)
-  set_env_block "$HOME/.config/uwsm/env-hyprland" gpu \
-    "# Primary GPU: $GPU_VENDOR (priority: Intel > AMD > NVIDIA)" \
-    "export AQ_DRM_DEVICES=\"/dev/dri/$GPU_SYMLINK\""
-
-  echo -e "${GREEN}GPU setup complete ($GPU_VENDOR selected as primary)${NC}"
 }
 
 # Install packages. Bulk first, because one transaction resolves dependencies
@@ -1024,15 +971,14 @@ fi
 # ======================================
 #  Hardware Auto-Detection
 # ======================================
-# NOTE: This runs AFTER config copying so GPU env vars
-# appended to ~/.config/uwsm/env and env-hyprland are not overwritten.
+# After the config copy, because detect_and_install_nvidia writes a block into
+# ~/.config/uwsm/env and a copy made after it would put the shipped file back.
 echo ""
 echo -e "${YELLOW}Running hardware detection...${NC}"
 
 detect_and_install_nvidia || true
 detect_and_install_vulkan || true
 detect_and_install_intel_video || true
-detect_and_setup_multi_gpu || true
 
 echo -e "${GREEN}Hardware detection complete${NC}"
 echo ""
