@@ -220,18 +220,27 @@ elif ((aur_status != 0)); then
   fi
 
   echo -e "${YELLOW}Installing $AUR_BUILD...${NC}"
-  sudo pacman -Syu "${CONFIRM[@]}"
-  sudo pacman -S --needed "${CONFIRM[@]}" git base-devel
-  # A build directory left behind by an earlier run holds that run's checkout,
-  # and reusing it silently builds whatever it happens to contain. Cloning
-  # fresh into a directory of our own costs nothing and cannot be a stale or
-  # someone else's /tmp/yay.
-  AUR_BUILD_DIR="$(mktemp -d)"
-  git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
-  cd "$AUR_BUILD_DIR/$AUR_BUILD"
-  makepkg -si "${CONFIRM[@]}"
-  cd "$DOTFILES_DIR"
-  rm -rf "$AUR_BUILD_DIR"
+  # Some distributions carry the helper as a package: CachyOS ships both paru
+  # and yay. A package is seconds where a build is a Rust compile, so the
+  # repository copy is taken where there is one. pacman -Si failing, or pacman
+  # not being there to ask, means the build.
+  if pacman -Si "$AUR_BUILD" &>/dev/null; then
+    echo -e "${GREEN}$AUR_BUILD is in a repository, so it is installed from there rather than built${NC}"
+    sudo pacman -S --needed "${CONFIRM[@]}" "$AUR_BUILD"
+  else
+    sudo pacman -Syu "${CONFIRM[@]}"
+    sudo pacman -S --needed "${CONFIRM[@]}" git base-devel
+    # A build directory left behind by an earlier run holds that run's checkout,
+    # and reusing it silently builds whatever it happens to contain. Cloning
+    # fresh into a directory of our own costs nothing and cannot be a stale or
+    # someone else's /tmp/yay.
+    AUR_BUILD_DIR="$(mktemp -d)"
+    git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
+    cd "$AUR_BUILD_DIR/$AUR_BUILD"
+    makepkg -si "${CONFIRM[@]}"
+    cd "$DOTFILES_DIR"
+    rm -rf "$AUR_BUILD_DIR"
+  fi
   AUR_HELPER="$AUR_BUILD"
 fi
 

@@ -57,8 +57,10 @@ log out.
 
 If you would rather read what pacman is about to do, `./install.sh
 --interactive` puts every confirmation back, including the full system upgrade.
-It also asks which AUR helper to build when you have neither paru nor yay,
-instead of taking paru. Whichever helper you already have is the one used
+It also asks which AUR helper to install when you have neither paru nor yay,
+instead of taking paru. The helper comes from a repository when your
+distribution ships one, and is built from the AUR otherwise. Whichever helper
+you already have is the one used
 either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that
 has both.
 
