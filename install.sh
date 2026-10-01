@@ -721,6 +721,16 @@ setup_printer() {
 setup_firewall() {
   echo -e "${YELLOW}Setting up Firewall...${NC}"
   if command -v ufw &>/dev/null; then
+    # A firewall that is already on has a posture its owner or distribution
+    # chose. CachyOS ships ufw enabled. Only the LocalSend rule is added then,
+    # because it is additive and the reason this step exists. No answer from
+    # ufw status counts as inactive, which is the path that enables it.
+    if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
+      sudo ufw allow 53317/tcp
+      sudo ufw allow 53317/udp
+      echo -e "${GREEN}ufw is already active, so its policies are left as they are and only the LocalSend port is opened${NC}"
+      return 0
+    fi
     sudo ufw default deny incoming
     sudo ufw default allow outgoing
     # Allow LocalSend (LAN file sharing)
