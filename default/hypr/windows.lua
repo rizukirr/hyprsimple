@@ -33,13 +33,16 @@ hl.window_rule({
 hl.window_rule({ match = { tag = "chromium-based-browser" }, tag = "-default-opacity" })
 hl.window_rule({ match = { tag = "firefox-based-browser" }, tag = "-default-opacity" })
 
--- Video apps: strip chromium-based-browser tag so they don't get opacity applied
+-- Video apps: strip chromium-based-browser tag so they don't get opacity applied.
+-- A site installed as an app has the class <browser>-<site>__-<profile>, so the
+-- browser and the profile are left open: brave-youtube.com__-Default and
+-- chrome-youtube.com__-Profile_1 are both the YouTube app.
 hl.window_rule({
-	match = { class = "(chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)" },
+	match = { class = "(^.+-youtube\\.com__.*$|^.+-app\\.zoom\\.us__wc_home.*$)" },
 	tag = "-chromium-based-browser",
 })
 hl.window_rule({
-	match = { class = "(chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)" },
+	match = { class = "(^.+-youtube\\.com__.*$|^.+-app\\.zoom\\.us__wc_home.*$)" },
 	tag = "-default-opacity",
 })
 
@@ -104,9 +107,16 @@ hl.window_rule({ match = { tag = "floating-window" }, size = { 875, 600 } })
 -- Float the Nautilus file manager by default (main window + Open/Save dialogs)
 hl.window_rule({ match = { class = "org.gnome.Nautilus" }, tag = "+floating-window" })
 
+-- The portal only ever shows dialogs: file pickers, screen shares, permission
+-- prompts. Every one of its windows floats, whatever the app that asked for it
+-- titled it and in whatever language.
+hl.window_rule({ match = { class = "xdg-desktop-portal-gtk" }, tag = "+floating-window" })
+
+-- These apps draw their own file dialogs under their main window's class, so
+-- the title is what tells a dialog from the app.
 hl.window_rule({
 	match = {
-		class = "(xdg-desktop-portal-gtk|sublime_text|DesktopEditors)",
+		class = "(sublime_text|DesktopEditors)",
 		title = "^(Open.*Files?|Open [F|f]older.*|Save.*Files?|Save.*As|Save|All Files|.*wants to [open|save].*|[C|c]hoose.*)",
 	},
 	tag = "+floating-window",
@@ -147,31 +157,9 @@ hl.window_rule({
 -- =====================================================================
 -- jetbrains (was windows/jetbrains.conf)
 -- =====================================================================
-hl.window_rule({
-	name = "jetbrains-splash",
-	match = { class = "^(jetbrains-.*)$", title = "^(splash)$", float = true },
-	tag = "+jetbrains-splash",
-	center = true,
-	no_focus = true,
-	border_size = 0,
-})
-
-hl.window_rule({
-	name = "jetbrains-popup",
-	match = { class = "^(jetbrains-.*)", title = "^()$", float = true },
-	tag = "+jetbrains",
-	center = true,
-	stay_focused = true,
-	border_size = 0,
-	min_size = "(monitor_w*0.5) (monitor_h*0.5)",
-})
-
-hl.window_rule({
-	name = "jetbrains-tooltip",
-	match = { class = "^(jetbrains-.*)$", title = "^(win.*)$", float = true },
-	no_initial_focus = true,
-})
-
+-- One rule, and it only concerns focus. The IDE places and sizes its own
+-- popups, and a rule that centres or resizes its untitled windows takes a menu
+-- away from the thing it was opened on.
 hl.window_rule({
 	name = "jetbrains-focus",
 	match = { class = "^(jetbrains-.*)$" },
@@ -205,7 +193,10 @@ hl.window_rule({ match = { tag = "pip" }, size = { 600, 338 } })
 hl.window_rule({ match = { tag = "pip" }, keep_aspect_ratio = true })
 hl.window_rule({ match = { tag = "pip" }, border_size = 0 })
 hl.window_rule({ match = { tag = "pip" }, opacity = "1 1" })
-hl.window_rule({ match = { tag = "pip" }, move = "(monitor_w-window_w-40) (monitor_h*0.04)" })
+-- 600 is the width set above, written out. window_w here is the width the
+-- window arrived with, before the size rule, so a position worked out from it
+-- puts a window that arrived narrower past the right edge.
+hl.window_rule({ match = { tag = "pip" }, move = "(monitor_w-600-40) (monitor_h*0.04)" })
 
 -- =====================================================================
 -- moonlight (was windows/moonlight.conf)
