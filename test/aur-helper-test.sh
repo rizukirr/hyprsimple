@@ -328,10 +328,10 @@ check "no script looks for a helper on its own" "$offenders_str" ""
 
 users=0
 for script in "$REPO/install.sh" "$REPO/.local/bin/hyprsimple-update.sh" \
-  "$REPO/.local/bin/hyprsimple-muslimtify.sh"; do
+  "$REPO/.local/bin/hyprsimple-muslimtify.sh" "$REPO/.local/bin/toggle-hybrid-gpu.sh"; do
   grep -q 'hyprsimple-aur-helper.sh' "$script" && users=$((users + 1))
 done
-check "and all three callers use the shared one" "$users" "3"
+check "and all four callers use the shared one" "$users" "4"
 
 # It only reaches an installed machine if the delivery loops take it, and both
 # of them take *.sh by glob rather than by name.

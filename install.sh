@@ -454,50 +454,7 @@ detect_and_install_nvidia() {
   if [[ -n $other_gpu ]]; then
     echo -e "${GREEN}An integrated GPU is present at $other_gpu, so it will drive the desktop and the NVIDIA environment variables are being left out. Setting them would push every OpenGL application onto the discrete card.${NC}"
     echo -e "${GREEN}Run a single program on the NVIDIA GPU with: prime-run <program>${NC}"
-
-    # supergfxctl is what turns the discrete card off and back on, and
-    # toggle-hybrid-gpu.sh is the command that asks it to. Set up here because
-    # this branch is the one place the installer knows the machine is hybrid.
-    #
-    # Asked of pacman rather than `command -v`, for the reason nvidia-utils is
-    # asked for above: install_packages returns 0 whether or not the build
-    # worked. An AUR build that fails must not stop the install, so the step
-    # reports it and the desktop is installed without GPU switching.
-    #
-    # The config is written before the service first starts, and only when
-    # there is none. A re-run must not put a machine its owner switched to
-    # Integrated back into Hybrid. The values are supergfxd's own defaults.
-    # Overridable so the suite never writes to /etc.
-    #
-    # printf rather than a here-document. The suites lift this function out of
-    # the file by reading up to the first line that is a lone closing brace,
-    # and the JSON ends with one.
-    local gfx_conf="${HYPRSIMPLE_SUPERGFXD_CONF:-/etc/supergfxd.conf}"
-    install_packages "$AUR_HELPER" -S "${AUR_CONFIRM[@]}" -- supergfxctl
-    if ! pacman -Qq supergfxctl &>/dev/null; then
-      echo -e "${YELLOW}supergfxctl did not install, so the NVIDIA GPU cannot be switched off and on yet. Everything else is unaffected. Run toggle-hybrid-gpu.sh later and it prints the commands that set it up.${NC}"
-    else
-      if [[ ! -e $gfx_conf ]]; then
-        if ! printf '%s\n' \
-          '{' \
-          '  "mode": "Hybrid",' \
-          '  "vfio_enable": false,' \
-          '  "vfio_save": false,' \
-          '  "always_reboot": false,' \
-          '  "no_logind": false,' \
-          '  "logout_timeout_s": 180,' \
-          '  "hotplug_type": "None"' \
-          '}' | sudo tee "$gfx_conf" >/dev/null; then
-          echo -e "${YELLOW}Could not write $gfx_conf, so supergfxd will start with its own defaults.${NC}"
-        fi
-      fi
-      if sudo systemctl enable --now supergfxd; then
-        echo -e "${GREEN}Turn the NVIDIA GPU off or back on with: toggle-hybrid-gpu.sh${NC}"
-      else
-        echo -e "${YELLOW}supergfxd would not start, so toggle-hybrid-gpu.sh has nothing to talk to yet. Check it with: systemctl status supergfxd${NC}"
-      fi
-    fi
-
+    echo -e "${GREEN}Turn the NVIDIA GPU off or back on with: toggle-hybrid-gpu.sh. Its first run sets itself up, and nothing for it is installed until then.${NC}"
     echo -e "${GREEN}NVIDIA setup complete (arch: $GPU_ARCH, offload only)${NC}"
     return 0
   fi

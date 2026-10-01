@@ -6,9 +6,9 @@
 #   Hybrid      the NVIDIA card is powered and takes work through prime-run
 #   Integrated  the card is off and only the integrated GPU runs
 #
-# Run from a terminal. It takes no arguments and never calls sudo, because
-# supergfxd does the privileged work over D-Bus. install.sh sets supergfxctl up
-# on a hybrid machine, and this script installs nothing.
+# Run from a terminal. It takes no arguments. Switching never calls sudo,
+# because supergfxd does the privileged work over D-Bus. The first run is the
+# exception: it sets supergfxctl up, and that needs sudo and an AUR helper.
 #
 # supergfxd will not go from Vfio to Hybrid in one step. It answers "You must
 # change to Integrated before you can change to Hybrid" and changes nothing,
@@ -28,12 +28,70 @@ die() {
   exit 1
 }
 
+# The first run. supergfxctl is an AUR package that compiles from source and
+# brings a system daemon with it. install.sh set it up on every hybrid machine
+# for a short while, which put a compile and a daemon in front of people who
+# never wanted the card switched. It is set up here, by whoever runs this.
+#
+# The helper is run without its unattended flags on purpose. It then shows its
+# own review and asks before it builds, and that is the confirmation for the
+# whole setup.
+#
+# The config is written before the service first starts, and only when there
+# is none, so a mode someone already chose is kept. The values are supergfxd's
+# own defaults. The path is overridable so the suite never writes to /etc.
+setup_supergfxctl() {
+  local conf="${HYPRSIMPLE_SUPERGFXD_CONF:-/etc/supergfxd.conf}"
+  local detect="$HOME/.local/bin/hyprsimple-aur-helper.sh"
+  local other helper
+
+  # The switchers upstream says supergfxctl conflicts with. Two of them
+  # managing one card is worse than having neither.
+  for other in optimus-manager system76-power bbswitch bbswitch-dkms; do
+    if pacman -Qq "$other" >/dev/null 2>&1; then
+      die "$other is installed, and supergfxctl conflicts with it. Remove $other first if you want to switch the GPU with this toggle."
+    fi
+  done
+
+  [[ -r $detect ]] || die "missing helper: hyprsimple-aur-helper.sh. Run hyprsimple-update."
+  # shellcheck source=/dev/null
+  source "$detect"
+  helper="$(aur_helper)" ||
+    die "supergfxctl comes from the AUR, and no AUR helper was found. Install paru or yay, then run this again."
+
+  echo "GPU: supergfxctl is not installed, so this run sets it up and switches nothing:"
+  echo "  1. $helper builds supergfxctl from the AUR, which compiles it from source"
+  echo "  2. $conf is written, if there is none"
+  echo "  3. the supergfxd service is enabled and started"
+
+  "$helper" -S supergfxctl || die "$helper did not install supergfxctl, so nothing else was changed"
+  command -v supergfxctl >/dev/null 2>&1 ||
+    die "supergfxctl is still not installed, so nothing else was changed"
+
+  if [[ ! -e $conf ]]; then
+    printf '%s\n' \
+      '{' \
+      '  "mode": "Hybrid",' \
+      '  "vfio_enable": false,' \
+      '  "vfio_save": false,' \
+      '  "always_reboot": false,' \
+      '  "no_logind": false,' \
+      '  "logout_timeout_s": 180,' \
+      '  "hotplug_type": "None"' \
+      '}' | sudo tee "$conf" >/dev/null ||
+      echo "GPU: could not write $conf, so supergfxd will start with its own defaults." >&2
+  fi
+
+  sudo systemctl enable --now supergfxd ||
+    die "supergfxd would not start. Check it with: systemctl status supergfxd"
+
+  echo "GPU: supergfxctl is set up in Hybrid mode, which is how this machine was already running."
+  echo "GPU: run toggle-hybrid-gpu.sh again to turn the NVIDIA GPU off."
+}
+
 if ! command -v supergfxctl >/dev/null 2>&1; then
-  echo "GPU: supergfxctl is not installed, so there is nothing to switch with." >&2
-  echo "Set it up with:" >&2
-  echo "  paru -S supergfxctl        (or: yay -S supergfxctl)" >&2
-  echo "  sudo systemctl enable --now supergfxd" >&2
-  exit 1
+  setup_supergfxctl
+  exit 0
 fi
 
 current_mode() { timeout "$QUERY_WAIT" supergfxctl -g 2>/dev/null; }
