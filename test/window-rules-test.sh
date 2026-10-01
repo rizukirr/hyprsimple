@@ -111,24 +111,122 @@ check "the bare two-word pattern is gone" \
 # so a rule on that pair may float, and may not centre.
 #
 # The file is run against a stub hl rather than grepped, so a rule reflowed
-# over several lines is still seen.
-centred=$(lua - "$RULES" <<'LUA'
+# over several lines is still seen. One run answers every question the checks
+# below ask of the rules, as name and value on a line each.
+FACTS=$(lua - "$RULES" <<'LUA'
 local rules = {}
 hl = {
   window_rule = function(rule) rules[#rules + 1] = rule end,
   layer_rule = function() end,
 }
 dofile(arg[1])
-local count = 0
+
+local function count(pred)
+  local n = 0
+  for _, rule in ipairs(rules) do
+    if pred(rule, rule.match or {}) then n = n + 1 end
+  end
+  return n
+end
+local function jetbrains(match)
+  return type(match.class) == "string" and match.class:find("jetbrains", 1, true) ~= nil
+end
+local function text(value)
+  return type(value) == "table" and table.concat(value, " ") or tostring(value or "")
+end
+
+print("emulator_centred", count(function(rule, match)
+  return rule.center and match.class == "^(Emulator)$"
+end))
+print("jetbrains_moved", count(function(rule, match)
+  return jetbrains(match) and (rule.center or rule.min_size or rule.stay_focused or rule.no_focus)
+end))
+print("jetbrains_no_follow_mouse", count(function(rule, match)
+  return jetbrains(match) and rule.no_follow_mouse
+end))
+print("portal_floats_whatever_the_title", count(function(rule, match)
+  return match.class == "xdg-desktop-portal-gtk" and match.title == nil and rule.tag == "+floating-window"
+end))
+print("pip_moves", count(function(rule, match)
+  return match.tag == "pip" and rule.move ~= nil
+end))
+print("pip_moves_by_window_w", count(function(rule, match)
+  return match.tag == "pip" and text(rule.move):find("window_w", 1, true) ~= nil
+end))
 for _, rule in ipairs(rules) do
-  if rule.center and rule.match and rule.match.class == "^(Emulator)$" then
-    count = count + 1
+  local class = (rule.match or {}).class
+  if rule.tag == "-default-opacity" and type(class) == "string" and class:find("youtube", 1, true) then
+    print("webapp_pattern", class)
   end
 end
-print(count)
 LUA
 )
-check "no rule centres the emulator's popups" "$centred" "0"
+fact() { printf '%s\n' "$FACTS" | awk -F'\t' -v name="$1" '$1 == name { print $2 }'; }
+
+check "no rule centres the emulator's popups" "$(fact emulator_centred)" "0"
+
+# --- a JetBrains popup opens where the IDE puts it ----------------------------
+#
+# The same mistake, wider. A rule matched every untitled floating window of a
+# JetBrains IDE, centred it, held focus on it and forced it to at least half
+# the monitor. Measured the same way, with class "jetbrains-studio" and an
+# empty title:
+#
+#   asked for 276x70 at 100,100 -> 960x540 at 480,288
+#
+# Only the rule that stops focus following the mouse is kept, which is what the
+# IDE needs and all it needs.
+check "no rule moves, resizes or pins focus on a JetBrains window" "$(fact jetbrains_moved)" "0"
+check "focus still does not follow the mouse into a JetBrains window" "$(fact jetbrains_no_follow_mouse)" "1"
+
+# --- a browser's video app is opaque in every browser -------------------------
+#
+# A site installed as an app has the class <browser>-<site>__-<profile>. The
+# rule that keeps YouTube and Zoom opaque named the chrome- form only, and
+# hyprsimple ships Brave. Measured: class "brave-youtube.com__-Default" kept the
+# default-opacity tag, and "chrome-youtube.com__-Default" lost it.
+#
+# Hyprland matches a class in full, which is what grep -x asks here.
+webapp=$(fact webapp_pattern)
+if [[ -z $webapp ]]; then
+  fail "no rule keeps a YouTube app opaque, so this suite is reading the wrong file"
+fi
+webapp_matches() { printf '%s' "$1" | grep -qxE -- "$webapp" && echo yes || echo no; }
+
+for class in \
+  "brave-youtube.com__-Default" \
+  "chrome-youtube.com__-Default" \
+  "chromium-youtube.com__-Profile_1" \
+  "brave-app.zoom.us__wc_home-Default" \
+  "chrome-app.zoom.us__wc_home-Default"; do
+  check "opaque: $class" "$(webapp_matches "$class")" "yes"
+done
+
+for class in \
+  "brave-browser" \
+  "chrome-mail.google.com__-Default" \
+  "brave-youtubexcom__-Default"; do
+  check "left alone: $class" "$(webapp_matches "$class")" "no"
+done
+
+# --- every portal dialog floats, whatever it is called ------------------------
+#
+# The portal only ever shows dialogs. The rule floated the ones whose title was
+# on a list of English phrases, so a dialog titled anything else, or titled in
+# another language, was tiled.
+check "a portal window floats without its title being asked" \
+  "$(fact portal_floats_whatever_the_title)" "1"
+
+# --- picture in picture lands on the screen -----------------------------------
+#
+# The rules give the window a width of 600 and a position worked out from
+# window_w. window_w is the width before the size rule applies. Measured with a
+# window 276 wide on a 1920 monitor:
+#
+#   monitor_w-window_w-40 -> x 1604, right edge 2204, 284 off the screen
+#   monitor_w-600-40      -> x 1280, right edge 1880
+check "picture in picture is still moved to its corner" "$(fact pip_moves)" "1"
+check "and not by a width it does not have yet" "$(fact pip_moves_by_window_w)" "0"
 
 # --- windows.lua still loads --------------------------------------------------
 
