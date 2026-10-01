@@ -96,6 +96,40 @@ check "stripping comments leaves the rules behind" \
 check "the bare two-word pattern is gone" \
   "$(printf '%s\n' "$CODE" | grep -c 'title = ".\*is sharing.\*"')" "0"
 
+# --- the emulator's popups open where Qt puts them ----------------------------
+#
+# The Android Emulator is a Qt app under XWayland, and Qt titles every popup
+# with the application name. A combo box list is therefore a window of class
+# "Emulator" and title "Emulator", the same pair the float rule matches. center
+# is applied to override-redirect windows too, and it discards the position the
+# app asked for. Measured on a live session, with a 276x70 override-redirect
+# window asking for 100,100 on a 1920x1080 monitor under a 36px bar:
+#
+#   float = true   -> at 100,100
+#   center = true  -> at 822,523
+#
+# so a rule on that pair may float, and may not centre.
+#
+# The file is run against a stub hl rather than grepped, so a rule reflowed
+# over several lines is still seen.
+centred=$(lua - "$RULES" <<'LUA'
+local rules = {}
+hl = {
+  window_rule = function(rule) rules[#rules + 1] = rule end,
+  layer_rule = function() end,
+}
+dofile(arg[1])
+local count = 0
+for _, rule in ipairs(rules) do
+  if rule.center and rule.match and rule.match.class == "^(Emulator)$" then
+    count = count + 1
+  end
+end
+print(count)
+LUA
+)
+check "no rule centres the emulator's popups" "$centred" "0"
+
 # --- windows.lua still loads --------------------------------------------------
 
 if command -v luac >/dev/null 2>&1; then
