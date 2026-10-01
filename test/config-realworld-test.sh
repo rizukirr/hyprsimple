@@ -75,10 +75,16 @@ HOME="$TMP/home" HYPRSIMPLE_PATH="$TMP/install" bash "$REPO/migrations/178799246
 after=$(ROOT="$TMP/home" INSTALL="$TMP/install" lua "$TMP/load.lua" 2>"$TMP/err_after")
 if [[ -n $after ]]; then pass "a migrated config still loads"; else fail "a migrated config still loads: $(head -1 "$TMP/err_after")"; fi
 
-if [[ -n $before && "$before" == "$after" ]]; then
+# Compared with what the install ships, not with the count before. The fixture
+# is frozen and the shipped rules are not, so the two counts part ways the first
+# time a rule is added or removed, with nothing duplicated. A migrated config
+# that still carried its own copy would load the shipped rules plus its own,
+# which is the number this cannot equal.
+shipped=$(grep -c '^hl\.window_rule(' "$TMP/install/default/hypr/windows.lua")
+if [[ -n $before && "$after" == "$shipped" ]]; then
   pass "window rules are not duplicated"
 else
-  fail "window rules are not duplicated (before=$before after=$after)"
+  fail "window rules are not duplicated (shipped=$shipped before=$before after=$after)"
 fi
 
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi

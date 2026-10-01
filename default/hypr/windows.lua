@@ -187,8 +187,10 @@ hl.window_rule({ match = { class = "qemu" }, opacity = "1 1" })
 -- =====================================================================
 -- emulator (was windows/emulator.conf)
 -- =====================================================================
+-- Floated and not centred. Qt titles this app's popups "Emulator" as well, so
+-- the rule matches a combo box list, and center would take it away from the
+-- box it belongs to and open it in the middle of the screen.
 hl.window_rule({ match = { class = "^(Emulator)$", title = "^(Emulator)$" }, float = true })
-hl.window_rule({ match = { class = "^(Emulator)$", title = "^(Emulator)$" }, center = true })
 hl.window_rule({ match = { class = "^(Android Emulator)$", title = "^(Android Emulator.*)$" }, float = true })
 hl.window_rule({ match = { class = "^(Android Emulator)$", title = "^(Android Emulator.*)$" }, center = true })
 
