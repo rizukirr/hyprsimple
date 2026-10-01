@@ -694,6 +694,15 @@ setup_network() {
     sudo systemctl enable --now systemd-resolved 2>/dev/null || true
   fi
 
+  # A resolv.conf that already names the resolved stub, as the link this makes
+  # or as the file NetworkManager writes for it on CachyOS, needs nothing.
+  # Linking it again would replace a distribution's file with hyprsimple's
+  # link to the same resolver.
+  if grep -qs '^nameserver 127\.0\.0\.53' "$resolv_conf"; then
+    echo -e "${GREEN}DNS already goes through systemd-resolved, so $resolv_conf is left as it is${NC}"
+    return 0
+  fi
+
   # enable --now returns once the unit is active, which is not quite the same
   # moment the stub appears.
   local waited=0

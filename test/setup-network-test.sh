@@ -70,7 +70,7 @@ run_setup_network() {
   : >"$LOG"
   # A resolv.conf that something else already manages, so the test can tell
   # "left alone" apart from "replaced".
-  printf 'nameserver 192.0.2.1\n' >"$TMP/root/resolv.conf"
+  printf '%s\n' "${RESOLV_CONTENT:-nameserver 192.0.2.1}" >"$TMP/root/resolv.conf"
   [[ ${1:-no} == yes ]] && printf 'nameserver 127.0.0.53\n' >"$TMP/root/run/stub-resolv.conf"
   CALL_LOG="$LOG" PATH="$STUB:/usr/bin:/bin" \
     HYPRSIMPLE_RESOLV_CONF="$TMP/root/resolv.conf" \
@@ -100,6 +100,16 @@ check "and the link resolves to the stub" \
   "$(cat "$TMP/root/resolv.conf")" "nameserver 127.0.0.53"
 check "and it does not try to enable an already running unit" \
   "$(grep -c 'enable --now systemd-resolved' "$LOG")" "0"
+
+# --- resolv.conf already on the stub, as NetworkManager writes it ------------
+
+RESOLV_CONTENT='nameserver 127.0.0.53' run_setup_network yes yes
+check "a resolv.conf already naming the stub stays a real file" \
+  "$(resolv_state)" "regular-file"
+check "with its content untouched" \
+  "$(cat "$TMP/root/resolv.conf")" "nameserver 127.0.0.53"
+check "and the step says DNS already goes through resolved" \
+  "$(grep -c 'left as it is' "$TMP/out")" "1"
 
 # --- resolved not running but startable: enable it, then link ----------------
 
