@@ -1110,11 +1110,18 @@ systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
 muslimtify daemon status || true
-# thermald is Intel-only and pointless on AMD or on a desktop, so gate it
+# thermald is Intel-only and pointless on AMD or on a desktop, so gate it.
+# Skipped where intel_lpmd already runs, which is the daemon CachyOS's chwd
+# enables for the same job. Two thermal policies pulling at one CPU is worse
+# than one. --needed, so a thermald the distribution installed is left alone.
 if bash "$DOTFILES_DIR/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
-  install_packages sudo pacman -S --noconfirm -- thermald
-  sudo systemctl enable --now thermald || true
-  echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
+  if systemctl is-active --quiet intel_lpmd; then
+    echo -e "${GREEN}intel_lpmd already manages thermals on this machine, so thermald is not installed${NC}"
+  else
+    install_packages sudo pacman -S --needed --noconfirm -- thermald
+    sudo systemctl enable --now thermald || true
+    echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
+  fi
 else
   echo -e "${YELLOW}Skipping thermald (not an Intel laptop)${NC}"
 fi
