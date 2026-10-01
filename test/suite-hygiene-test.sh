@@ -179,6 +179,15 @@ else
   check "and that line is still in install.sh, where it says it is" \
     "$(grep -cF "$anchor" "$REPO/install.sh")" "1"
 
+  # The second anchor: the loop that marks every migration done on a fresh
+  # install. AGENTS.md rests a rule on it, that install.sh has to do whatever a
+  # migration does, and the rule is wrong the day that loop goes.
+  marker_anchor='for migration in "$HYPRSIMPLE_PATH/migrations"'
+  check "AGENTS.md quotes the loop that marks migrations done" \
+    "$(grep -cF "$marker_anchor" "$AGENTS")" "1"
+  check "and that loop is still in install.sh" \
+    "$(grep -cF "$marker_anchor" "$REPO/install.sh")" "1"
+
   # Every repository path AGENTS.md names has to exist.
   #
   # Read out of the file rather than listed here. The first version of this
