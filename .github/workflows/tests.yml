@@ -184,9 +184,6 @@ jobs:
       - name: hybrid-gpu-env-test
         run: bash test/hybrid-gpu-env-test.sh
 
-      - name: hybrid-gpu-toggle-test
-        run: bash test/hybrid-gpu-toggle-test.sh
-
       - name: nvidia-install-test
         run: bash test/nvidia-install-test.sh
 
@@ -294,6 +291,12 @@ jobs:
 
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh
+
+      - name: gpu-pin-migration-test
+        run: bash test/gpu-pin-migration-test.sh
+
+      - name: thermald-test
+        run: bash test/thermald-test.sh
 
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.

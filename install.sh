@@ -220,18 +220,27 @@ elif ((aur_status != 0)); then
   fi
 
   echo -e "${YELLOW}Installing $AUR_BUILD...${NC}"
-  sudo pacman -Syu "${CONFIRM[@]}"
-  sudo pacman -S --needed "${CONFIRM[@]}" git base-devel
-  # A build directory left behind by an earlier run holds that run's checkout,
-  # and reusing it silently builds whatever it happens to contain. Cloning
-  # fresh into a directory of our own costs nothing and cannot be a stale or
-  # someone else's /tmp/yay.
-  AUR_BUILD_DIR="$(mktemp -d)"
-  git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
-  cd "$AUR_BUILD_DIR/$AUR_BUILD"
-  makepkg -si "${CONFIRM[@]}"
-  cd "$DOTFILES_DIR"
-  rm -rf "$AUR_BUILD_DIR"
+  # Some distributions carry the helper as a package: CachyOS ships both paru
+  # and yay. A package is seconds where a build is a Rust compile, so the
+  # repository copy is taken where there is one. pacman -Si failing, or pacman
+  # not being there to ask, means the build.
+  if pacman -Si "$AUR_BUILD" &>/dev/null; then
+    echo -e "${GREEN}$AUR_BUILD is in a repository, so it is installed from there rather than built${NC}"
+    sudo pacman -S --needed "${CONFIRM[@]}" "$AUR_BUILD"
+  else
+    sudo pacman -Syu "${CONFIRM[@]}"
+    sudo pacman -S --needed "${CONFIRM[@]}" git base-devel
+    # A build directory left behind by an earlier run holds that run's checkout,
+    # and reusing it silently builds whatever it happens to contain. Cloning
+    # fresh into a directory of our own costs nothing and cannot be a stale or
+    # someone else's /tmp/yay.
+    AUR_BUILD_DIR="$(mktemp -d)"
+    git clone --depth 1 "https://aur.archlinux.org/$AUR_BUILD.git" "$AUR_BUILD_DIR/$AUR_BUILD"
+    cd "$AUR_BUILD_DIR/$AUR_BUILD"
+    makepkg -si "${CONFIRM[@]}"
+    cd "$DOTFILES_DIR"
+    rm -rf "$AUR_BUILD_DIR"
+  fi
   AUR_HELPER="$AUR_BUILD"
 fi
 
@@ -252,14 +261,14 @@ echo ""
 # Write a named block of exports into a uwsm env file, replacing one an earlier
 # run wrote rather than adding a second.
 #
-# All three callers were `cat >>`, which is right on a first install and wrong
-# on every one after it. Re-running the installer is a documented step: the
+# Both callers were `cat >>`, which is right on a first install and wrong on
+# every one after it. Re-running the installer is a documented step: the
 # failed-packages message tells you to install the missing ones by hand and
 # re-run this script, so a second run is expected rather than unusual. Two runs
 # left
 #
-#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
-#   export AQ_DRM_DEVICES="/dev/dri/intel-gpu"
+#   export __GLX_VENDOR_LIBRARY_NAME=nvidia
+#   export __GLX_VENDOR_LIBRARY_NAME=nvidia
 #
 # and a block more on each run after that. uwsm reads the file once at login
 # and the last export of a name wins, so nothing breaks visibly, which is
@@ -430,22 +439,21 @@ detect_and_install_nvidia() {
   fi
 
   # On a hybrid machine the desktop is rendered by the integrated GPU:
-  # detect_and_setup_multi_gpu below prefers Intel, then AMD, then NVIDIA, and
-  # points AQ_DRM_DEVICES at whichever it picks. Exporting
-  # __GLX_VENDOR_LIBRARY_NAME=nvidia on top of that sends every OpenGL
-  # application to the discrete card anyway, so frames are rendered on the dGPU
-  # and copied back to the iGPU that owns the display, and the dGPU never
-  # powers down. Measured on an Optimus laptop with this block in place,
-  # glxinfo reported "NVIDIA GeForce RTX 4050 Laptop GPU"; with the same three
-  # variables unset, "Mesa Intel(R) Graphics (RPL-P)". Choosing the discrete
-  # card per application is what prime-run is for.
+  # aquamarine enumerates every card and starts on the one the firmware booted
+  # with, which is the integrated one. Exporting __GLX_VENDOR_LIBRARY_NAME=nvidia
+  # on top of that sends every OpenGL application to the discrete card anyway,
+  # so frames are rendered on the dGPU and copied back to the iGPU that owns
+  # the display, and the dGPU never powers down. Measured on an Optimus laptop
+  # with this block in place, glxinfo reported "NVIDIA GeForce RTX 4050 Laptop
+  # GPU". With the same three variables unset, "Mesa Intel(R) Graphics
+  # (RPL-P)". Choosing the discrete card per application is what prime-run is
+  # for.
   #
-  # Upstream writes this block unconditionally and has no equivalent of
-  # detect_and_setup_multi_gpu, so there it is consistent with the rest of the
-  # configuration. Here it contradicted it.
+  # Upstream writes this block on every NVIDIA machine. Here it is written only
+  # where the NVIDIA card is the one driving the display.
   #
-  # The same two lspci forms detect_and_setup_multi_gpu uses, so the two
-  # functions cannot disagree about what this machine is.
+  # The same two lspci forms migration 1788623900 uses, so the installer and
+  # the migration cannot disagree about what this machine is.
   local other_gpu
   other_gpu=$(lspci -D | grep -iE "VGA.*Intel" | head -1 | cut -d' ' -f1 || true)
   [[ -z $other_gpu ]] &&
@@ -454,7 +462,44 @@ detect_and_install_nvidia() {
   if [[ -n $other_gpu ]]; then
     echo -e "${GREEN}An integrated GPU is present at $other_gpu, so it will drive the desktop and the NVIDIA environment variables are being left out. Setting them would push every OpenGL application onto the discrete card.${NC}"
     echo -e "${GREEN}Run a single program on the NVIDIA GPU with: prime-run <program>${NC}"
-    echo -e "${GREEN}Turn the NVIDIA GPU off or back on with: toggle-hybrid-gpu.sh. Its first run sets itself up, and nothing for it is installed until then.${NC}"
+
+    # The card sleeps by itself when nothing uses it, once runtime power
+    # management is on for the device. One udev rule turns it on when the
+    # driver binds, which is the whole of what CachyOS does: cachyos-settings
+    # ships it as 71-nvidia.rules, and supergfxd sets the same sysfs knob from
+    # its daemon. Measured on an Intel + RTX 4050 laptop running CachyOS, the
+    # card was suspended for 2147 of the first 2349 seconds after boot.
+    #
+    # Written only where no rule already does this, so a distribution's own
+    # rule is left alone and a second run finds this one. The search is for
+    # the rule text, not the device's current state, because power/control
+    # reads "on" until the driver binds, which on a fresh install is after the
+    # reboot this step needs anyway. The directories are overridable so the
+    # suite never reads the machine's own rules, and the rule goes into the
+    # last one listed.
+    #
+    # Matched on the vendor and the display class, so the card's HDMI audio
+    # function is left alone. Undone on unbind so a driver swap starts from
+    # the kernel's default.
+    local rule_dirs pm_rule existing
+    read -ra rule_dirs <<<"${HYPRSIMPLE_UDEV_RULE_DIRS:-/usr/lib/udev/rules.d /etc/udev/rules.d}"
+    pm_rule="${rule_dirs[-1]}/71-hyprsimple-nvidia-pm.rules"
+    # `|| true`, because install.sh runs under set -e with pipefail, and a
+    # search that finds nothing is grep exiting 1.
+    existing=$(grep -lsr 'power/control}="auto"' "${rule_dirs[@]}" | xargs -r grep -ls '0x10de' | head -1) || true
+    if [[ -n $existing ]]; then
+      echo -e "${GREEN}$existing already turns runtime power management on for the NVIDIA card, so no rule is being written.${NC}"
+    elif printf '%s\n' \
+      '# Written by hyprsimple. The NVIDIA card sleeps when nothing uses it.' \
+      'ACTION=="add|bind", SUBSYSTEM=="pci", DRIVERS=="nvidia", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="auto"' \
+      'ACTION=="remove|unbind", SUBSYSTEM=="pci", DRIVERS=="nvidia", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"' |
+      sudo tee "$pm_rule" >/dev/null; then
+      echo -e "${GREEN}Wrote $pm_rule, so from the next boot the NVIDIA card sleeps when nothing uses it.${NC}"
+    else
+      echo -e "${YELLOW}Could not write $pm_rule, so the NVIDIA card stays powered. Re-run ./install.sh, or write the rule by hand.${NC}"
+    fi
+    echo -e "${GREEN}To force the card off entirely, supergfxctl from the AUR does that. FAQ.md says how.${NC}"
+
     echo -e "${GREEN}NVIDIA setup complete (arch: $GPU_ARCH, offload only)${NC}"
     return 0
   fi
@@ -512,9 +557,12 @@ detect_and_install_vulkan() {
 # place: Brave, started with no flags, put its decoding on the Intel video
 # engine by itself, and libva found the driver with no LIBVA_DRIVER_NAME set.
 #
-# Both drivers, and no attempt to tell GPU generations apart. intel-media-driver
-# is for Broadwell and newer and libva-intel-driver for what came before. libva
-# tries the first and falls back to the second, so it does the choosing.
+# One driver, intel-media-driver, which covers Broadwell (2014) and newer.
+# chwd on CachyOS installs the same package on this class of GPU. An Intel GPU
+# older than that decodes video on the CPU: telling the generations apart
+# takes a list of device IDs, and the decision on 2026-10-01 was to leave the
+# list out rather than maintain it. --needed, so a driver the distribution
+# already installed is left alone.
 #
 # The lspci pattern is the one detect_and_install_vulkan uses for Intel,
 # written out a second time here. The two steps agree about whether this
@@ -527,66 +575,14 @@ detect_and_install_intel_video() {
     return 0
   fi
 
-  install_packages sudo pacman -S --noconfirm -- intel-media-driver libva-intel-driver
+  install_packages sudo pacman -S --needed --noconfirm -- intel-media-driver
 
   # install_packages returns 0 whether or not anything landed, so ask.
-  if pacman -Qq intel-media-driver &>/dev/null || pacman -Qq libva-intel-driver &>/dev/null; then
+  if pacman -Qq intel-media-driver &>/dev/null; then
     echo -e "${GREEN}Intel video decode driver installed, so video is decoded on the GPU${NC}"
   else
-    echo -e "${YELLOW}The Intel video decode drivers did not install, so video will be decoded on the CPU. Both are in the official repositories, so pacman can install intel-media-driver and libva-intel-driver later.${NC}"
+    echo -e "${YELLOW}The Intel video decode driver did not install, so video will be decoded on the CPU. It is in the official repositories, so pacman can install intel-media-driver later.${NC}"
   fi
-}
-
-detect_and_setup_multi_gpu() {
-  echo -e "${YELLOW}Detecting GPUs...${NC}"
-
-  # Detect GPUs (priority: Intel > AMD > NVIDIA)
-  INTEL_PCI=$(lspci -D | grep -iE "VGA.*Intel" | head -1 | cut -d' ' -f1 || true)
-  AMD_PCI=$(lspci -D -d ::0300 | grep -i "AMD" | head -1 | cut -d' ' -f1 || true)
-  NVIDIA_PCI=$(lspci -D | grep -iE "VGA.*NVIDIA" | head -1 | cut -d' ' -f1 || true)
-
-  GPU_SYMLINK=""
-  GPU_VENDOR=""
-  GPU_PCI=""
-
-  if [[ -n $INTEL_PCI ]]; then
-    GPU_VENDOR="Intel"
-    GPU_PCI="$INTEL_PCI"
-    GPU_SYMLINK="intel-gpu"
-    echo -e "${GREEN}Intel GPU detected at: $GPU_PCI${NC}"
-  elif [[ -n $AMD_PCI ]]; then
-    GPU_VENDOR="AMD"
-    GPU_PCI="$AMD_PCI"
-    GPU_SYMLINK="amd-gpu"
-    echo -e "${GREEN}AMD GPU detected at: $GPU_PCI${NC}"
-  elif [[ -n $NVIDIA_PCI ]]; then
-    GPU_VENDOR="NVIDIA"
-    GPU_PCI="$NVIDIA_PCI"
-    GPU_SYMLINK="nvidia-gpu"
-    echo -e "${GREEN}NVIDIA GPU detected at: $GPU_PCI${NC}"
-  else
-    echo -e "${YELLOW}No GPU detected, skipping GPU setup${NC}"
-    return 0
-  fi
-
-  # Create udev rule for consistent GPU device path
-  UDEV_RULE_FILE="/etc/udev/rules.d/99-${GPU_SYMLINK}.rules"
-  sudo tee "$UDEV_RULE_FILE" <<EOF >/dev/null
-KERNEL=="card[0-9]*", KERNELS=="$GPU_PCI", SUBSYSTEM=="drm", SUBSYSTEMS=="pci", SYMLINK+="dri/$GPU_SYMLINK"
-EOF
-
-  echo -e "${GREEN}$GPU_VENDOR GPU udev rule created: /dev/dri/$GPU_SYMLINK -> $GPU_PCI${NC}"
-
-  # Reload udev rules to create symlinks
-  sudo udevadm control --reload
-  sudo udevadm trigger
-
-  # Write to env-hyprland (uwsm users should use this file per Hyprland docs)
-  set_env_block "$HOME/.config/uwsm/env-hyprland" gpu \
-    "# Primary GPU: $GPU_VENDOR (priority: Intel > AMD > NVIDIA)" \
-    "export AQ_DRM_DEVICES=\"/dev/dri/$GPU_SYMLINK\""
-
-  echo -e "${GREEN}GPU setup complete ($GPU_VENDOR selected as primary)${NC}"
 }
 
 # Install packages. Bulk first, because one transaction resolves dependencies
@@ -707,6 +703,15 @@ setup_network() {
     sudo systemctl enable --now systemd-resolved 2>/dev/null || true
   fi
 
+  # A resolv.conf that already names the resolved stub, as the link this makes
+  # or as the file NetworkManager writes for it on CachyOS, needs nothing.
+  # Linking it again would replace a distribution's file with hyprsimple's
+  # link to the same resolver.
+  if grep -qs '^nameserver 127\.0\.0\.53' "$resolv_conf"; then
+    echo -e "${GREEN}DNS already goes through systemd-resolved, so $resolv_conf is left as it is${NC}"
+    return 0
+  fi
+
   # enable --now returns once the unit is active, which is not quite the same
   # moment the stub appears.
   local waited=0
@@ -734,6 +739,16 @@ setup_printer() {
 setup_firewall() {
   echo -e "${YELLOW}Setting up Firewall...${NC}"
   if command -v ufw &>/dev/null; then
+    # A firewall that is already on has a posture its owner or distribution
+    # chose. CachyOS ships ufw enabled. Only the LocalSend rule is added then,
+    # because it is additive and the reason this step exists. No answer from
+    # ufw status counts as inactive, which is the path that enables it.
+    if sudo ufw status 2>/dev/null | grep -q '^Status: active'; then
+      sudo ufw allow 53317/tcp
+      sudo ufw allow 53317/udp
+      echo -e "${GREEN}ufw is already active, so its policies are left as they are and only the LocalSend port is opened${NC}"
+      return 0
+    fi
     sudo ufw default deny incoming
     sudo ufw default allow outgoing
     # Allow LocalSend (LAN file sharing)
@@ -987,15 +1002,14 @@ fi
 # ======================================
 #  Hardware Auto-Detection
 # ======================================
-# NOTE: This runs AFTER config copying so GPU env vars
-# appended to ~/.config/uwsm/env and env-hyprland are not overwritten.
+# After the config copy, because detect_and_install_nvidia writes a block into
+# ~/.config/uwsm/env and a copy made after it would put the shipped file back.
 echo ""
 echo -e "${YELLOW}Running hardware detection...${NC}"
 
 detect_and_install_nvidia || true
 detect_and_install_vulkan || true
 detect_and_install_intel_video || true
-detect_and_setup_multi_gpu || true
 
 echo -e "${GREEN}Hardware detection complete${NC}"
 echo ""
@@ -1124,11 +1138,18 @@ systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
 muslimtify daemon install || true
 muslimtify daemon status || true
-# thermald is Intel-only and pointless on AMD or on a desktop, so gate it
+# thermald is Intel-only and pointless on AMD or on a desktop, so gate it.
+# Skipped where intel_lpmd already runs, which is the daemon CachyOS's chwd
+# enables for the same job. Two thermal policies pulling at one CPU is worse
+# than one. --needed, so a thermald the distribution installed is left alone.
 if bash "$DOTFILES_DIR/.local/bin/hyprsimple-hw-intel-laptop.sh"; then
-  install_packages sudo pacman -S --noconfirm -- thermald
-  sudo systemctl enable --now thermald || true
-  echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
+  if systemctl is-active --quiet intel_lpmd; then
+    echo -e "${GREEN}intel_lpmd already manages thermals on this machine, so thermald is not installed${NC}"
+  else
+    install_packages sudo pacman -S --needed --noconfirm -- thermald
+    sudo systemctl enable --now thermald || true
+    echo -e "${GREEN}thermald enabled (Intel laptop detected)${NC}"
+  fi
 else
   echo -e "${YELLOW}Skipping thermald (not an Intel laptop)${NC}"
 fi

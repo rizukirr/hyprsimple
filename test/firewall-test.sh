@@ -45,9 +45,14 @@ fi
 pass "extracted setup_firewall from the installer"
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# sudo logs and runs nothing, so every ufw call is counted once. The one
+# question setup_firewall asks, ufw status, is answered here when the scenario
+# says the firewall is already on.
 cat >"$STUB/sudo" <<'STUBEOF'
 #!/bin/bash
 printf 'sudo %s\n' "$*" >>"$CALL_LOG"
+[[ $* == "ufw status" && ${UFW_ACTIVE:-no} == yes ]] && printf 'Status: active\n'
+exit 0
 STUBEOF
 cat >"$STUB/ufw" <<'STUBEOF'
 #!/bin/bash
@@ -76,6 +81,15 @@ check "and opens LocalSend" "$(grep -c 'ufw allow 53317' "$LOG")" "2"
 check "and enables the firewall" "$(grep -c 'ufw --force enable' "$LOG")" "1"
 check "and does not open ssh, nobody having asked for it" \
   "$(grep -c 'ufw allow ssh' "$LOG")" "0"
+
+# --- a firewall that is already on keeps its posture -------------------------
+
+run_firewall env UFW_ACTIVE=yes
+check "with ufw active the policies are not reset" \
+  "$(grep -c 'ufw default' "$LOG")" "0"
+check "and it is not enabled again" "$(grep -c 'ufw --force enable' "$LOG")" "0"
+check "and LocalSend is still opened" "$(grep -c 'ufw allow 53317' "$LOG")" "2"
+check "and ssh is not opened" "$(grep -c 'ufw allow ssh' "$LOG")" "0"
 
 # --- an install running over ssh keeps its own way back in --------------------
 

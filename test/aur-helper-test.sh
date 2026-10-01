@@ -160,6 +160,13 @@ cat >"$BUILD_STUBS/sudo" <<'SUDOEOF'
 #!/bin/bash
 printf '%s\n' "$*" >>"$PACMAN_LOG"
 SUDOEOF
+# pacman answers only the one question the block asks it, whether the helper
+# is in a repository, and says no unless the scenario says otherwise.
+cat >"$BUILD_STUBS/pacman" <<'PMEOF'
+#!/bin/bash
+[[ $1 == -Si && $2 == paru && ${REPO_HAS_PARU:-no} == yes ]] && exit 0
+exit 1
+PMEOF
 chmod +x "$BUILD_STUBS"/*
 
 # Runs the lifted block with the named helpers present. mktemp, printf and the
@@ -177,7 +184,7 @@ run_block() {
   FETCH_LOG="$TMP/fetch" BUILD_LOG="$TMP/build" PACMAN_LOG="$TMP/pacman" \
     DOTFILES_DIR="$REPO" RED='' GREEN='' YELLOW='' NC='' \
     UNATTENDED="$unattended" \
-    HYPRSIMPLE_AUR_HELPER="$override" PATH="$dir" \
+    HYPRSIMPLE_AUR_HELPER="$override" PATH="$dir" REPO_HAS_PARU="${REPO_HAS_PARU:-no}" \
     "$BASH_BIN" "$TMP/block.sh" >"$TMP/out" 2>&1 </dev/null
   printf '%s' "$?" >"$TMP/rc"
 }
@@ -214,6 +221,18 @@ check "and it is paru, not yay" "$(grep -c 'aur.archlinux.org/paru' "$TMP/fetch"
 check "and yay is not fetched" "$(grep -c 'aur.archlinux.org/yay' "$TMP/fetch")" "0"
 check "and it says which one it chose before doing it" \
   "$(grep -c 'Installing paru\.\.\.' "$TMP/out")" "1"
+check "and reports paru as the helper in use" \
+  "$(grep -c 'Using AUR helper: paru' "$TMP/out")" "1"
+
+# A distribution that ships the helper as a package, as CachyOS does, gets it
+# from there, and no Rust compile runs.
+REPO_HAS_PARU=yes run_block ""
+check "with paru in a repository pacman installs it" \
+  "$(grep -c 'pacman -S --needed.*paru' "$TMP/pacman")" "1"
+check "and nothing is fetched" "$(wc -l <"$TMP/fetch" | tr -d ' ')" "0"
+check "and nothing is built" "$(wc -l <"$TMP/build" | tr -d ' ')" "0"
+check "and it says the repository copy was used" \
+  "$(grep -c 'in a repository' "$TMP/out")" "1"
 check "and reports paru as the helper in use" \
   "$(grep -c 'Using AUR helper: paru' "$TMP/out")" "1"
 
@@ -328,10 +347,10 @@ check "no script looks for a helper on its own" "$offenders_str" ""
 
 users=0
 for script in "$REPO/install.sh" "$REPO/.local/bin/hyprsimple-update.sh" \
-  "$REPO/.local/bin/hyprsimple-muslimtify.sh" "$REPO/.local/bin/toggle-hybrid-gpu.sh"; do
+  "$REPO/.local/bin/hyprsimple-muslimtify.sh"; do
   grep -q 'hyprsimple-aur-helper.sh' "$script" && users=$((users + 1))
 done
-check "and all four callers use the shared one" "$users" "4"
+check "and all three callers use the shared one" "$users" "3"
 
 # It only reaches an installed machine if the delivery loops take it, and both
 # of them take *.sh by glob rather than by name.

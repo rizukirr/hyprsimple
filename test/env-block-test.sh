@@ -117,8 +117,8 @@ CODE="$TMP/install.code"
 code_of "$INSTALL" >"$CODE"
 check "stripping comments leaves the installer's code behind" \
   "$(grep -c '^set_env_block()' "$CODE")" "1"
-check "all three blocks go through it" \
-  "$(grep -c '^ *set_env_block "' "$CODE")" "3"
+check "both blocks go through it" \
+  "$(grep -c '^ *set_env_block "' "$CODE")" "2"
 check "and nothing appends into a home config any more" \
   "$(grep -cE '>>[[:space:]]*"?\$HOME' "$CODE")" "0"
 
