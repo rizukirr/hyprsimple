@@ -1,12 +1,20 @@
 #!/bin/bash
 
-# Show all Hyprland keybindings in rofi with fuzzy search
+# Show all Hyprland keybindings, to search through.
+#
+#   show-keybindings.sh          open the bar's keybindings panel
+#   show-keybindings.sh --list   print them, one per line: the keys, padded to a
+#                                column, then what the binding does
+#
+# The panel gets its rows by running this with --list, so the formatting below
+# is the one place a binding is turned into a line.
 #
 # NOTE: this parses the plain-text output of `hyprctl binds`, not `hyprctl -j binds`.
 # Hyprland 0.56.0 emits malformed JSON for the `binds` endpoint (keys and values are
 # misaligned, yielding unquoted tokens like `"keycode": T`), which makes jq bail out
 # and leaves rofi with an empty list. The plain-text output is unaffected.
 
+list_binds() {
 hyprctl binds |
   gawk '
     function modstr(m,   s) {
@@ -52,7 +60,15 @@ hyprctl binds |
     /arg:/         { arg = val(); next }
     END            { flush() }
   ' |
-  sort -u |
-  # -replace: rofi runs one instance at a time, so without it this menu did
-  # not open while another was up. It now closes that one and takes its place.
-  rofi -replace -dmenu -p "󰌌" -i -theme ~/.config/rofi/keybindings/style.rasi
+  sort -u
+}
+
+if [[ ${1:-} == --list ]]; then
+  list_binds
+  exit
+fi
+
+BAR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell"
+
+# Through the helper, so a rofi menu that is open is closed first.
+exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" qs -p "$BAR" ipc call bar toggle keybinds

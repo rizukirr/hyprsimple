@@ -55,7 +55,7 @@ mapfile -t launches < <(
       sed "s|^|$(basename "$f"):|"
   done
 )
-if ((${#launches[@]} < 2)); then
+if ((${#launches[@]} < 1)); then
   fail "found ${#launches[@]} rofi launches in .local/bin, which is fewer than there are"
 else
   pass "found ${#launches[@]} rofi launches in .local/bin"
@@ -66,9 +66,9 @@ for l in "${launches[@]}"; do
 done
 check "every one passes -replace" "${missing[*]:-}" ""
 
-for name in show-keybindings.sh hyprsimple-image-picker.sh; do
-  check "including $name" "$(printf '%s\n' "${launches[@]}" | grep -c "^$name:")" "1"
-done
+# One script is left that starts rofi. The other menus are panels of the bar.
+check "including hyprsimple-image-picker.sh" \
+  "$(printf '%s\n' "${launches[@]}" | grep -c "^hyprsimple-image-picker.sh:")" "1"
 
 # ---- the launcher and the power menu are bar panels ----------------------------
 #

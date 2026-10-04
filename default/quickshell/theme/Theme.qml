@@ -125,6 +125,11 @@ Singleton {
     readonly property int captureWidth: 460
     readonly property int captureLabelWidth: 56
     readonly property int captureDelay: 120
+    // The keybindings panel: its width, the width of the keys column, and how
+    // tall its list may get.
+    readonly property int keybindsWidth: 720
+    readonly property int keybindsKeyWidth: 230
+    readonly property int keybindsMaxHeight: 480
     // The clipboard panel: its width, how tall its list may get, and the height a
     // copied picture is shown at.
     readonly property int clipboardWidth: 520

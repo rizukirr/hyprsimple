@@ -202,6 +202,45 @@ run_migration
 check "and a home without the file is not given one" \
   "$([[ -f $MHOME/.config/hypr/bindings/applications.lua ]] && echo created || echo absent)" "absent"
 
+# --- the script lists for the panel, and opens it ----------------------------
+#
+# The viewer is a panel of the bar. With --list the script prints the rows the
+# panel shows, and with no argument it opens the panel. hyprctl and qs are
+# stand-ins: the real qs would open the panel on the screen of whoever is
+# running this.
+VTMP="$(mktemp -d)"
+VBIN="$VTMP/bin"; mkdir -p "$VBIN" "$VTMP/home/.local/bin"
+cat >"$VBIN/hyprctl" <<STUBEOF
+#!/bin/bash
+cat "$FIXTURE"
+STUBEOF
+cat >"$VBIN/qs" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QS_LOG"
+STUBEOF
+chmod +x "$VBIN/hyprctl" "$VBIN/qs"
+cp "$REPO/.local/bin/hyprsimple-menu-exclusive.sh" "$VTMP/home/.local/bin/"
+check "the real qs is unreachable from here" "$(PATH="$VBIN:/usr/bin:/bin" command -v qs)" "$VBIN/qs"
+
+listed=$(PATH="$VBIN:/usr/bin:/bin" bash "$SCRIPT" --list 2>/dev/null)
+check "--list prints the rows the formatter makes, sorted and without repeats" \
+  "$listed" "$(printf '%s\n' "$out" | sort -u)"
+
+: >"$VTMP/qs-log"
+QS_LOG="$VTMP/qs-log" HOME="$VTMP/home" XDG_CONFIG_HOME="$VTMP/home/.config" \
+  HYPRSIMPLE_ROFI_PIDFILE="$VTMP/no-such-pid" PATH="$VBIN:/usr/bin:/bin" bash "$SCRIPT" >/dev/null 2>&1
+check "with no argument it opens the bar's keybindings panel" \
+  "$(cat "$VTMP/qs-log")" "-p $VTMP/home/.local/share/hyprsimple/default/quickshell ipc call bar toggle keybinds"
+check "through the helper, so an open rofi menu is closed first" \
+  "$(sed 's/^[[:space:]]*#.*//' "$SCRIPT" | grep -c 'hyprsimple-menu-exclusive.sh" qs ')" "1"
+BAR_QML="$REPO/default/quickshell/bar/Bar.qml"
+check "the bar has a panel by that name" "$(grep -c 'name: "keybinds"' "$BAR_QML")" "1"
+check "which gets its rows from this script's --list" \
+  "$(grep -c '"/.local/bin/show-keybindings.sh", "--list"\]' "$BAR_QML")" "1"
+check "and the script no longer starts rofi" \
+  "$(sed 's/^[[:space:]]*#.*//' "$SCRIPT" | grep -c 'rofi ')" "0"
+rm -rf "$VTMP"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
