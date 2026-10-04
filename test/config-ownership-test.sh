@@ -2,8 +2,7 @@
 # Every file hyprsimple ships under ~/.config is copied once and never touched
 # again, and nothing in them said so. Several are the opposite: hyprpaper.conf
 # is rewritten in full on every wallpaper change, theme-hyprlock.conf on every
-# theme switch, and parts of ghostty/config and the two rofi style.rasi files
-# are rewritten as well. Nothing said that either, so an edit to one of those
+# theme switch, and parts of ghostty/config are rewritten as well. Nothing said that either, so an edit to one of those
 # was lost with no explanation.
 #
 # Each shipped config now opens by saying which of the two it is. This suite
@@ -30,7 +29,6 @@ REWRITTEN=(
   hypr/hyprpaper.conf
   hypr/theme-hyprlock.conf
   ghostty/config
-  rofi/launcher/style.rasi
 )
 is_rewritten() {
   local f
@@ -101,7 +99,7 @@ run_migration() {
   HOME="$TMP/mhome" HYPRSIMPLE_PATH="$TMP/minstall" bash "$MIGRATION" >"$TMP/out" 2>&1
 }
 
-if [[ ! -d $FIX ]] || (( $(find "$FIX" -type f | wc -l) < 15 )); then
+if [[ ! -d $FIX ]] || (( $(find "$FIX" -type f | wc -l) < 14 )); then
   fail "the pre-header fixtures are missing, so the migration is untested"
 else
   pass "found $(find "$FIX" -type f | wc -l) pre-header fixtures"

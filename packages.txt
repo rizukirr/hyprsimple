@@ -14,10 +14,8 @@ xdg-desktop-portal-hyprland
 quickshell
 ttf-material-symbols-variable
 dunst
-rofi
-# rofi paints the launcher and power menu background through gdk-pixbuf, which
-# has no webp support of its own. Without this a webp wallpaper reaches hyprpaper
-# and the picker but leaves those two menus with no image at all.
+# gdk-pixbuf has no webp support of its own, and the shipped wallpapers are
+# webp. With this, GTK programs such as the file manager can show them.
 webp-pixbuf-loader
 nwg-look
 gnome-themes-extra

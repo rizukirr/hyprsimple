@@ -1076,7 +1076,6 @@ echo -e "${YELLOW}Initializing Theme Manager (Default: ${DEFAULT_THEME})...${NC}
 CACHE_DIR="$HOME/.cache"
 mkdir -p "$CACHE_DIR"
 mkdir -p "$HOME/.config/btop/themes"
-mkdir -p "$HOME/.config/rofi"
 
 # dunst reads drop-ins from dunstrc.d/ beside the base config. Symlinking the
 # default rather than copying it is what lets hyprsimple-update deliver changes
@@ -1087,24 +1086,6 @@ ln -sfn "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" "$HOME/.config/dunst
 # hyprlock, hypridle and xdph source their defaults through this link, so no
 # config file has to hardcode an install path that HYPRSIMPLE_PATH can change.
 ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
-
-# rofi resolves a relative @import against ~/.config/rofi no matter which file
-# does the importing, so the stubs there reach their defaults through this link
-# and the defaults keep reaching rofi-colors.rasi. Symlinking rather than
-# copying is what lets hyprsimple-update deliver a rofi change without a
-# migration, the same guarantee dunstrc.d and hypr/hyprsimple already give.
-ln -sfn "$HYPRSIMPLE_PATH/default/rofi" "$HOME/.config/rofi/hyprsimple"
-
-# There were two `ln -sfn "$THEME_DIR/rofi/<type>" ~/.config/rofi/<type>` lines
-# here, meant to point the rofi directories at the active theme. They did
-# neither thing. ~/.config/rofi/launcher is a real directory by then, copied
-# from .config/rofi above, and `ln -s` given an existing directory writes the
-# link inside it, so the result was ~/.config/rofi/launcher/launcher. And no
-# theme has ever shipped a rofi/ directory, so the target did not exist either
-# way and both links dangled from the moment they were made.
-#
-# theme-switcher.sh is what actually themes rofi: it writes images/ and patches
-# style.rasi inside those real directories. Nothing was ever reading the links.
 
 # Enable live wallpaper by default (theme-switcher reads this when writing hyprpaper.conf)
 touch "$CACHE_DIR/live_wallpaper_enabled"

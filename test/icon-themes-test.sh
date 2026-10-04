@@ -96,15 +96,15 @@ check "the drop-in no longer hardcodes Papirus icon paths" \
   "$(grep -c 'icon_path' "$DROPIN")" "0"
 check "and names icon themes with a fallback instead" \
   "$(grep -c 'icon_theme = "Papirus-Dark, Adwaita"' "$DROPIN")" "1"
-check "its dmenu uses rofi, which hyprsimple installs" \
-  "$(grep -c 'dmenu = /usr/bin/rofi -dmenu' "$DROPIN")" "1"
-# Comments stripped: the note left beside the dmenu line names wofi, and an
-# unanchored grep counts that.
+# The drop-in once named rofi as dunst's dmenu, and wofi before that. Neither
+# is installed now, and a dmenu naming a program that is not there fails only
+# when a notification's menu is asked for, long after anyone could connect the
+# two. So the drop-in names none.
 code_of() { sed 's/#.*//' "$1"; }
-check "and not wofi, which is in neither list" \
-  "$(code_of "$DROPIN" | grep -c 'wofi')" "0"
+check "the drop-in names no dmenu, since no menu program is installed" \
+  "$(code_of "$DROPIN" | grep -c 'dmenu')" "0"
 check "stripping comments leaves the drop-in's settings intact" \
-  "$(code_of "$DROPIN" | grep -c 'dmenu = /usr/bin/rofi')" "1"
+  "$(code_of "$DROPIN" | grep -c 'icon_theme = "Papirus-Dark, Adwaita"')" "1"
 # grep -c across two files prints one count per file. Summed in the shell,
 # because bc is not installed on a hyprsimple machine.
 wofi_listed=0

@@ -105,23 +105,6 @@ else
   fail "these define a fixture guard and never call it: ${offenders[*]}"
 fi
 
-# rofi resolves a relative @import against the XDG config directory before the
-# working directory, so a fixture's imports silently resolved against the
-# maintainer's real ~/.config/rofi and the checks passed for the wrong reason.
-
-offenders=()
-for f in "${suites[@]}"; do
-  # An actual invocation, which always carries a flag. Prose about rofi and a
-  # path ending in /rofi are not invocations.
-  code_of "$f" | grep -qE '(^|[^-a-zA-Z/])rofi +-' || continue
-  grep -q 'XDG_CONFIG_HOME' "$f" || offenders+=("$(basename "$f")")
-done
-if [[ ${#offenders[@]} -eq 0 ]]; then
-  pass "every suite that runs rofi isolates XDG_CONFIG_HOME"
-else
-  fail "these run rofi without isolating the config directory: ${offenders[*]}"
-fi
-
 # The narrowest check in this suite, and the one that cost the most. A clone
 # that produced nothing left four checks reporting ok, because each asserted on
 # absence and an empty fixture produces no output either.
@@ -293,61 +276,11 @@ else
     "$unisolated_str" ""
 fi
 
-# A suite must not be able to reach the real rofi.
-#
-# rofi opens a window on whoever is running the tests. Several of these suites
-# run scripts that open a picker when given no argument, with /usr/bin on the
-# PATH they build, and had no rofi of their own in front of it. That is not
-# theoretical: during one sabotage run a picker was reached and rofi appeared on
-# the maintainer's screen, complaining about a theme path inside the fixture.
-#
-# The scripts that can open one are read out of the repository rather than
-# listed here, so a picker added to another script later is covered without
-# this check being touched.
-mapfile -t picker_scripts < <(
-  for script in "$REPO/.local/bin"/*.sh; do
-    sed 's/#.*//' "$script" | grep -q 'hyprsimple-image-picker.sh' &&
-      basename "$script"
-  done
-)
-# hyprsimple-image-picker.sh is the one that actually runs rofi, so it counts
-# too.
-picker_scripts+=(hyprsimple-image-picker.sh)
-
-# One is enough now. The theme and wallpaper pickers moved into the bar, so
-# hyprsimple-image-picker.sh is the only script left that opens rofi this way.
-if (( ${#picker_scripts[@]} < 1 )); then
-  fail "found ${#picker_scripts[@]} scripts that can open a picker, which is too few to be right"
-else
-  pass "found ${#picker_scripts[@]} scripts that can open a picker"
-fi
-
-unstubbed=()
-for suite in "${suites[@]}"; do
-  # Whole-line comments only. Stripping from the first # anywhere cut
-  # `printf '#!/bin/bash\n...' >"$STUB/rofi"` down to `printf '`, so the stub
-  # this check is looking for disappeared and three suites that have one were
-  # reported as missing it.
-  code=$(sed 's/^[[:space:]]*#.*//' "$suite")
-  # Only suites that put a directory of their own ahead of a real one.
-  grep -q 'PATH="\$STUB:' <<<"$code" || continue
-  runs_picker=0
-  for script in "${picker_scripts[@]}"; do
-    grep -qF "$script" <<<"$code" && runs_picker=1
-  done
-  (( runs_picker )) || continue
-  grep -q 'rofi' <<<"$code" || unstubbed+=("$(basename "$suite")")
-done
-
-unstubbed_str=""
-(( ${#unstubbed[@]} > 0 )) && unstubbed_str="$(printf '%s ' "${unstubbed[@]}")"
-check "every suite that can reach rofi puts one of its own in front of it" \
-  "$unstubbed_str" ""
-
-# The same for qs, which is how a script talks to the bar.
+# A suite must not be able to reach the real qs, which is how a script talks to
+# the bar.
 #
 # A script that calls the bar acts on the real bar of whoever is running the
-# tests. That is not theoretical either: two suites ran screen-record.sh with
+# tests. That is not theoretical: two suites ran screen-record.sh with
 # pgrep stubbed to report a recorder, the script told the real bar a recording
 # had started, and its indicator stayed lit with nothing recording. A script
 # that opens a panel would open it on the maintainer's screen.

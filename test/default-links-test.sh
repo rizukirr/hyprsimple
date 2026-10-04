@@ -1,19 +1,19 @@
 #!/bin/bash
-# Three symlinks carry every install-owned default into ~/.config, and only
+# Two symlinks carry every install-owned default into ~/.config, and only
 # install.sh ever made them.
 #
 #   ~/.config/hypr/hyprsimple                  hyprlock, hypridle, xdph
-#   ~/.config/rofi/hyprsimple                  the rofi stubs
 #   ~/.config/dunst/dunstrc.d/10-hyprsimple.conf   dunst's drop-in
+#
+# There was a third, for rofi, until its menus moved into the bar.
 #
 # hyprsimple-update refreshed the helper scripts on every run and never looked
 # at these, so a link deleted, or left pointing at an old HYPRSIMPLE_PATH,
 # stayed broken through every update there would ever be.
 #
 # It stays broken quietly. hyprlang ignores a `source =` naming a file that is
-# not there and rofi ignores a missing @import, both without a word: measured
-# with hyprsunset and `rofi -dump-theme`, each exits 0 and prints nothing. So a
-# missing hypr link leaves hypridle.conf with nothing but five ignored source
+# not there, without a word: measured with hyprsunset, it exits 0 and prints
+# nothing. So a missing hypr link leaves hypridle.conf with nothing but five ignored source
 # lines, which is no listeners at all, which is a screen that stops dimming,
 # locking and suspending on idle with nothing anywhere to say why.
 #
@@ -137,17 +137,17 @@ check "a real file is not replaced either" "$(cat "$LINK")" "mine"
 check "and is reported the same way" \
   "$(printf '%s\n' "$out" | grep -c 'not reaching it')" "1"
 
-# --- the updater asks for all three -------------------------------------------
+# --- the updater asks for both ------------------------------------------------
 
 calls=$(grep -c '^ensure_link ' "$UPDATE")
-check "the updater re-asserts three links" "$calls" "3"
-for want in "default/hypr" "default/rofi" "default/dunst/10-hyprsimple.conf"; do
+check "the updater re-asserts two links" "$calls" "2"
+for want in "default/hypr" "default/dunst/10-hyprsimple.conf"; do
   check "including $want" \
     "$(grep -c "ensure_link .*$want" "$UPDATE")" "1"
 done
 
-# The same three install.sh creates, so the two cannot drift apart.
-for want in "default/hypr\"" "default/rofi\"" "default/dunst/10-hyprsimple.conf\""; do
+# The same two install.sh creates, so the two cannot drift apart.
+for want in "default/hypr\"" "default/dunst/10-hyprsimple.conf\""; do
   check "and install.sh links $want too" \
     "$(grep -c "ln -sfn .*$want" "$REPO/install.sh")" "1"
 done

@@ -1,32 +1,23 @@
 #!/bin/bash
-# Checks that opening one menu replaces another, and that the clipboard menu no
-# longer wipes the clipboard when it is dismissed.
+# Checks that the launcher, the power menu and the clipboard history are panels
+# of the bar, and that picking from the clipboard history never wipes the
+# clipboard.
 #
-# rofi runs one instance at a time through its pid file, so a menu opened while
-# another was up did not appear. hyprsimple's own menus pass rofi's -replace,
-# and the launcher and power menu scripts, which are the user's, are started
-# through hyprsimple-menu-exclusive.sh.
-#
-# Nothing here opens a menu, touches the clipboard or signals a process this
-# suite did not start itself. rofi, cliphist, wl-copy and notify-send are stubs,
-# the processes the helper closes are copies of sleep started here, and every
-# PATH holds only stubs and the real tools linked in by name.
+# Nothing here opens a panel or touches the clipboard. qs, cliphist, wl-copy and
+# notify-send are stubs, and every PATH holds only stubs and the real tools
+# linked in by name.
 
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$REPO/.local/bin"
-HELPER="$BIN/hyprsimple-menu-exclusive.sh"
 CLIP="$BIN/hyprsimple-clipboard-menu.sh"
 VARS="$REPO/default/hypr/vars.lua"
 APPS="$REPO/.config/hypr/bindings/applications.lua"
 MIGRATION="$REPO/migrations/1789020000.sh"
 TMP="$(mktemp -d)"
 
-# Removes the temp directory and stops every process this suite started, by
-# its recorded pid. Never by name: a pattern would match the shell running this.
-STARTED=()
-trap 'rm -rf "${TMP:?}"; ((${#STARTED[@]})) && kill "${STARTED[@]}" 2>/dev/null' EXIT
+trap 'rm -rf "${TMP:?}"' EXIT
 
 failures=0
 pass() { printf 'ok - %s\n' "$1"; }
@@ -40,35 +31,6 @@ for helper in pass fail check; do
 done
 
 BASH_BIN="$(command -v bash)"
-
-# ---- every rofi launch hyprsimple owns passes -replace -------------------------
-#
-# Read out of the scripts rather than listed here, so a menu added later without
-# -replace is caught. Comments are stripped, since several explain -replace in
-# prose. A launch is rofi followed by an option or an argument array, which
-# leaves out a path ending in /rofi and a pgrep for the process name.
-
-mapfile -t launches < <(
-  for f in "$BIN"/*.sh; do
-    sed 's/^[[:space:]]*#.*//' "$f" |
-      grep -nE '(^|[^-a-zA-Z_/."])rofi +(-|"\$)' |
-      sed "s|^|$(basename "$f"):|"
-  done
-)
-if ((${#launches[@]} < 1)); then
-  fail "found ${#launches[@]} rofi launches in .local/bin, which is fewer than there are"
-else
-  pass "found ${#launches[@]} rofi launches in .local/bin"
-fi
-missing=()
-for l in "${launches[@]}"; do
-  [[ $l == *-replace* ]] || missing+=("${l%%:*}")
-done
-check "every one passes -replace" "${missing[*]:-}" ""
-
-# One script is left that starts rofi. The other menus are panels of the bar.
-check "including hyprsimple-image-picker.sh" \
-  "$(printf '%s\n' "${launches[@]}" | grep -c "^hyprsimple-image-picker.sh:")" "1"
 
 # ---- the launcher and the power menu are bar panels ----------------------------
 #
@@ -86,80 +48,17 @@ if [[ -n $LUA ]]; then
   LUA_HOME="$TMP/lua-home"
   # The launcher and the power menu are panels of the bar, opened over its ipc.
   # HYPRSIMPLE_PATH is unset for the evaluation so the default install path is
-  # what is checked. The launcher still goes through the helper, so a rofi menu
-  # that is open is closed first.
+  # what is checked.
   bar_var() {
     env -u HYPRSIMPLE_PATH HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.$1)" 2>&1
   }
-  check "SUPER + A opens the bar's launcher through the helper" "$(bar_var menu)" \
-    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle launcher"
+  check "SUPER + A opens the bar's launcher" "$(bar_var menu)" \
+    "qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle launcher"
   check "and SUPER + ESCAPE opens the bar's power panel" "$(bar_var powermenu)" \
     "qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle power"
 else
   pass "no lua interpreter here, so vars.lua is not evaluated"
 fi
-
-# ---- the helper ------------------------------------------------------------------
-
-PROCBIN="$TMP/procbin"; mkdir -p "$PROCBIN"
-# A stand-in named rofi, so its process name is rofi and closing it is safe. It
-# takes a moment to exit once asked, the way rofi tears down its window. A copy
-# of sleep exits the instant it is signalled, and against that a helper that
-# never waited passed every check here.
-cat >"$PROCBIN/rofi" <<'STANDINEOF'
-#!/bin/bash
-trap 'sleep 0.3; exit 0' TERM
-while :; do sleep 0.05; done
-STANDINEOF
-chmod +x "$PROCBIN/rofi"
-HBIN="$TMP/helperbin"; mkdir -p "$HBIN"
-for tool in cat sleep; do ln -sf "$(command -v "$tool")" "$HBIN/$tool"; done
-PIDFILE="$TMP/rofi.pid"
-
-# The command the helper runs records whether the old menu was still alive at
-# that moment, which is the ordering that matters.
-run_helper() {
-  local watched="$1"; shift
-  : >"$TMP/ran"
-  HYPRSIMPLE_ROFI_PIDFILE="$PIDFILE" PATH="$HBIN" \
-    "$BASH_BIN" "$HELPER" "$BASH_BIN" -c \
-    'if [[ -e /proc/$1 ]]; then echo alive; else echo gone; fi >"$2"; shift 2; printf "%s|" "$@" >>"$0.args"' \
-    "$TMP/ran" "$watched" "$TMP/ran" "$@" >/dev/null 2>&1
-  printf '%s' "$?" >"$TMP/rc"
-}
-
-"$PROCBIN/rofi" 30 & open_menu=$!; STARTED+=("$open_menu")
-sleep 0.1
-check "the stand-in menu really is named rofi" "$(cat "/proc/$open_menu/comm" 2>/dev/null)" "rofi"
-printf '%s\n' "$open_menu" >"$PIDFILE"
-: >"$TMP/ran.args"
-run_helper "$open_menu" "an arg with spaces" second
-check "an open menu is closed" "$([[ -e /proc/$open_menu ]] && echo open || echo closed)" "closed"
-check "before the new one starts" "$(cat "$TMP/ran")" "gone"
-check "and the command runs with its arguments intact" "$(cat "$TMP/ran.args")" "an arg with spaces|second|"
-
-sleep 30 & bystander=$!; STARTED+=("$bystander")
-printf '%s\n' "$bystander" >"$PIDFILE"
-run_helper "$bystander"
-check "a pid file naming a process that is not rofi closes nothing" \
-  "$([[ -e /proc/$bystander ]] && echo alive || echo killed)" "alive"
-check "and still runs the command" "$(cat "$TMP/ran")" "alive"
-
-"$BASH_BIN" -c 'exit 0' & gone=$!; wait "$gone"
-printf '%s\n' "$gone" >"$PIDFILE"
-run_helper "$gone"
-check "a stale pid file still runs the command" "$(cat "$TMP/ran")" "gone"
-
-printf 'not a pid\n' >"$PIDFILE"
-run_helper "$gone"
-check "a garbled pid file still runs the command" "$(cat "$TMP/ran")" "gone"
-
-rm -f "$PIDFILE"
-run_helper "$gone"
-check "no pid file at all still runs the command" "$(cat "$TMP/ran")" "gone"
-
-HYPRSIMPLE_ROFI_PIDFILE="$PIDFILE" PATH="$HBIN" "$BASH_BIN" "$HELPER" >/dev/null 2>&1
-check "with no command it only closes and exits 0" "$?" "0"
 
 # ---- the clipboard panel ---------------------------------------------------------
 #
@@ -246,21 +145,15 @@ printf '%s\n' "$*" >>"$QS_LOG"
 STUBEOF
 chmod +x "$CBIN/qs"
 CLIP_HOME="$TMP/clip-home"; mkdir -p "$CLIP_HOME/.local/bin"
-cp "$HELPER" "$CLIP_HOME/.local/bin/"
 run_clip() {
   : >"$TMP/qs-log"; : >"$TMP/notify"
-  # XDG_CONFIG_HOME is set although nothing here starts rofi any more. The
-  # script closes a rofi that is open, and no real config should be in reach.
   QS_LOG="$TMP/qs-log" NOTIFY_LOG="$TMP/notify" HOME="$CLIP_HOME" \
-    XDG_CONFIG_HOME="$TMP/xdg" HYPRSIMPLE_ROFI_PIDFILE="$TMP/no-such-pid" \
-    PATH="$CBIN" "$BASH_BIN" "$CLIP" >/dev/null 2>&1
+    XDG_CONFIG_HOME="$TMP/xdg" PATH="$CBIN" "$BASH_BIN" "$CLIP" >/dev/null 2>&1
 }
 
 run_clip
 check "SUPER + V opens the bar's clipboard panel" \
   "$(cat "$TMP/qs-log")" "-p $CLIP_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle clipboard"
-check "through the helper, so an open rofi menu is closed first" \
-  "$(sed 's/#.*//' "$CLIP" | grep -c 'hyprsimple-menu-exclusive.sh" qs ')" "1"
 check "and the panel answers to that name" \
   "$(grep -c 'name: "clipboard"' "$REPO/default/quickshell/bar/Bar.qml")" "1"
 

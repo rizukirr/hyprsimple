@@ -77,12 +77,6 @@ check "and stripping comments leaves its code behind" \
 # --- the switcher persists it ------------------------------------------------
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
-# A rofi that answers with nothing, never the real one. These scripts open a
-# picker when given no argument and /usr/bin is on the PATH below, so the real
-# rofi was reachable from here. It reached the maintainer's screen once, from a
-# suite that had no stub, and opened a window complaining about a theme inside
-# the fixture.
-printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 # A qs of its own too. These scripts call the bar, and the real one acts on the
 # bar of whoever is running the tests.
 printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"

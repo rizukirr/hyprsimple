@@ -85,7 +85,7 @@ done <"$COLORS_FILE" >"$sed_script"
 # checking they land on the background they are drawn on. Measured across the
 # shipped themes, 37 of 40 had at least one pair below 3:1 and every light theme
 # did: everforest-light put its "info" colour at 1.5 on the bar widgets and
-# its selected rofi row at 1.0.
+# the selected row of its menu at 1.0.
 #
 # The hue is kept and only the lightness moves, towards white on a dark surface
 # and towards black on a light one, so a theme keeps its own colours and only
@@ -176,8 +176,8 @@ fi
 } >>"$sed_script"
 
 # Interface colours, each one made readable on the thing it is drawn on: the
-# The bar's capsules sit on the surface above, the clock calendar and the rofi menu on
-# the theme background.
+# The bar's capsules sit on the surface above, and the bar and its panels on the
+# theme background.
 #
 # A value here is only ever nudged, never replaced, so a theme keeps its own
 # colours. The terminal palette is not touched at all: colour0 to colour15 stay

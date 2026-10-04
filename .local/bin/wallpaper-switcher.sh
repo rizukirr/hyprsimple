@@ -12,7 +12,7 @@ require_helper hypr-helpers.sh
 # Switch wallpaper within the current theme
 # Usage: wallpaper-switcher.sh [next|pick]
 #   next - cycle to next wallpaper
-#   pick - choose via rofi (default)
+#   pick - choose from the bar's wallpaper picker (default)
 
 CACHE_DIR="$HOME/.cache"
 # Track the actual wallpaper source path in a state file.
@@ -56,7 +56,7 @@ fi
 MODE="${1:-pick}"
 
 if [[ $MODE == "apply" ]]; then
-  # Direct apply from path (used by rofi script mode)
+  # Direct apply from path, which is what the bar's picker runs
   SELECTED="$2"
 elif [[ $MODE == "next" ]]; then
   # Find current index and cycle to next
@@ -74,9 +74,7 @@ elif [[ $MODE == "pick" ]]; then
   # grid was preferred over a tidier final row.
   # The picker is a panel of the bar, which runs this again as
   # `wallpaper-switcher.sh apply <file>` with the wallpaper that was picked.
-  # Through the helper, so a rofi menu that is open is closed first.
-  exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" \
-    qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" ipc call bar toggle wallpapers
+  exec qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" ipc call bar toggle wallpapers
 fi
 
 if [[ ! -f $SELECTED ]]; then

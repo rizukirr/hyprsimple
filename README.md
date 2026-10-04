@@ -22,7 +22,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 ## Features
 
-- **40 themes** with one-key switching, all apps update at once (the bar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
+- **40 themes** with one-key switching, all apps update at once (the bar and its menus, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
 - **Visual pickers** for themes and wallpapers: a carousel of previews in a panel of the bar, with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
 - **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
@@ -138,38 +138,9 @@ hyprsimple-refresh-config hypr/hyprlock.conf
 
 Writing a migration is documented in [`migrations/README.md`](migrations/README.md).
 
-Some configs cannot be delivered automatically. `starship.toml` and `yazi/yazi.toml` are TOML, so neither has an include directive to hang a default off the way rofi and dunst do.
+Some configs cannot be delivered automatically. `starship.toml` and `yazi/yazi.toml` are TOML, so neither has an include directive to hang a default off the way dunst does.
 
 When an update changes one of those and you have your own version, `hyprsimple-update` says so and prints the command to take the new one. It only mentions a file this update actually changed, so editing something on purpose does not nag you every time.
-
-#### Rofi
-
-Rofi's defaults live in the install, at `~/.config/rofi/hyprsimple`, which is a
-link into `~/.local/share/hyprsimple`. What sits in `~/.config/rofi` is a short
-file per config that imports its default:
-
-```
-@import "hyprsimple/config.rasi"
-```
-
-Put your own settings **below** that line. Rofi applies the later declaration,
-so anything you set there wins property by property, and anything you leave out
-keeps hyprsimple's value and keeps receiving updates to it. A setting placed
-above the import is silently overridden by the default, with no error.
-
-Because the defaults are a link rather than a copy, a rofi change reaches you
-through `hyprsimple-update` alone. No migration is involved.
-
-If the split migration reported that one of your files was left alone, it had
-edits of its own and is not importing anything. To take the stub and keep a
-backup of yours:
-
-```bash
-hyprsimple-refresh-config rofi/config.rasi
-```
-
-`rofi/launcher` is not part of this. Its style is rewritten on every theme
-switch, so it belongs to the theme rather than to you.
 
 #### Theme templates
 
@@ -318,7 +289,6 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 |--------|-------------|
 | `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
 | `hyprsimple-clipboard-menu.sh` | Opens the bar's clipboard history panel, behind `SUPER + V` |
-| `hyprsimple-menu-exclusive.sh` | Closes a rofi menu that is already open, then runs the command given, so one menu can replace another |
 | `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
 
@@ -335,7 +305,6 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hyprsimple-theme-picker.sh` | List one row per theme, with its wallpaper and colour swatches, for the bar's theme picker |
 | `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, for the bar's wallpaper picker |
 | `hyprsimple-thumbnails.sh` | Swap the image in each of those rows for a small cached thumbnail, which is what the pickers show |
-| `hyprsimple-image-picker.sh` | The rofi grid the pickers used before they moved into the bar. Nothing calls it now, and it goes when rofi does |
 | `live-wallpaper-toggle.sh` | Toggle live wallpaper (cycle backgrounds vs. static) |
 | `monitor-mirror-toggle.sh` | Toggle extend vs. mirror mode for an external monitor |
 | `virtual-mirror-toggle.sh` | Mirror a monitor into a window (via wl-mirror) for screen sharing |

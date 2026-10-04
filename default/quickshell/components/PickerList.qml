@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import qs.theme
 
 // A search field over a list with one moving selection. The shared body of the
-// launcher and of the menus that replace rofi. The owner filters and orders the
+// launcher and of the other menus. The owner filters and orders the
 // items, and supplies the delegate that draws one.
 ColumnLayout {
     id: root

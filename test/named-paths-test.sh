@@ -133,10 +133,8 @@ fi
 
 INSTALL="$REPO/install.sh"
 # Comments stripped before any of this counts anything. install.sh explains in
-# comments what it used to do, naming both the dangling
-# ~/.config/rofi/launcher/launcher link it no longer makes and the
-# `hyprctl dispatch exit` it no longer runs, and an unanchored grep reads those
-# explanations as code. Three of these checks failed that way first.
+# comments what it used to do, naming the `hyprctl dispatch exit` it no longer
+# runs, and an unanchored grep reads those explanations as code. Three of these checks failed that way first.
 code_of() { sed 's/#.*//' "$1"; }
 INSTALL_CODE="$TMP/install.code"
 code_of "$INSTALL" >"$INSTALL_CODE"
@@ -146,7 +144,7 @@ check "stripping comments leaves install.sh's code behind" \
 # creates and links hyprsimple's own file into, the same shape as
 # dunst/dunstrc.d. The file it holds lives in default/, not .config/, so that
 # an update to it reaches every machine without a migration.
-GENERATED="uwsm/env uwsm/env-hyprland btop/themes rofi/hyprsimple hypr/hyprsimple
+GENERATED="uwsm/env uwsm/env-hyprland btop/themes hypr/hyprsimple
   dunst/dunstrc.d hypr/theme-active.lua hypr/theme-hyprlock.conf
   systemd/user/hyprsunset.service.d"
 

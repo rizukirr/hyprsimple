@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Emit one row per wallpaper in the current theme for hyprsimple-image-picker.sh:
+# Emit one row per wallpaper in the current theme for the bar's wallpaper picker:
 #
 #   image path <TAB> display name <TAB> image path
 #

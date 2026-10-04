@@ -58,12 +58,12 @@ check "and so is the real hyprshot" \
 
 QLOG="$TMP/qs-log"; NLOG="$TMP/notifications"; LOG="$TMP/shots"
 BAR_PATH="$HOME_DIR/.local/share/hyprsimple/default/quickshell"
-cp "$BIN/hyprsimple-menu-exclusive.sh" "$BIN/hyprsimple-record-menu.sh" "$HOME_DIR/.local/bin/"
+cp "$BIN/hyprsimple-record-menu.sh" "$HOME_DIR/.local/bin/"
 
 open_menu() {
   : >"$QLOG"; : >"$NLOG"
   QS_LOG="$QLOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" XDG_CONFIG_HOME="$HOME_DIR/.config" \
-    HYPRSIMPLE_ROFI_PIDFILE="$TMP/no-such-pid" PATH="$STUB" \
+    PATH="$STUB" \
     "$BASH_BIN" "$HOME_DIR/.local/bin/$1" >/dev/null 2>&1
   printf '%s' "$?" >"$TMP/rc"
 }
@@ -103,8 +103,6 @@ check "the recording menu opens the bar's record panel" \
   "$(cat "$QLOG")" "-p $BAR_PATH ipc call bar toggle record"
 
 check "and succeeds" "$(cat "$TMP/rc")" "0"
-check "it goes through the helper, so an open rofi menu is closed first" \
-  "$(sed 's/^[[:space:]]*#.*//' "$BIN/hyprsimple-record-menu.sh" | grep -c 'hyprsimple-menu-exclusive.sh" qs ')" "1"
 check "the bar has a panel named record" "$(grep -c 'name: "record"' "$BAR_QML")" "1"
 
 # ---- a missing worker is reported, not silently ignored ----------------------
