@@ -34,6 +34,10 @@ HOME_DIR="$TMP/home"; mkdir -p "$HOME_DIR/.local/bin" "$HOME_DIR/.config/rofi/re
 # rofi records what it was fed and answers with whatever the test chose. It
 # never runs the real one: that would open a menu on the screen of whoever is
 # running the suite, which has happened here before.
+# A qs of its own too. These scripts call the bar, and the real one acts on the
+# bar of whoever is running the tests.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
+chmod +x "$STUB/qs"
 cat >"$STUB/rofi" <<'STUBEOF'
 #!/bin/bash
 cat >"$ROFI_INPUT"

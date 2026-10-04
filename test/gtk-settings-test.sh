@@ -137,6 +137,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # changed. suite-hygiene-test.sh requires it of any suite that names a
 # picker-capable script, and being conservative there costs one line.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
+# A qs of its own too. These scripts call the bar, and the real one acts on the
+# bar of whoever is running the tests.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
+chmod +x "$STUB/qs"
 chmod +x "$STUB/rofi"
 
 # An active theme in a fixture home, the way a real one is arranged: a symlink

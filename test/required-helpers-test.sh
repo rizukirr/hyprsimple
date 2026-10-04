@@ -55,6 +55,10 @@ printf '#!/bin/bash\nexit 0\n' >"$STUB/pkill"
 # It answers with nothing, so a picker that is reached selects nothing and the
 # caller exits rather than waiting for input.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
+# A qs of its own too. These scripts call the bar, and the real one acts on the
+# bar of whoever is running the tests.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
+chmod +x "$STUB/qs"
 cat >"$STUB/notify-send" <<'STUBEOF'
 #!/bin/bash
 printf '%s\n' "$*" >>"$NOTIFY_LOG"

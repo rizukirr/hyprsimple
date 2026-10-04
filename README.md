@@ -23,7 +23,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 ## Features
 
 - **40 themes** with one-key switching, all apps update at once (the bar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
-- **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
+- **Visual pickers** for themes and wallpapers: a carousel of previews in a panel of the bar, with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
 - **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
 - **Wayland-native** session via uwsm, no X11 dependencies
@@ -250,8 +250,8 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `SUPER + SHIFT + T` | Switch theme, from a grid of wallpapers and colour swatches |
-| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same grid |
+| `SUPER + SHIFT + T` | Switch theme, from a carousel of wallpapers and colour swatches |
+| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel |
 | `SUPER + ALT + W` | Cycle to next wallpaper |
 | `SUPER + CTRL + W` | Toggle live wallpaper, cycling backgrounds every 30s |
 
@@ -332,9 +332,10 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `theme-switcher.sh` | Switch theme via the visual picker, or apply one directly by name |
 | `theme-apply-templates.sh` | Generate themed app configs from a theme's `colors.toml` |
 | `wallpaper-switcher.sh` | Switch or cycle wallpaper within the current theme |
-| `hyprsimple-image-picker.sh` | Render a list of images as a rofi grid and print the key of the one chosen |
-| `hyprsimple-theme-picker.sh` | Feed the image picker one tile per theme, with its wallpaper and colour swatches |
-| `hyprsimple-wallpaper-picker.sh` | Feed the image picker one tile per wallpaper in the current theme |
+| `hyprsimple-theme-picker.sh` | List one row per theme, with its wallpaper and colour swatches, for the bar's theme picker |
+| `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, for the bar's wallpaper picker |
+| `hyprsimple-thumbnails.sh` | Swap the image in each of those rows for a small cached thumbnail, which is what the pickers show |
+| `hyprsimple-image-picker.sh` | The rofi grid the pickers used before they moved into the bar. Nothing calls it now, and it goes when rofi does |
 | `live-wallpaper-toggle.sh` | Toggle live wallpaper (cycle backgrounds vs. static) |
 | `monitor-mirror-toggle.sh` | Toggle extend vs. mirror mode for an external monitor |
 | `virtual-mirror-toggle.sh` | Mirror a monitor into a window (via wl-mirror) for screen sharing |
