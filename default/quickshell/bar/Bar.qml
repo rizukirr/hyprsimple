@@ -14,7 +14,7 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "screenshot", "record", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -196,6 +196,43 @@ PanelWindow {
         listCommand: ["sh", "-c", '"$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" | "$HOME/.local/bin/hyprsimple-thumbnails.sh"']
         currentCommand: ["cat", Quickshell.env("HOME") + "/.cache/current_wallpaper_path"]
         applyCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "apply"]
+    }
+
+    // Screenshots and recordings are taken by hyprsimple's own scripts. These two
+    // panels only choose what to capture.
+    CapturePanel {
+        bar: bar
+        name: "screenshot"
+        anchorItem: clock
+        title: "Screenshot"
+        actionLabel: "Capture"
+        groups: [
+            { name: "Area", options: [{ value: "region", label: "Region" }, { value: "window", label: "Window" }, { value: "monitor", label: "Screen" }] },
+            { name: "To", options: [{ value: "file", label: "File" }, { value: "clipboard", label: "Clipboard" }] }
+        ]
+        // screenshot.sh names its modes region, window and monitor, with -clipboard
+        // added to copy instead of save. The whole screen to the clipboard is just "clipboard".
+        commandFor: values => {
+            const [area, to] = values
+            const mode = to === "file" ? area : area === "monitor" ? "clipboard" : area + "-clipboard"
+            return [Quickshell.env("HOME") + "/.local/bin/screenshot.sh", mode]
+        }
+    }
+
+    CapturePanel {
+        bar: bar
+        name: "record"
+        anchorItem: clock
+        title: bar.recording ? "Recording" : "Record"
+        actionLabel: "Start recording"
+        running: bar.recording
+        stopLabel: "Stop recording"
+        stopCommand: [Quickshell.env("HOME") + "/.local/bin/screen-record.sh", "stop"]
+        groups: [
+            { name: "Area", options: [{ value: "region", label: "Region" }, { value: "window", label: "Window" }, { value: "output", label: "Screen" }] },
+            { name: "Audio", options: [{ value: "mic", label: "Microphone" }, { value: "internal", label: "System" }, { value: "none", label: "None" }] }
+        ]
+        commandFor: values => [Quickshell.env("HOME") + "/.local/bin/screen-record.sh", ...values]
     }
 
     PrayerPanel {

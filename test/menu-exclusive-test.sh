@@ -55,7 +55,7 @@ mapfile -t launches < <(
       sed "s|^|$(basename "$f"):|"
   done
 )
-if ((${#launches[@]} < 4)); then
+if ((${#launches[@]} < 2)); then
   fail "found ${#launches[@]} rofi launches in .local/bin, which is fewer than there are"
 else
   pass "found ${#launches[@]} rofi launches in .local/bin"
@@ -66,8 +66,7 @@ for l in "${launches[@]}"; do
 done
 check "every one passes -replace" "${missing[*]:-}" ""
 
-for name in hyprsimple-record-menu.sh hyprsimple-screenshot-menu.sh \
-  show-keybindings.sh hyprsimple-image-picker.sh; do
+for name in show-keybindings.sh hyprsimple-image-picker.sh; do
   check "including $name" "$(printf '%s\n' "${launches[@]}" | grep -c "^$name:")" "1"
 done
 

@@ -186,16 +186,12 @@ check "and the README documents both rows" \
 # wrong row got wrong survives in the menu, though. An entry says what it
 # captures, and the mode it runs has to capture that, so the whole screen entry
 # is pinned to a mode that grabs the output rather than a region.
-SHOT_MENU="$REPO/.local/bin/hyprsimple-screenshot-menu.sh"
-screen_clip_mode=$(python3 - "$SHOT_MENU" <<'PYEOF'
-import re, sys
-src = open(sys.argv[1], encoding="utf-8").read()
-labels = re.findall(r'"([^"]+)"', re.search(r'labels=\((.*?)\n\)', src, re.S).group(1))
-modes = re.search(r'modes=\((.*?)\n\)', src, re.S).group(1).split()
-i = next(n for n, l in enumerate(labels) if "Whole screen" in l and "clipboard" in l)
-print(modes[i])
-PYEOF
-)
+#
+# The menu is a panel of the bar now, which builds the mode from two choices.
+# The whole screen is its "monitor" area, and the rule that names the mode is
+# read out of the bar.
+BAR_QML="$REPO/default/quickshell/bar/Bar.qml"
+screen_clip_mode=$(grep -o 'area === "monitor" ? "[a-z-]*"' "$BAR_QML" | sed 's/.*"\(.*\)"$/\1/')
 check "the whole screen clipboard entry runs the clipboard mode" "$screen_clip_mode" "clipboard"
 check "and that mode captures the whole output, not a region" \
   "$(sed -n '/^clipboard)/,/;;/p' "$REPO/.local/bin/screenshot.sh" | grep -c -- '-m output')" "1"

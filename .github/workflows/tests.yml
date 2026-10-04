@@ -278,11 +278,9 @@ jobs:
       - name: migration-runner-test
         run: bash test/migration-runner-test.sh
 
-      - name: record-menu-test
-        run: bash test/record-menu-test.sh
+      - name: capture-panels-test
+        run: bash test/capture-panels-test.sh
 
-      - name: screenshot-menu-test
-        run: bash test/screenshot-menu-test.sh
 
 
       - name: menu-exclusive-test
