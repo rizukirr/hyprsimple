@@ -66,20 +66,6 @@ deliver_theme_configs() {
     cp "$GEN/hyprlock.conf" "$HOME/.config/hypr/theme-hyprlock.conf"
   fi
 
-  # 7. Update Dunst colors
-  # generated/dunst-colors is already valid dunst config, so it drops straight in
-  # as an override. Drop-ins outrank the base dunstrc, and lexical order decides
-  # between them, so 90-theme sits above hyprsimple's default and below the user's.
-  local DUNST_DROPIN="$HOME/.config/dunst/dunstrc.d/90-theme.conf"
-  mkdir -p "$(dirname "$DUNST_DROPIN")"
-  if [[ -f "$GEN/dunst-colors" ]]; then
-    cp "$GEN/dunst-colors" "$DUNST_DROPIN"
-  else
-    # This theme has no colors.toml, so there are no colours to apply. Drop the
-    # previous theme's file rather than leaving its colours in force.
-    rm -f "$DUNST_DROPIN"
-  fi
-
   # 8. Update btop theme
   #
   # Copying the theme into place was never enough: btop only reads the file its

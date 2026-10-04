@@ -228,7 +228,5 @@ if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
 
   systemctl --user restart hyprpaper.service
 
-  "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running
-
   notify-send "Theme Manager" "Theme '$THEME' applied!" -i "$CACHE_DIR/current_wallpaper"
 fi

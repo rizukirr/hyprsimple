@@ -85,6 +85,7 @@ cat >"$STUB/setsid" <<'STUBEOF'
 STUBEOF
 cat >"$STUB/qs" <<'STUBEOF'
 #!/bin/bash
+printf 'qs %s\n' "$*" >>"$LOG"
 exit 0
 STUBEOF
 cat >"$STUB/pacman" <<'STUBEOF'
@@ -130,7 +131,11 @@ check "after stopping the old one" "$(grep -c '^pkill ' "$LOG")" "1"
 
 reset; : >"$STATE/bar"
 run_restart --toggle
-check "--toggle stops a running bar" "$(grep -c '^pkill ' "$LOG")" "1"
+# Hidden, not stopped. The bar also shows the notifications, and a stopped one
+# would drop them without a word.
+check "--toggle asks a running bar to hide or show itself" \
+  "$(grep -c "^qs -p $TMP/install/default/quickshell ipc call bar toggleVisible$" "$LOG")" "1"
+check "without stopping it" "$(grep -c '^pkill ' "$LOG")" "0"
 check "and does not start another" "$(started)" "0"
 
 reset

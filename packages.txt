@@ -13,7 +13,6 @@ xdg-desktop-portal-hyprland
 # UI/Menu/Status
 quickshell
 ttf-material-symbols-variable
-dunst
 # gdk-pixbuf has no webp support of its own, and the shipped wallpapers are
 # webp. With this, GTK programs such as the file manager can show them.
 webp-pixbuf-loader

@@ -9,8 +9,8 @@ MIGRATION="$REPO/migrations/1788076006.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# The migration ends by nothing that touches a daemon directly, but model the
-# stub block on dunst-split-test.sh anyway: pgrep, pkill and uwsm do not
+# The migration ends by nothing that touches a daemon directly, but pgrep,
+# pkill and uwsm are stubbed anyway: they do not
 # consult HOME, and a future edit to this migration may grow a restart call.
 STUB_BIN="$TMP/stub-bin"
 mkdir -p "$STUB_BIN"

@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# Show current PipeWire volume using dunst
+# Show the current PipeWire volume as a notification.
+#
+# Every one carries the same hint, which is how the bar knows to show it in
+# place of the last one instead of stacking a column of them up.
 
-NOTIFY_ID=9999
+SAME=(-h string:x-canonical-private-synchronous:volume)
 
 # Nothing rather than a level, when wpctl cannot answer.
 #
@@ -37,17 +40,17 @@ repeat_char() {
 show_notification() {
   vol=$1
   if [[ "$vol" == "muted" ]]; then
-    notify-send -u low -t 1500 -r $NOTIFY_ID "Volume" "Muted 🔇"
+    notify-send -u low -t 1500 "${SAME[@]}" "Volume" "Muted 🔇"
   else
     filled=$((vol / 5))
     empty=$((20 - filled))
     bar="$(repeat_char "$filled" '█')$(repeat_char "$empty" '░')"
-    notify-send -u low -t 1500 -r $NOTIFY_ID "Volume: $vol%" "$bar"
+    notify-send -u low -t 1500 "${SAME[@]}" "Volume: $vol%" "$bar"
   fi
 }
 
 if ! level=$(get_volume); then
-  notify-send -u low -t 1500 -r $NOTIFY_ID "Volume" "Could not read the current volume"
+  notify-send -u low -t 1500 "${SAME[@]}" "Volume" "Could not read the current volume"
   exit 1
 fi
 

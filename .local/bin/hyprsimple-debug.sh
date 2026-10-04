@@ -157,11 +157,10 @@ hyprsimple_version() {
   section "SERVICES"
   # The report asked systemd nothing at all, which on a systemd desktop leaves
   # out the first thing anyone would look at. Found while reading this machine's
-  # journal: dunst.service had been activated over D-Bus before a Wayland
-  # display existed, aborted with "Couldn't initialize X11 output" five times,
-  # hit its start limit and been sitting in failed ever since. Notifications
-  # worked the whole time, because hyprsimple starts its own dunst from
-  # autostart, so nothing on screen said so and the report would not have
+  # journal: a notification daemon's unit had been activated over D-Bus before
+  # a Wayland display existed, aborted five times, hit its start limit and been
+  # sitting in failed ever since. Notifications worked the whole time, from the
+  # copy started at login, so nothing on screen said so and the report would not have
   # either: the evidence was a handful of lines inside a journal section that
   # is capped at 300 and shared with everything else on the machine.
   #
@@ -190,7 +189,7 @@ hyprsimple_version() {
     printf '  %-36s %-10s %s\n' "USER UNIT" "ACTIVE" "ENABLED"
     for unit in hyprpaper.service hyprpolkitagent.service battery-monitor.timer \
       pipewire.service pipewire-pulse.service wireplumber.service \
-      dunst.service xdg-desktop-portal-hyprland.service; do
+      xdg-desktop-portal-hyprland.service; do
       unit_state "systemctl --user" "$unit"
     done
 

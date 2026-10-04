@@ -1,7 +1,10 @@
 #!/bin/bash
-# Show current brightness using dunst
+# Show the current brightness as a notification.
+#
+# Every one carries the same hint, which is how the bar knows to show it in
+# place of the last one instead of stacking a column of them up.
 
-NOTIFY_ID=9998
+SAME=(-h string:x-canonical-private-synchronous:brightness)
 
 # Nothing rather than a level, when brightnessctl cannot answer.
 #
@@ -36,11 +39,11 @@ show_notification() {
   filled=$((brightness / 5))
   empty=$((20 - filled))
   bar="$(repeat_char "$filled" '█')$(repeat_char "$empty" '░')"
-  notify-send -u low -t 1500 -r $NOTIFY_ID "Brightness: $brightness%" "$bar"
+  notify-send -u low -t 1500 "${SAME[@]}" "Brightness: $brightness%" "$bar"
 }
 
 if ! level=$(get_brightness); then
-  notify-send -u low -t 1500 -r $NOTIFY_ID "Brightness" "Could not read the current brightness"
+  notify-send -u low -t 1500 "${SAME[@]}" "Brightness" "Could not read the current brightness"
   exit 1
 fi
 

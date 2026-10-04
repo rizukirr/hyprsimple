@@ -8,13 +8,14 @@ import qs.components
 import qs.panels
 import qs.muslimtify.services
 import qs.system
+import qs.notifications
 
 // Bar flush to the top edge, a plain rectangle with capsule groups on it.
 PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -151,6 +152,17 @@ PanelWindow {
         }
 
         Capsule {
+            // Lit while there are notifications not yet looked at.
+            StatusButton {
+                icon: Notifications.silent ? Theme.icon.bellOff : Theme.icon.bell
+                label: Notifications.unread > 0 ? String(Notifications.unread) : ""
+                tooltip: Notifications.silent ? "Notifications, do not disturb is on" : "Notifications"
+                active: bar.openPanel === "notifications"
+                highlighted: Notifications.unread > 0
+                dim: Notifications.silent
+                onClicked: bar.toggle("notifications")
+            }
+
             AwakeButton {}
 
             BatteryButton {}
@@ -166,6 +178,10 @@ PanelWindow {
     }
 
     LauncherPanel {
+        bar: bar
+    }
+
+    NotificationSidebar {
         bar: bar
     }
 

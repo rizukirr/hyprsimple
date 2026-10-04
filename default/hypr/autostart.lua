@@ -3,8 +3,8 @@ local vars = require("default.hypr.vars")
 -- hyprsunset is not started here. It applies the profiles in
 -- ~/.config/hypr/hyprsunset.conf and used to run as `uwsm app -- hyprsunset`,
 -- a scope with no restart policy, and it does not survive a suspend: measured
--- across two cycles on one machine, started at login with dunst, hypridle and
--- the bar, and the only one of the four gone afterwards, both times. Nothing
+-- across two cycles on one machine, started at login with hypridle and the
+-- bar, and the only one of them gone afterwards, both times. Nothing
 -- brought it back, so the profiles stopped applying for the rest of the
 -- session.
 --
@@ -12,7 +12,6 @@ local vars = require("default.hypr.vars")
 -- hyprsimple drop-in raising Restart to always. install.sh enables it.
 
 hl.on("hyprland.start", function()
-  hl.exec_cmd("uwsm app -- dunst")
   hl.exec_cmd("uwsm app -- qs -p " .. vars.bar)
   hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
   hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")

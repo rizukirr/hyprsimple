@@ -99,7 +99,7 @@ run_migration() {
   HOME="$TMP/mhome" HYPRSIMPLE_PATH="$TMP/minstall" bash "$MIGRATION" >"$TMP/out" 2>&1
 }
 
-if [[ ! -d $FIX ]] || (( $(find "$FIX" -type f | wc -l) < 14 )); then
+if [[ ! -d $FIX ]] || (( $(find "$FIX" -type f | wc -l) < 13 )); then
   fail "the pre-header fixtures are missing, so the migration is untested"
 else
   pass "found $(find "$FIX" -type f | wc -l) pre-header fixtures"
@@ -130,11 +130,11 @@ else
 
   # An edited file is left exactly as it was.
   mk_home
-  printf '# my own dunstrc\n' >"$TMP/mhome/.config/dunst/dunstrc"
+  printf '# my own starship\n' >"$TMP/mhome/.config/starship.toml"
   run_migration
   check "an edited file is left alone" \
-    "$(cat "$TMP/mhome/.config/dunst/dunstrc")" "# my own dunstrc"
-  check "and is listed" "$(grep -c 'dunst/dunstrc' "$TMP/out")" "1"
+    "$(cat "$TMP/mhome/.config/starship.toml")" "# my own starship"
+  check "and is listed" "$(grep -c 'starship.toml' "$TMP/out")" "1"
   check "while the others still update" "$(grep -c 'Added the header' "$TMP/out")" "1"
 fi
 

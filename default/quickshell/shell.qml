@@ -3,14 +3,24 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.bar
+import qs.notifications
 
 ShellRoot {
+    id: root
+
+    // The bars are hidden, with the shell still running. Notifications need it running.
+    property bool barsHidden: false
+
     Variants {
         id: bars
         model: Quickshell.screens
 
-        Bar {}
+        Bar {
+            visible: !root.barsHidden
+        }
     }
+
+    NotificationPopups {}
 
     // Lets a keybinding open a panel: qs -p <this directory> ipc call bar toggle power
     IpcHandler {
@@ -29,6 +39,16 @@ ShellRoot {
         // A bar told true with no recorder running clears itself, see Bar.qml.
         function setRecording(active: bool): void {
             bars.instances.forEach(bar => bar.recording = active)
+        }
+
+        // Hides the bars, or shows them again.
+        function toggleVisible(): void {
+            root.barsHidden = !root.barsHidden
+        }
+
+        // Closes every notification on screen.
+        function dismissNotifications(): void {
+            Notifications.dismissAll()
         }
     }
 }

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Two symlinks carry every install-owned default into ~/.config, and only
-# install.sh ever made them.
+# One symlink carries the install-owned defaults into ~/.config, and only
+# install.sh ever made it.
 #
 #   ~/.config/hypr/hyprsimple                  hyprlock, hypridle, xdph
-#   ~/.config/dunst/dunstrc.d/10-hyprsimple.conf   dunst's drop-in
 #
-# There was a third, for rofi, until its menus moved into the bar.
+# There were two more, for rofi and for dunst, until the menus and the
+# notifications moved into the bar.
 #
 # hyprsimple-update refreshed the helper scripts on every run and never looked
 # at these, so a link deleted, or left pointing at an old HYPRSIMPLE_PATH,
@@ -137,20 +137,15 @@ check "a real file is not replaced either" "$(cat "$LINK")" "mine"
 check "and is reported the same way" \
   "$(printf '%s\n' "$out" | grep -c 'not reaching it')" "1"
 
-# --- the updater asks for both ------------------------------------------------
+# --- the updater asks for it --------------------------------------------------
 
 calls=$(grep -c '^ensure_link ' "$UPDATE")
-check "the updater re-asserts two links" "$calls" "2"
-for want in "default/hypr" "default/dunst/10-hyprsimple.conf"; do
-  check "including $want" \
-    "$(grep -c "ensure_link .*$want" "$UPDATE")" "1"
-done
+check "the updater re-asserts one link" "$calls" "1"
+check "which is default/hypr" "$(grep -c "ensure_link .*default/hypr" "$UPDATE")" "1"
 
-# The same two install.sh creates, so the two cannot drift apart.
-for want in "default/hypr\"" "default/dunst/10-hyprsimple.conf\""; do
-  check "and install.sh links $want too" \
-    "$(grep -c "ln -sfn .*$want" "$REPO/install.sh")" "1"
-done
+# The same one install.sh creates, so the two cannot drift apart.
+check "and install.sh links default/hypr too" \
+  "$(grep -c 'ln -sfn .*default/hypr"' "$REPO/install.sh")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2

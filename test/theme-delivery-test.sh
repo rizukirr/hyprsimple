@@ -34,7 +34,7 @@ done
 # Not a list kept here. A list would go stale the day a template is added,
 # which is the failure this whole file is about.
 mapfile -t tpl < <(find "$TEMPLATES" -maxdepth 1 -name '*.tpl' -printf '%f\n' | sed 's/\.tpl$//' | sort)
-if (( ${#tpl[@]} < 6 )); then
+if (( ${#tpl[@]} < 5 )); then
   fail "found ${#tpl[@]} templates, which is too few to be right"
   printf '\n1 check(s) failed\n' >&2
   exit 1
@@ -59,7 +59,6 @@ HOME="$H" bash -c 'source "$1"; deliver_theme_configs "$2"' _ "$DELIVER" "$THEME
 declare -A target=(
   [hyprland-colors.lua]="$H/.config/hypr/theme-active.lua"
   [hyprlock.conf]="$H/.config/hypr/theme-hyprlock.conf"
-  [dunst-colors]="$H/.config/dunst/dunstrc.d/90-theme.conf"
   [btop.theme]="$H/.config/btop/themes/current.theme"
   [quickshell-colors.json]="$H/.config/quickshell/theme-active.json"
   [ghostty.conf]="$H/.config/ghostty/config"
@@ -102,17 +101,11 @@ check "and both source it" \
 check "with the copies that used to live in the updater gone" \
   "$(code "$UPDATER" | grep -cE 'cp "\$gen/')" "0"
 
-# ---- the update restarts what it just rewrote ------------------------------
+# ---- nothing needs restarting after a delivery ------------------------------
 #
-# dunst reads its drop-ins at load, so a freshly written colour file is
-# invisible until it is restarted. A theme switch has always done this; the
-# update wrote the files and did not. The bar is not in this list: it watches
-# its colour file and reloads on its own.
-check "the update restarts dunst after delivering" \
-  "$(code "$UPDATER" | grep -cE 'restart-dunst\.sh"? --if-running')" "1"
-check "and that script exists to be called" \
-  "$([[ -f $REPO/.local/bin/hyprsimple-restart-dunst.sh ]] && echo present || echo missing)" "present"
-check "and the bar watches its colour file, so it needs no restart" \
+# The bar shows the notifications as well as itself, and it watches its colour
+# file and reloads on its own.
+check "the bar watches its colour file, so it needs no restart" \
   "$(grep -c 'watchChanges: true' "$REPO/default/quickshell/theme/Theme.qml")" "1"
 
 # ---- delivery does not move the wallpaper ----------------------------------

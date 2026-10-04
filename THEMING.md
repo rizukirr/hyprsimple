@@ -1,6 +1,6 @@
 # Making your own theme
 
-A theme in hyprsimple is one directory of colours. You write sixteen palette entries and a few named colours into `colors.toml`, and a theme switch renders them into the bar, dunst, hyprlock, ghostty, btop and Hyprland's own borders, then reloads each of those programs.
+A theme in hyprsimple is one directory of colours. You write sixteen palette entries and a few named colours into `colors.toml`, and a theme switch renders them into the bar, hyprlock, ghostty, btop and Hyprland's own borders, then reloads each of those programs.
 
 Everything here happens in `~/.config/hypr/themes/`, which is yours. hyprsimple copies it once at install and never overwrites it, so a theme you add stays through every update.
 
@@ -80,7 +80,6 @@ Rendering writes into `<theme>/generated/`, and a switch puts each file where it
 
 | Generated file | Where it goes |
 | --- | --- |
-| `dunst-colors` | copied to `~/.config/dunst/dunstrc.d/90-theme.conf` |
 | `hyprland-colors.lua` | symlinked to `~/.config/hypr/theme-active.lua`, the window borders |
 | `hyprlock.conf` | copied to `~/.config/hypr/theme-hyprlock.conf` |
 | `ghostty.conf` | appended to `~/.config/ghostty/config`, unless the theme has a `ghostty-theme` file |
@@ -98,7 +97,7 @@ theme-apply-templates.sh ~/.config/hypr/themes/my-theme  # re-render without swi
 
 A switch re-renders first, so editing `colors.toml` and switching again is enough while you are working on it. The keybinding for the picker is `SUPER + SHIFT + T`, and `SUPER + SHIFT + W` picks a wallpaper within the current theme.
 
-If the change does not show, the program probably needs its config reread. Switching again is the blunt way. The bar and dunst can also be restarted on their own with `hyprsimple-restart-bar.sh` and `systemctl --user restart dunst`.
+If the change does not show, the program probably needs its config reread. Switching again is the blunt way. The bar, which also shows the notifications, can be restarted on its own with `hyprsimple-restart-bar.sh`.
 
 ## Changing how a colour is used
 
