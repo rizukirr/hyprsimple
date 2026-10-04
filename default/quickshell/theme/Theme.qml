@@ -133,6 +133,8 @@ Singleton {
     readonly property var springCurve: [0.38, 1.21, 0.22, 1, 1, 1]
     // Corner radius of a panel, and of the flares that join it to the bar.
     readonly property int panelRadius: 20
+    // How often a lit recording indicator checks that a recorder is still running.
+    readonly property int recordingPollMs: 3000
     // How often the keep-awake item re-reads whether hypridle is running.
     readonly property int awakePollMs: 5000
     // How long a panel holds exclusive keyboard focus before relaxing it.

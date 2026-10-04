@@ -108,6 +108,10 @@ cat >"$STUB/pgrep" <<'STUBEOF'
 exit 1
 STUBEOF
 printf '#!/bin/bash\nexit 0\n' >"$STUB/pkill"
+# screen-record.sh tells the bar whether a recording is running. The real qs
+# must be out of reach, or a run of this suite reports recordings to the bar of
+# whoever ran it. The stop-order section below replaces this with one that logs.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
 chmod +x "$STUB"/*
 
 HOME_DIR="$TMP/home"

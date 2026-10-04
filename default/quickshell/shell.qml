@@ -26,6 +26,7 @@ ShellRoot {
         // Shows or hides the recording indicator. hyprsimple's screen-record.sh calls it
         // when a recording starts and after it has stopped.
         // vibekit: the state lives in the running shell, so a bar restarted mid-recording shows nothing until the next call
+        // A bar told true with no recorder running clears itself, see Bar.qml.
         function setRecording(active: bool): void {
             bars.instances.forEach(bar => bar.recording = active)
         }
