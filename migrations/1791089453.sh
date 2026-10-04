@@ -7,8 +7,8 @@ echo "Replace waybar with the Quickshell bar"
 #
 # The update installs quickshell and its icon font from packages.txt before
 # migrations run. This stops waybar, starts the bar when there is a session to
-# start it in, removes the scripts that existed for waybar and for the two rofi
-# menus the bar replaces, and removes the waybar package.
+# start it in, removes scripts that existed for waybar and for the rofi sound
+# menu the bar replaces, and removes the waybar package.
 #
 # ~/.config/waybar is yours and is left where it is. Nothing reads it any more.
 
@@ -38,7 +38,13 @@ fi
 
 # The update copies scripts into ~/.local/bin and never removes one, so these
 # would stay behind with nothing left to call them.
-for stale in hyprsimple-restart-waybar.sh hyprsimple-refresh-waybar.sh \
+#
+# hyprsimple-restart-waybar.sh is not in the list. The update running this
+# migration is the one from before the change, still being read from its old
+# copy, and it calls that script after the migrations. Removing it here made
+# that run end with "No such file or directory". Left in place it does nothing:
+# it is called with --if-running and waybar is no longer running.
+for stale in hyprsimple-refresh-waybar.sh \
   waybar-muslimtify.sh waybar-screenrecording.sh hyprsimple-audio-menu.sh; do
   rm -f "$HOME/.local/bin/$stale"
 done

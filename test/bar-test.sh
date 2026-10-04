@@ -178,26 +178,32 @@ check "and installed" "$([[ -e $STATE/waybar-package ]] && echo installed || ech
 check "and says how to install quickshell" "$(grep -c 'sudo pacman -S quickshell' "$TMP/out")" "1"
 
 # The update copies scripts into ~/.local/bin and never removes one.
+STALE=(hyprsimple-refresh-waybar.sh waybar-muslimtify.sh waybar-screenrecording.sh
+  hyprsimple-audio-menu.sh)
 reset
 mkdir -p "$TMP/home/.local/bin"
-for stale in hyprsimple-restart-waybar.sh hyprsimple-refresh-waybar.sh \
-  waybar-muslimtify.sh waybar-screenrecording.sh hyprsimple-audio-menu.sh; do
+for stale in "${STALE[@]}" hyprsimple-restart-waybar.sh volume-notify.sh; do
   : >"$TMP/home/.local/bin/$stale"
 done
-: >"$TMP/home/.local/bin/volume-notify.sh"
 run_migration env HYPRLAND_INSTANCE_SIGNATURE=test
-check "the scripts that existed for waybar and the rofi menus are removed" \
-  "$(find "$TMP/home/.local/bin" -name '*waybar*' -o -name 'hyprsimple-audio-menu.sh' | wc -l | tr -d ' ')" "0"
+left=0
+for stale in "${STALE[@]}"; do
+  [[ -e $TMP/home/.local/bin/$stale ]] && left=$((left + 1))
+done
+check "the scripts that existed for waybar and the rofi sound menu are removed" "$left" "0"
 check "and a script that still ships is left alone" \
   "$([[ -e $TMP/home/.local/bin/volume-notify.sh ]] && echo kept || echo removed)" "kept"
+# The update that runs this migration is the old one, and it calls this script
+# after the migrations. Removing it made that run end with an error.
+check "and so is the waybar restart script, which the running update still calls" \
+  "$([[ -e $TMP/home/.local/bin/hyprsimple-restart-waybar.sh ]] && echo kept || echo removed)" "kept"
 # Every name the migration removes must really be gone from the repository, or
 # the next update would copy it back and the one after would not remove it.
 still_shipped=0
-for stale in hyprsimple-restart-waybar.sh hyprsimple-refresh-waybar.sh \
-  waybar-muslimtify.sh waybar-screenrecording.sh hyprsimple-audio-menu.sh; do
+for stale in "${STALE[@]}"; do
   [[ -e $BIN/$stale ]] && still_shipped=$((still_shipped + 1))
 done
-check "and none of them still ships" "$still_shipped" "0"
+check "and none of the removed ones still ships" "$still_shipped" "0"
 
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
