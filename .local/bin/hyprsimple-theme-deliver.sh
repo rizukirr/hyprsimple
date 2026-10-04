@@ -28,20 +28,6 @@ deliver_theme_configs() {
     ln -sf "$THEME_PATH/hypr/colors.lua" "$HOME/.config/hypr/theme-active.lua"
   fi
 
-  # 3. Update Waybar colors
-  if [[ -f "$GEN/waybar-colors.css" ]]; then
-    ln -sf "$GEN/waybar-colors.css" "$HOME/.config/waybar/theme-active.css"
-  elif [[ -f "$THEME_PATH/waybar/colors.css" ]]; then
-    ln -sf "$THEME_PATH/waybar/colors.css" "$HOME/.config/waybar/theme-active.css"
-  fi
-
-  # 3b. Update Waybar clock module (themed calendar)
-  if [[ -f "$GEN/theme-clock.jsonc" ]]; then
-    ln -sf "$GEN/theme-clock.jsonc" "$HOME/.config/waybar/theme-clock.jsonc"
-  elif [[ -f "$THEME_PATH/waybar/theme-clock.jsonc" ]]; then
-    ln -sf "$THEME_PATH/waybar/theme-clock.jsonc" "$HOME/.config/waybar/theme-clock.jsonc"
-  fi
-
   # 4. Update Rofi colors
   if [[ -f "$GEN/rofi-colors.rasi" ]]; then
     ln -sf "$GEN/rofi-colors.rasi" "$HOME/.config/rofi/rofi-colors.rasi"
@@ -125,5 +111,16 @@ deliver_theme_configs() {
     else
       printf 'color_theme = "current"\n' >>"$BTOP_CONF"
     fi
+  fi
+
+  # 9. Update Quickshell colors
+  # Copied, not symlinked. A running shell watches this path for changes, and
+  # Quickshell's FileView reports a file rewritten in place but not a symlink
+  # pointed somewhere new, so a link would leave the old colours on screen until
+  # the shell restarted. The directory is made here because quickshell is not
+  # something hyprsimple installs.
+  if [[ -f "$GEN/quickshell-colors.json" ]]; then
+    mkdir -p "$HOME/.config/quickshell"
+    cp "$GEN/quickshell-colors.json" "$HOME/.config/quickshell/theme-active.json"
   fi
 }

@@ -85,8 +85,6 @@ jobs:
       - name: hypr-conf-split-test
         run: bash test/hypr-conf-split-test.sh
 
-      - name: waybar-refresh-test
-        run: bash test/waybar-refresh-test.sh
 
       - name: broken-override-test
         run: bash test/broken-override-test.sh
@@ -214,8 +212,8 @@ jobs:
       - name: confirm-before-delete-test
         run: bash test/confirm-before-delete-test.sh
 
-      - name: powermenu-test
-        run: bash test/powermenu-test.sh
+      - name: bar-test
+        run: bash test/bar-test.sh
 
       - name: shell-init-test
         run: bash test/shell-init-test.sh
@@ -283,8 +281,6 @@ jobs:
       - name: screenshot-menu-test
         run: bash test/screenshot-menu-test.sh
 
-      - name: audio-menu-test
-        run: bash test/audio-menu-test.sh
 
       - name: menu-exclusive-test
         run: bash test/menu-exclusive-test.sh

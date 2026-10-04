@@ -68,11 +68,11 @@ while IFS='=' read -r key value; do
   fi
 done <"$COLORS_FILE" >"$sed_script"
 
-# A surface to sit text on, for the widget pills in waybar.
+# A surface to sit text on, for the capsules on the bar.
 #
 # Those used colour0 directly, which is the terminal's black. On a dark theme
 # that is a near-black behind light text and reads fine. On a light theme it is
-# still black, while the text is dark, so the waybar text was unreadable:
+# still black, while the text is dark, so the bar text was unreadable:
 # measured across the shipped themes, seven light ones and material-ocean fell
 # below 3:1, catppuccin-latte at 1.3 and flexoki-light at 1.0, which is text and
 # background the same colour.
@@ -84,7 +84,7 @@ done <"$COLORS_FILE" >"$sed_script"
 # The templates pasted palette slots straight into interface text, with nothing
 # checking they land on the background they are drawn on. Measured across the
 # shipped themes, 37 of 40 had at least one pair below 3:1 and every light theme
-# did: everforest-light put its "info" colour at 1.5 on the waybar widgets and
+# did: everforest-light put its "info" colour at 1.5 on the bar widgets and
 # its selected rofi row at 1.0.
 #
 # The hue is kept and only the lightness moves, towards white on a dark surface
@@ -176,7 +176,7 @@ fi
 } >>"$sed_script"
 
 # Interface colours, each one made readable on the thing it is drawn on: the
-# waybar pills sit on the surface above, the clock calendar and the rofi menu on
+# The bar's capsules sit on the surface above, the clock calendar and the rofi menu on
 # the theme background.
 #
 # A value here is only ever nudged, never replaced, so a theme keeps its own

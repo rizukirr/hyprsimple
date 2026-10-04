@@ -48,6 +48,7 @@ package_of() {
     brave) echo brave-bin ;;
     nvim) echo neovim ;;
     wl-screenrec) echo wl-screenrec-git ;;
+    qs) echo quickshell ;;
     *) echo "$1" ;;
   esac
 }

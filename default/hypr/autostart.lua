@@ -4,7 +4,7 @@ local vars = require("default.hypr.vars")
 -- ~/.config/hypr/hyprsunset.conf and used to run as `uwsm app -- hyprsunset`,
 -- a scope with no restart policy, and it does not survive a suspend: measured
 -- across two cycles on one machine, started at login with dunst, hypridle and
--- waybar, and the only one of the four gone afterwards, both times. Nothing
+-- the bar, and the only one of the four gone afterwards, both times. Nothing
 -- brought it back, so the profiles stopped applying for the rest of the
 -- session.
 --
@@ -13,7 +13,7 @@ local vars = require("default.hypr.vars")
 
 hl.on("hyprland.start", function()
   hl.exec_cmd("uwsm app -- dunst")
-  hl.exec_cmd("uwsm app -- waybar")
+  hl.exec_cmd("uwsm app -- qs -p " .. vars.bar)
   hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
   hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")
   hl.exec_cmd("uwsm app -- hypridle")

@@ -122,94 +122,30 @@ check "and at 100" "$b_full" "$full"
 
 # --- the recording indicator sits on the left and says what it is ------------
 #
-# It used to be a bare glyph between the battery and the clock, which reads as
-# an unexplained dot. It is a labelled pill beside the prayer times now.
+# In waybar it was once a bare glyph between the battery and the clock, which
+# reads as an unexplained dot. In the bar it is a labelled capsule after the
+# workspaces, shown only while recording.
 
-WBCONF="$REPO/.config/waybar/config.jsonc"
-WBSTYLE="$REPO/.config/waybar/style.css"
-RECSCRIPT="$BIN/waybar-screenrecording.sh"
+BAR="$REPO/default/quickshell/bar/Bar.qml"
 RECMIGRATION="$REPO/migrations/1788860000.sh"
 
-modules_line() { grep -m1 "\"$1\"" "$WBCONF"; }
+line_of() { grep -n -m1 -- "$1" "$BAR" | cut -d: -f1; }
+rec_line=$(line_of 'visible: bar.recording')
+workspaces_line=$(line_of '^        Workspaces {')
+prayer_line=$(line_of 'PrayerButton {')
 
-check "the indicator is in modules-left" \
-  "$(modules_line modules-left | grep -c 'custom/screenrecording')" "1"
-check "and no longer in modules-right" \
-  "$(modules_line modules-right | grep -c 'custom/screenrecording')" "0"
-check "and it comes after the prayer times, not before" \
-  "$(modules_line modules-left | grep -cE 'custom/muslimtify".*custom/screenrecording')" "1"
-
-# The label, read out of the script that emits it.
-check "the module says what it is rather than showing a bare glyph" \
-  "$(grep -c '󰻂 Recording' "$RECSCRIPT")" "1"
-check "with no trailing ellipsis, which reads as a thing still starting" \
-  "$(grep -c 'Recording\.\.\.' "$RECSCRIPT")" "0"
-check "and a capital R, matching the tooltip beside it" \
-  "$(grep -c '"text": "󰻂 recording' "$RECSCRIPT")" "0"
-check "and still carries the active class the styling keys off" \
-  "$(grep -c '"class": "active"' "$RECSCRIPT")" "1"
-check "while the idle branch still emits an empty string" \
-  "$(grep -c '{"text": ""}' "$RECSCRIPT")" "1"
-
-# The background belongs to .active only. The idle module emits an empty
-# string, and padding or a background on the bare id would leave an empty pill
-# in the bar next to the prayer times.
-active_block=$(sed -n '/^#custom-screenrecording\.active {/,/^}/p' "$WBSTYLE")
-idle_block=$(sed -n '/^#custom-screenrecording {/,/^}/p' "$WBSTYLE")
-
-# It is shaped like an ordinary module, not like its neighbour.
-# custom/muslimtify has a rounded-top shape particular to that widget, and the
-# indicator was briefly given the same one. The background, padding and top
-# margin are read out of the shared rule that covers #cpu and the rest, so this
-# compares against what ships rather than against numbers written down here.
-ordinary_block=$(sed -n '/^#cpu,/,/^}/p' "$WBSTYLE")
-prop() { printf '%s' "$1" | grep -oE "^ *$2: *[^;]+" | tr -d ' ' | sed "s/^$2://"; }
-
-check "the recording state has a background" \
-  "$(printf '%s' "$active_block" | grep -c 'background-color')" "1"
-check "and it is the one every other module uses" \
-  "$(prop "$active_block" background-color)" "$(prop "$ordinary_block" background-color)"
-# The vertical half matches, so the row lines up. The horizontal half is wider
-# on purpose: this module carries a word rather than a short readout, and at
-# the shared 0.5rem the text sat hard against the rounded corner.
-pad_v() { printf '%s' "$1" | awk '{print $1}'; }
-pad_h() { printf '%s' "$1" | awk '{print $2}'; }
-rem() { printf '%s' "${1%rem}"; }
-
-active_pad=$(sed -n '/^#custom-screenrecording\.active {/,/^}/p' "$WBSTYLE" |
-  grep -oE '^ *padding: *[^;]+' | sed 's/.*padding: *//')
-ordinary_pad=$(sed -n '/^#cpu,/,/^}/p' "$WBSTYLE" |
-  grep -oE '^ *padding: *[^;]+' | sed 's/.*padding: *//')
-
-check "both padding declarations were read" \
-  "$([[ -n $active_pad && -n $ordinary_pad ]] && echo both || echo missing)" "both"
-check "the vertical padding matches the other modules, so the row lines up" \
-  "$(pad_v "$active_pad")" "$(pad_v "$ordinary_pad")"
-check "and the horizontal padding is wider, because this one carries a word" \
-  "$(awk -v a="$(rem "$(pad_h "$active_pad")")" -v b="$(rem "$(pad_h "$ordinary_pad")")" \
-      'BEGIN { print (a > b) ? "wider" : "not wider" }')" "wider"
-check "and the shared rule really was read, so those two are not empty" \
-  "$([[ -n $(prop "$ordinary_block" background-color) ]] && echo read || echo empty)" "read"
-
-# The rounded corner comes from #workspaces, the other item that stands on its
-# own rather than inside a run of modules.
-standalone_block=$(sed -n '/^#workspaces {/,/^}/p' "$WBSTYLE")
-check "and the corner radius of the other standalone item" \
-  "$(prop "$active_block" border-radius)" "$(prop "$standalone_block" border-radius)"
-
-# None of the treatment that belongs to muslimtify.
-check "and none of the shadow or border that widget uses" \
-  "$(printf '%s' "$active_block" | grep -cE 'box-shadow|text-shadow|^ *border:')" "0"
-
-check "the idle state has no background" \
-  "$(printf '%s' "$idle_block" | grep -cE 'background-color|^    border: [0-9]')" "0"
-check "and no padding, so nothing shows when nothing is recording" \
-  "$(printf '%s' "$idle_block" | grep -c 'padding: 0')" "1"
-
-# Anti-vacuity: both blocks were actually found. A sed range that matched
-# nothing would satisfy every idle check above.
-check "both style blocks were read, so those checks are not empty" \
-  "$([[ -n $active_block && -n $idle_block ]] && echo both || echo missing)" "both"
+check "the bar has a recording indicator, shown only while recording" \
+  "$(grep -c 'visible: bar.recording' "$BAR")" "1"
+check "all three positions were read, so the order checks are not empty" \
+  "$([[ -n $rec_line && -n $workspaces_line && -n $prayer_line ]] && echo read || echo missing)" "read"
+check "it comes after the workspaces" \
+  "$(( rec_line > workspaces_line ))" "1"
+check "and before the prayer times" \
+  "$(( rec_line < prayer_line ))" "1"
+check "it says what it is rather than showing a bare glyph" \
+  "$(grep -c 'label: "REC"' "$BAR")" "1"
+check "and clicking it stops the recording" \
+  "$(grep -c 'screen-record.sh", "stop"' "$BAR")" "1"
 
 # --- the migration moves it in a config that already exists ------------------
 #

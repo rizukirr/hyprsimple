@@ -70,7 +70,7 @@ printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 # notify-send among them. theme-switcher.sh notifies on success and warns when
 # a theme names a cursor that is not installed, and an unstubbed one reaches the
 # desktop of whoever is running the tests.
-for tool in gsettings hyprctl systemctl pkill busctl hyprsimple-restart-waybar.sh notify-send; do
+for tool in gsettings hyprctl systemctl pkill busctl notify-send; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
 

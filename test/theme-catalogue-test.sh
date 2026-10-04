@@ -248,7 +248,7 @@ check "the webp pixbuf loader is installed for rofi" \
 # black: on a dark theme a near-black behind light text, on a light theme still
 # black while the text is dark. Measured before the fix, 37 of 40 themes had at
 # least one pair below 3:1 and every light theme did, catppuccin-latte at 1.3
-# on its waybar widgets, everforest-light at 1.0 on its selected rofi row.
+# on its bar widgets, everforest-light at 1.0 on its selected rofi row.
 #
 # Every theme is rendered through the real renderer and the generated files are
 # measured, rather than the rule being repeated here.
@@ -282,7 +282,7 @@ for name in sorted(os.listdir(themes)):
                    env=dict(os.environ, HYPRSIMPLE_PATH=repo, HOME=home))
     gen = os.path.join(work, "generated")
     files = {n: os.path.join(gen, n) for n in
-             ("waybar-colors.css", "rofi-colors.rasi", "theme-clock.jsonc")}
+             ("quickshell-colors.json", "rofi-colors.rasi")}
     text = {}
     for n, path in files.items():
         if not os.path.isfile(path):
@@ -294,20 +294,24 @@ for name in sorted(os.listdir(themes)):
     if len(text) < len(files):
         continue
 
-    bar = dict(re.findall(r'@define-color ([a-z-]+) (#[0-9a-fA-F]{6})', text["waybar-colors.css"]))
-    need = {"fg", "bg-widget", "bg-deep", "success", "warning", "danger", "info",
-            "secondary", "accent", "accent-dim", "muted"}
-    if not need <= set(bar):
-        bad.append(f"{name}: waybar colours missing {sorted(need - set(bar))}")
+    try:
+        bar = __import__("json").loads(text["quickshell-colors.json"])
+    except ValueError:
+        bad.append(f"{name}: quickshell-colors.json is not valid json")
         continue
-    # Everything waybar draws sits on the widget surface.
-    for key in ("fg", "success", "warning", "danger", "info", "secondary", "accent", "accent-dim"):
-        c = contrast(bar[key], bar["bg-widget"])
+    need = {"foreground", "surface", "background", "success", "warning", "danger", "info",
+            "secondary", "accent", "accent_dim", "muted"}
+    if not need <= set(bar):
+        bad.append(f"{name}: bar colours missing {sorted(need - set(bar))}")
+        continue
+    # Everything in a bar capsule sits on the widget surface.
+    for key in ("foreground", "success", "warning", "danger", "info", "secondary", "accent", "accent_dim"):
+        c = contrast(bar[key], bar["surface"])
         if c < 3.0:
-            bad.append(f"{name}: waybar {key} {c:.1f}")
+            bad.append(f"{name}: bar {key} {c:.1f}")
     # And the widget has to belong to the bar it sits on. Readability alone let
     # a pure black pill through on a pale theme.
-    near = contrast(bar["bg-deep"], bar["bg-widget"])
+    near = contrast(bar["background"], bar["surface"])
     if near > 3.0:
         bad.append(f"{name}: widget {near:.1f} away from the bar behind it")
 
@@ -325,11 +329,6 @@ for name in sorted(os.listdir(themes)):
     c = contrast(menu["muted"], menu["background"])
     if c < 2.3:
         bad.append(f"{name}: rofi placeholder {c:.1f}")
-
-    for colour in re.findall(r"color='(#[0-9a-fA-F]{6})'", text["theme-clock.jsonc"]):
-        c = contrast(colour, bar["bg-deep"])
-        if c < 3.0:
-            bad.append(f"{name}: clock {colour} {c:.1f}")
 print("; ".join(bad))
 PYEOF
 )
@@ -363,14 +362,14 @@ check "and the terminal palette is passed through untouched" "$untouched" ""
 
 # A colors.toml that does not define colour0, which a theme of your own may
 # well not. The surface is computed from three keys, and without a fallback the
-# substitution is empty and waybar is handed "@define-color bg-widget ;".
+# substitution is empty and the bar is handed "surface": "".
 partial="$TMP/partial"
 mkdir -p "$partial"
 printf 'foreground = "#eeeeee"\nbackground = "#202020"\n' >"$partial/colors.toml"
 HYPRSIMPLE_PATH="$REPO" HOME="$TMP/render-home" \
   "$BASH_BIN" "$REPO/.local/bin/theme-apply-templates.sh" "$partial" >/dev/null 2>&1
 check "a theme missing colour0 still renders a colour for the widgets" \
-  "$(grep -cE '^@define-color bg-widget #[0-9a-fA-F]{6};' "$partial/generated/waybar-colors.css")" "1"
+  "$(grep -cE '"surface": "#[0-9a-fA-F]{6}"' "$partial/generated/quickshell-colors.json")" "1"
 
 # ---- the migration -------------------------------------------------------------
 

@@ -60,7 +60,7 @@ run
 check "a second run exits 0 with the directory already gone" "$?" "0"
 
 new_home customised
-printf '/* mine */\n' >>"$TPL/waybar-colors.css.tpl"
+printf '/* mine */\n' >>"$TPL/rofi-colors.rasi.tpl"
 before=$(find "$TPL" -type f -exec md5sum {} + | sort | md5sum)
 run
 check "a customised template stops the removal" \
@@ -70,7 +70,7 @@ check "and nothing in the directory is touched" \
 check "and the user is told where to move it" \
   "$(grep -c 'templates.user' "$TMP/out")" "1"
 check "and the offending file is named" \
-  "$(grep -c 'waybar-colors.css.tpl' "$TMP/out")" "1"
+  "$(grep -c 'rofi-colors.rasi.tpl' "$TMP/out")" "1"
 
 new_home added
 printf '/* mine */\n' >"$TPL/my-own.tpl"

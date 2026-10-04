@@ -133,7 +133,7 @@ check "and back on" "$(flag)" "on"
 # --- autostart calls apply, not on ------------------------------------------
 
 # Only whole-line comments. In lua, "--" is also two ordinary characters, and
-# `uwsm app -- waybar` is a real command in this very file: cutting at the
+# `uwsm app -- qs -p` is a real command in this very file: cutting at the
 # first "--" anywhere deleted half the code it was meant to preserve.
 code_of() { sed 's/^[[:space:]]*--.*//' "$1"; }
 check "autostart runs apply" \
@@ -143,7 +143,7 @@ check "and no longer forces it on" \
 # Naming a command that must survive, rather than a line count: a count is
 # either brittle or, if read from the file itself, a comparison with itself.
 check "stripping comments leaves the file's code intact" \
-  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- waybar')" "1"
+  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- qs -p')" "1"
 
 # --- a reload that failed is not announced as a change on screen -------------
 #

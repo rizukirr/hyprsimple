@@ -11,7 +11,8 @@ hyprsunset
 xdg-desktop-portal-hyprland
 
 # UI/Menu/Status
-waybar
+quickshell
+ttf-material-symbols-variable
 dunst
 rofi
 # rofi paints the launcher and power menu background through gdk-pixbuf, which

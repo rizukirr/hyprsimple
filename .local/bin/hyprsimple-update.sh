@@ -404,11 +404,10 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
         deliver_theme_configs "${gen%/*}"
 
         # And restarted, or the freshly written colours sit on disk unread.
-        # waybar reads its stylesheet at startup and dunst its drop-ins at
-        # load, so delivering without this is the same invisibility in a new
-        # place. Both are no-ops when the program is not running. ghostty is
-        # reloaded inside the delivery itself, over its own dbus interface.
-        "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running || true
+        # dunst reads its drop-ins at load, so delivering without this is the
+        # same invisibility in a new place. A no-op when it is not running.
+        # ghostty is reloaded inside the delivery itself, over its own dbus
+        # interface, and the bar watches its colour file and needs nothing.
         "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running || true
       else
         # Said rather than skipped quietly. Rendered output that never reaches

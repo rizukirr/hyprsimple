@@ -128,9 +128,9 @@ stop_screenrecording() {
   # Waited for, not slept past.
   #
   # This was `sleep 0.2`, and the indicator is driven by a signal with no
-  # interval behind it: waybar re-runs the module when RTMIN+8 arrives and at
-  # no other time. So the module sampled pgrep once, 0.2 seconds after the
-  # TERM, and whatever it saw then stood until the next recording started.
+  # interval behind it: the bar shows whatever it was last told and asks at no
+  # other time. So the state was sampled once, 0.2 seconds after the TERM, and
+  # whatever it was then stood until the next recording started.
   #
   # A recorder does not always exit inside that window. Both are asked to
   # finalise an mp4 written with +faststart, which rewrites the file to move
@@ -150,8 +150,13 @@ stop_screenrecording() {
   toggle_screenrecording_indicator
 }
 
+# Tells the bar whether a recording is running. The bar does not poll for it,
+# so what it shows is whatever this last said.
 toggle_screenrecording_indicator() {
-  pkill -RTMIN+8 waybar
+  local state=false
+  screenrecording_active && state=true
+  qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" \
+    ipc call bar setRecording "$state" >/dev/null 2>&1
 }
 
 # The box of every window on screen, one per line, in slurp's "x,y wxh" form.
@@ -176,7 +181,7 @@ screenrecording_active() {
 }
 
 if [[ "$SCOPE" == "stop" ]]; then
-  # Stop-only. The waybar indicator clicks this, and without it a click while
+  # Stop-only. The bar's recording indicator clicks this, and without it a click while
   # nothing is recording would fall through to the region branch and pop up a
   # selector.
   screenrecording_active && stop_screenrecording
