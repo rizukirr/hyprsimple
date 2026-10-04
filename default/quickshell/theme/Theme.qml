@@ -120,6 +120,11 @@ Singleton {
     readonly property int pickerCardHeight: 158
     readonly property int swatchSize: 10
     readonly property int pickerPageStep: 3
+    // The screenshot and record panels: their width, the width of a row's label,
+    // and how long after the panel has gone the capture starts.
+    readonly property int captureWidth: 460
+    readonly property int captureLabelWidth: 56
+    readonly property int captureDelay: 120
     // The clipboard panel: its width, how tall its list may get, and the height a
     // copied picture is shown at.
     readonly property int clipboardWidth: 520

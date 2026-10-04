@@ -145,7 +145,7 @@ check "and before the prayer times" \
 check "it says what it is rather than showing a bare glyph" \
   "$(grep -c 'label: "REC"' "$BAR")" "1"
 check "and clicking it stops the recording" \
-  "$(grep -c 'screen-record.sh", "stop"' "$BAR")" "1"
+  "$(grep -c 'onClicked: Quickshell.execDetached(\[Quickshell.env("HOME") + "/.local/bin/screen-record.sh", "stop"\])' "$BAR")" "1"
 
 # --- the migration moves it in a config that already exists ------------------
 #

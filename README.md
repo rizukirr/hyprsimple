@@ -259,7 +259,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `Print` | Open the screenshot menu |
+| `Print` | Open the screenshot menu, a panel of the bar |
 
 The menu offers a region, a window or the whole screen, each saved to `~/Pictures/Screenshots` or copied to the clipboard.
 
@@ -267,7 +267,7 @@ The menu offers a region, a window or the whole screen, each saved to `~/Picture
 
 | Key | Action |
 |-----|--------|
-| `SUPER + R` | Open the recording menu, or stop a recording that is running |
+| `SUPER + R` | Open the recording menu, a panel of the bar, which starts a recording or stops the one that is running |
 
 The menu offers a region, a window or the whole screen, each with microphone
 audio, system audio, or none. A window is recorded as the area it covered when
@@ -345,9 +345,9 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `screenshot.sh` | Take a screenshot (`region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard`) |
-| `hyprsimple-screenshot-menu.sh` | The rofi menu behind `Print`, which picks what to capture and whether to save or copy it |
+| `hyprsimple-screenshot-menu.sh` | Opens the bar's screenshot panel, behind `Print`, which picks what to capture and whether to save or copy it |
 | `screen-record.sh` | Start/stop screen recording (region, window or output; mic, internal, or no audio) |
-| `hyprsimple-record-menu.sh` | The rofi menu behind `SUPER + R`, which picks what to record and starts or stops it |
+| `hyprsimple-record-menu.sh` | Opens the bar's record panel, behind `SUPER + R`, which picks what to record and starts or stops it |
 | `screen-record-active.sh` | Report whether a screen recording is currently running |
 
 ### Network
