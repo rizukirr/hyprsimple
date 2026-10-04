@@ -12,6 +12,8 @@ StatusButton {
     // Icon names from quiet to loud, and the one for muted.
     required property var levels
     required property string mutedIcon
+    // What the tooltip calls it: "Volume" or "Microphone".
+    required property string name
 
     readonly property bool muted: node?.audio?.muted ?? true
     readonly property real volume: node?.audio?.volume ?? 0
@@ -21,6 +23,7 @@ StatusButton {
     visible: node !== null
     icon: muted ? mutedIcon : levels[Math.min(levels.length - 1, Math.floor(volume * levels.length))]
     dim: muted
+    tooltip: muted ? `${name} muted` : `${name} ${Math.round(volume * 100)}%`
 
     // A node's volume is only readable and writable while it is tracked.
     PwObjectTracker {

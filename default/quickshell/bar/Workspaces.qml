@@ -24,7 +24,7 @@ Rectangle {
 
     implicitWidth: ids.length * Theme.workspaceCell + 2 * Theme.xs
     implicitHeight: Theme.capsule
-    radius: height / 2
+    radius: Theme.capsuleRadius
     color: Theme.surface
     Behavior on color { CAnim {} }
     Behavior on implicitWidth { Anim {} }
@@ -58,7 +58,7 @@ Rectangle {
         width: end - start
         height: parent.height - 2 * Theme.xs
         anchors.verticalCenter: parent.verticalCenter
-        radius: height / 2
+        radius: Theme.capsuleInnerRadius
         color: Theme.accent
         Behavior on start { Spring { duration: indicator.forward ? Theme.springAnim * 1.5 : Theme.springAnim } }
         Behavior on end { Spring { duration: indicator.forward ? Theme.springAnim : Theme.springAnim * 1.5 } }
@@ -96,10 +96,17 @@ Rectangle {
 
                 // Same height as the accent pill.
                 StateLayer {
+                    id: layer
                     anchors.topMargin: Theme.xs
                     anchors.bottomMargin: Theme.xs
-                    radius: height / 2
+                    radius: Theme.capsuleInnerRadius
                     onClicked: root.switchTo(cell.modelData)
+                }
+
+                Tooltip {
+                    target: cell
+                    text: `Workspace ${cell.modelData}`
+                    hovered: layer.containsMouse
                 }
             }
         }

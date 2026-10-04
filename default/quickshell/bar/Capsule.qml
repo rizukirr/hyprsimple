@@ -8,7 +8,7 @@ Rectangle {
 
     implicitWidth: row.width + 2 * Theme.xs
     implicitHeight: Theme.capsule
-    radius: height / 2
+    radius: Theme.capsuleRadius
     color: Theme.surface
     Behavior on color { CAnim {} }
 

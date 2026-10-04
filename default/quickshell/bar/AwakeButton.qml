@@ -13,6 +13,7 @@ StatusButton {
     icon: Theme.icon.awake
     highlighted: awake
     dim: !awake
+    tooltip: awake ? "Staying awake. Click to lock when idle again" : "Locks when idle. Click to stay awake"
     onClicked: toggle.running = true
 
     Process {

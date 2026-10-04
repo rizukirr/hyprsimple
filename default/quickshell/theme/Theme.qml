@@ -81,8 +81,15 @@ Singleton {
     readonly property int iconSize: 16
 
     readonly property int barHeight: 36
-    // Height of the capsule groups on the bar.
+    // Height of the capsule groups on the bar, their corner radius, and the radius of
+    // the hover and indicator shapes that sit inside them.
     readonly property int capsule: 28
+    readonly property int capsuleRadius: 8
+    readonly property int capsuleInnerRadius: 5
+    // How long the pointer rests on a bar item before its tooltip shows, and the
+    // tooltip's distance below the item.
+    readonly property int tooltipDelay: 500
+    readonly property int tooltipGap: 10
     readonly property int barInset: 6
     // Panel distance from the bar and the screen edges: half of Hyprland gaps_out.
     readonly property int gap: 5

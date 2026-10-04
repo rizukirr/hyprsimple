@@ -54,6 +54,7 @@ PanelWindow {
                 icon: Theme.icon.recording
                 label: "REC"
                 alert: true
+                tooltip: "Recording. Click to stop"
                 onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/screen-record.sh", "stop"])
             }
         }
@@ -88,6 +89,7 @@ PanelWindow {
                 id: systemButton
                 icon: Theme.icon.ram
                 label: `${Math.round(stats.memory * 100)}%`
+                tooltip: `CPU ${Math.round(stats.cpu * 100)}%, memory ${stats.memoryUsedGiB.toFixed(1)} of ${stats.memoryTotalGiB.toFixed(1)} GiB`
                 active: bar.openPanel === "system"
                 onClicked: bar.toggle("system")
             }
@@ -99,6 +101,7 @@ PanelWindow {
                 node: Pipewire.defaultAudioSource
                 levels: Theme.icon.mic
                 mutedIcon: Theme.icon.micMuted
+                name: "Microphone"
                 active: bar.openPanel === "mic"
                 onClicked: bar.toggle("mic")
             }
@@ -108,6 +111,7 @@ PanelWindow {
                 node: Pipewire.defaultAudioSink
                 levels: Theme.icon.volume
                 mutedIcon: Theme.icon.volumeMuted
+                name: "Volume"
                 active: bar.openPanel === "volume"
                 onClicked: bar.toggle("volume")
             }
@@ -135,6 +139,7 @@ PanelWindow {
             StatusButton {
                 id: powerButton
                 icon: Theme.icon.power
+                tooltip: "Power menu"
                 active: bar.openPanel === "power"
                 onClicked: bar.toggle("power")
             }

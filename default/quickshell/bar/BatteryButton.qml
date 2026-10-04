@@ -13,4 +13,5 @@ StatusButton {
     icon: charging ? Theme.icon.batteryCharging
         : Theme.icon.battery[Math.min(Theme.icon.battery.length - 1, Math.floor(level * Theme.icon.battery.length))]
     label: `${Math.round(level * 100)}%`
+    tooltip: `Battery ${Math.round(level * 100)}%${charging ? ", charging" : ""}`
 }

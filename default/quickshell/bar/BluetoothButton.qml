@@ -16,4 +16,8 @@ StatusButton {
         : Theme.icon.bt
     label: device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : ""
     dim: !device
+    tooltip: !adapter?.enabled ? "Bluetooth off"
+        : !device ? "Bluetooth on, nothing connected"
+        : device.batteryAvailable ? `${device.name}, battery ${Math.round(device.battery * 100)}%`
+        : device.name
 }
