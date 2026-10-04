@@ -283,6 +283,9 @@ jobs:
       - name: wallpaper-ipc-test
         run: bash test/wallpaper-ipc-test.sh
 
+      - name: rosepine-wallpaper-test
+        run: bash test/rosepine-wallpaper-test.sh
+
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh
 

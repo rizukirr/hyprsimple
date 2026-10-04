@@ -481,6 +481,22 @@ if [[ -n $PREV_COMMIT ]] &&
   [[ -n $(git -C "$HYPRSIMPLE_PATH" diff --name-only "$PREV_COMMIT" HEAD -- default/quickshell 2>/dev/null) ]]; then
   echo -e "\n${YELLOW}The bar changed, restarting it...${NC}"
   "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running || true
+
+  # The bar is also what shows notifications, and the restart above returns
+  # before the new bar is up. A notification sent in that gap has nowhere to
+  # go, and the first one is sent the moment this script ends: a shell that
+  # announces a long command finishing printed
+  #
+  #   Failed to show notification: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name is not activatable
+  #
+  # under "hyprsimple is up to date". So this waits, a few seconds at most, for
+  # the new bar to be there to take one. Only when a bar is running at all.
+  if pgrep -f -- "qs -p $HYPRSIMPLE_PATH/default/quickshell" >/dev/null; then
+    for _ in {1..50}; do
+      busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 && break
+      sleep 0.1
+    done
+  fi
 fi
 
 # ---- Reload --------------------------------------------------------------
