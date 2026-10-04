@@ -324,6 +324,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 |--------|-------------|
 | `hyprsimple-audio-autoswitch.sh` | Move the sound to a bluetooth device when one connects, run as a user service |
 | `wifi.sh` | List and connect to WiFi networks, asking for the password when one is needed |
+| `hyprsimple-network-setup.sh` | Make NetworkManager run the network, which the bar's network panel needs. A machine on iwd is moved over with its saved networks, and moved back if the network does not return. One already on NetworkManager is left alone |
 | `wifi-powersave.sh` | Toggle WiFi power saving (`on` / `off`) |
 | `hotspot.sh` | Create a WiFi hotspot with internet sharing |
 | `setup-dns.sh` | Configure the DNS provider (Cloudflare / Google / DHCP) |

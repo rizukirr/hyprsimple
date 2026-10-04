@@ -25,6 +25,9 @@ slurp
 wf-recorder
 
 # System utilities
+# What runs the network. The bar's network panel talks to it, and a machine
+# that runs iwd by itself is moved over, see hyprsimple-network-setup.sh.
+networkmanager
 cliphist
 wl-clipboard
 playerctl
