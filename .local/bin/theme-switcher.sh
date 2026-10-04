@@ -65,11 +65,14 @@ if [[ -n "$WALLPAPER" ]]; then
   echo "$WALLPAPER" > "$CACHE_DIR/current_wallpaper_path"
 fi
 
-# Write hyprpaper.conf based on live wallpaper state
+# Write hyprpaper.conf based on live wallpaper state. SHOW is what is on screen
+# once this theme is applied: the folder when cycling, otherwise the image.
 if [[ -f "$CACHE_DIR/live_wallpaper_enabled" && -d "$THEME_PATH/backgrounds" ]]; then
   write_hyprpaper_conf "$THEME_PATH/backgrounds" 30
+  SHOW="$THEME_PATH/backgrounds"
 else
   write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
+  SHOW="$WALLPAPER"
 fi
 
 # Lockscreen. The cache filename keeps its .png suffix because hyprlock.conf
@@ -226,7 +229,8 @@ fi
 if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
   hyprctl reload
 
-  systemctl --user restart hyprpaper.service
+  # A theme with no wallpaper leaves the one on screen where it is.
+  [[ -n $SHOW ]] && show_wallpaper "$SHOW"
 
   notify-send "Theme Manager" "Theme '$THEME' applied!" -i "$CACHE_DIR/current_wallpaper"
 fi
