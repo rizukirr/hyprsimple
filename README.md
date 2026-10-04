@@ -267,7 +267,7 @@ The screen freezes while you pick, and Escape takes nothing. The picture is save
 
 | Key | Action |
 |-----|--------|
-| `SUPER + R` | Open the recording menu, a panel of the bar, which starts a recording or stops the one that is running |
+| `SUPER + R` | Open the recording menu, a panel of the bar, which starts a recording or stops the one that is running. Recording a window asks which one, from a list |
 
 The menu offers a region, a window or the whole screen, each with microphone
 audio, system audio, or none. A window is recorded as the area it covered when
