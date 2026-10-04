@@ -123,6 +123,24 @@ check "--toggle starts a stopped bar" "$(started)" "1"
 check "the bar is never killed by process name" \
   "$(sed 's/#.*//' "$RESTART" | grep -cE 'pkill +(-x +)?qs( |$)|killall')" "0"
 
+# ---- the update restarts a bar whose files it changed -----------------------
+#
+# Quickshell reloads a running config as its files change, and a pull changes
+# them one at a time. A reload partway through read a file that used a type
+# whose own file had not arrived yet, failed, and was never retried. Checked in
+# the code here. The behaviour was confirmed by running the real update against
+# a throwaway install, which this suite does not rebuild.
+UPDATER="$BIN/hyprsimple-update.sh"
+updater_code="$(sed 's/^[[:space:]]*#.*//' "$UPDATER")"
+check "the update restarts the bar when it is running" \
+  "$(grep -c 'hyprsimple-restart-bar.sh" --if-running' <<<"$updater_code")" "1"
+check "only when the pull touched the bar" \
+  "$(grep -c 'diff --name-only "\$PREV_COMMIT" HEAD -- default/quickshell' <<<"$updater_code")" "1"
+restart_line=$(grep -n 'hyprsimple-restart-bar.sh" --if-running' "$UPDATER" | cut -d: -f1)
+migrate_line=$(grep -n 'hyprsimple-migrate.sh"$' "$UPDATER" | cut -d: -f1)
+check "and after the migrations, so a bar a migration started is not restarted twice in a row for nothing" \
+  "$(( restart_line > migrate_line ))" "1"
+
 # ---- the migration ----------------------------------------------------------
 
 run_migration() {

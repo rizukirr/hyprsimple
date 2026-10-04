@@ -471,6 +471,28 @@ if [[ -n $PREV_COMMIT ]] && [[ $PREV_COMMIT != "$(git -C "$HYPRSIMPLE_PATH" rev-
   fi
 fi
 
+# ---- The bar, when its files changed ---------------------------------------
+#
+# Quickshell reloads a running config when one of its files changes, and a pull
+# does not change them all at once. The reload fired partway through the pull
+# that added bar/Tooltip.qml, read a Workspaces.qml that already used the type
+# and a directory that did not hold it yet, and failed:
+#
+#   Failed to load configuration
+#     caused by @bar/Workspaces.qml[106:17]: Tooltip is not a type
+#
+# Nothing triggers another reload once the pull is finished, because the file
+# that was missing is new and so was never watched. The bar stayed on the old
+# config under an error popup until it was restarted by hand.
+#
+# Restarted here, after the pull is complete, and only when this pull touched
+# the bar, so an ordinary update leaves a running bar alone.
+if [[ -n $PREV_COMMIT ]] &&
+  [[ -n $(git -C "$HYPRSIMPLE_PATH" diff --name-only "$PREV_COMMIT" HEAD -- default/quickshell 2>/dev/null) ]]; then
+  echo -e "\n${YELLOW}The bar changed, restarting it...${NC}"
+  "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running || true
+fi
+
 # ---- Reload --------------------------------------------------------------
 
 if pgrep -x Hyprland >/dev/null; then
