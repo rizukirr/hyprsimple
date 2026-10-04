@@ -213,7 +213,9 @@ PanelWindow {
             { name: "Area", options: [{ value: "region", label: "Region" }, { value: "window", label: "Window" }, { value: "output", label: "Screen" }] },
             { name: "Audio", options: [{ value: "mic", label: "Microphone" }, { value: "internal", label: "System" }, { value: "none", label: "None" }] }
         ]
-        commandFor: values => [Quickshell.env("HOME") + "/.local/bin/screen-record.sh", ...values]
+        windowValue: "window"
+        // The window's place, when one was chosen, goes last. Without it the recorder asks on screen.
+        commandFor: (values, geometry) => [Quickshell.env("HOME") + "/.local/bin/screen-record.sh", ...values, ...(geometry !== "" ? [geometry] : [])]
     }
 
     PrayerPanel {

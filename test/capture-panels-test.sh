@@ -129,8 +129,14 @@ values_of() { panel_block "$1" | grep -o 'value: "[a-z]*"' | sed 's/value: "\(.*
 check "the record panel offers these areas and audio sources" \
   "$(values_of record)" "region window output mic internal none "
 
-check "and passes its two values as they are" \
-  "$(panel_block record | grep -c '"/.local/bin/screen-record.sh", ...values\]')" "1"
+check "and passes its two values as they are, then the chosen window's box when there is one" \
+  "$(panel_block record | grep -c '"/.local/bin/screen-record.sh", ...values, ...(geometry !== "" ? \[geometry\] : \[\])\]')" "1"
+# Choosing Window leads to the page that lists the windows, and the value that
+# triggers it has to be the one the Area row really offers.
+check "the record panel asks which window when the area is window" \
+  "$(panel_block record | grep -c 'windowValue: "window"')" "1"
+check "and lists only windows on screen, the rule screen-record.sh checks the box against" \
+  "$(grep -c 'c.mapped && !c.hidden && c.workspace.id !== 0 && shown.includes(c.workspace.id)' "$PANEL_QML")" "1"
 
 run_shooter() {
   : >"$LOG"; : >"$NLOG"
