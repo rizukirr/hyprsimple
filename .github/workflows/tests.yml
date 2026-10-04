@@ -277,6 +277,9 @@ jobs:
       - name: notifications-test
         run: bash test/notifications-test.sh
 
+      - name: network-setup-test
+        run: bash test/network-setup-test.sh
+
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh
 

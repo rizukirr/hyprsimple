@@ -1153,6 +1153,17 @@ echo "Edit files in ~/.config/ directly to customise; updates will not overwrite
 echo ""
 echo "Log saved to $INSTALL_LOG"
 echo ""
+
+# Last, after everything that needs the network. The bar's network panel talks
+# to NetworkManager, and a machine that came with iwd by itself is moved over
+# here: its saved networks are copied, and the move is undone if the network
+# does not come back. A machine already on NetworkManager is left as it is.
+# Its exit status is not this script's: a network left as it was is not a
+# failed install.
+echo -e "${YELLOW}Setting up the network...${NC}"
+"$HOME/.local/bin/hyprsimple-network-setup.sh" || true
+echo ""
+
 echo "Next steps:"
 echo "1. Log out and log back in to Hyprland"
 echo "2. Customize ~/.config/hypr/monitors.lua for your setup"
