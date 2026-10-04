@@ -130,6 +130,9 @@ Singleton {
     readonly property int spin: 900
     // Things that travel overshoot slightly: the workspace indicator, and panels growing out of the bar.
     readonly property int springAnim: 400
+    // Closing is quicker than opening and does not overshoot. Whatever was under
+    // a panel should be usable again as soon as possible.
+    readonly property int closeAnim: 160
     readonly property var springCurve: [0.38, 1.21, 0.22, 1, 1, 1]
     // Corner radius of a panel, and of the flares that join it to the bar.
     readonly property int panelRadius: 20

@@ -17,9 +17,16 @@ PanelWindow {
     readonly property string name: "launcher"
     readonly property bool open: bar.openPanel === name
 
-    // 0 closed, 1 open. Overshoots slightly on the way in.
+    // 0 closed, 1 open. Overshoots slightly on the way in, and leaves quickly.
     property real progress: open ? 1 : 0
-    Behavior on progress { Spring { id: grow } }
+    Behavior on progress {
+        NumberAnimation {
+            id: grow
+            duration: panel.open ? Theme.springAnim : Theme.closeAnim
+            easing.type: panel.open ? Easing.BezierSpline : Easing.InCubic
+            easing.bezierCurve: Theme.springCurve
+        }
+    }
 
     // Exclusive focus takes the keyboard at once, but while it is held Hyprland sends every
     // pointer event to this window, the bar included. So it is held briefly, then relaxed.
@@ -96,11 +103,15 @@ PanelWindow {
     margins.top: Theme.barHeight
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
+    // No input while closing, so what is underneath can be clicked at once.
+    mask: open ? null : noInput
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-panel"
     WlrLayershell.keyboardFocus: !open ? WlrKeyboardFocus.None
         : focusPrimed ? WlrKeyboardFocus.OnDemand
         : WlrKeyboardFocus.Exclusive
+
+    Region { id: noInput }
 
     MouseArea {
         anchors.fill: parent
@@ -109,18 +120,26 @@ PanelWindow {
         onClicked: panel.dismiss()
     }
 
+    // The sidebar is laid out once at its full size and slid in from beyond the left
+    // edge. Moving it costs nothing per frame, where changing its width made the
+    // outline and the whole list be laid out again on every frame.
     Item {
         id: card
 
         readonly property real flare: Theme.panelRadius
+        // The outline starts this far left of the sidebar, so the overshoot on the
+        // way in does not open a gap at the screen edge.
+        readonly property real bleed: 2 * Theme.lg
 
-        width: Math.max(0, Theme.sidebarWidth * panel.progress)
+        x: (panel.progress - 1) * (width + flare)
+        width: Theme.sidebarWidth
         height: parent.height
 
         // Outline: the sidebar itself, with a flare at the top joining it to the bar
         // and one at the bottom joining it to the screen edge.
         Shape {
-            width: card.width + card.flare
+            x: -card.bleed
+            width: card.bleed + card.width + card.flare
             height: card.height
             preferredRendererType: Shape.CurveRenderer
 
@@ -132,17 +151,17 @@ PanelWindow {
 
                 startX: 0
                 startY: 0
-                PathLine { x: card.width + card.flare; y: 0 }
+                PathLine { x: card.bleed + card.width + card.flare; y: 0 }
                 PathArc {
-                    x: card.width
+                    x: card.bleed + card.width
                     y: card.flare
                     radiusX: card.flare
                     radiusY: card.flare
                     direction: PathArc.Counterclockwise
                 }
-                PathLine { x: card.width; y: card.height - card.flare }
+                PathLine { x: card.bleed + card.width; y: card.height - card.flare }
                 PathArc {
-                    x: card.width + card.flare
+                    x: card.bleed + card.width + card.flare
                     y: card.height
                     radiusX: card.flare
                     radiusY: card.flare
@@ -158,10 +177,8 @@ PanelWindow {
             acceptedButtons: Qt.AllButtons
         }
 
-        // The content keeps its full width and is revealed as the sidebar grows.
         Item {
             anchors.fill: parent
-            clip: true
 
             ColumnLayout {
                 x: Theme.lg
@@ -235,6 +252,8 @@ PanelWindow {
                                 Layout.preferredHeight: Theme.appIconSize
                                 sourceSize: Qt.size(2 * Theme.appIconSize, 2 * Theme.appIconSize)
                                 fillMode: Image.PreserveAspectFit
+                                // Off the main thread, so opening does not wait for the icons.
+                                asynchronous: true
                                 source: Quickshell.iconPath(row.modelData.icon, "application-x-executable")
                             }
 

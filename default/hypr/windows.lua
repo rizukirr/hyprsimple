@@ -235,6 +235,14 @@ hl.window_rule({ match = { class = "org.telegram.desktop" }, focus_on_activate =
 hl.layer_rule({ match = { namespace = "selection" }, no_anim = true })
 
 -- =====================================================================
+-- the bar's panels and launcher — layer rule
+-- =====================================================================
+-- They animate themselves. Hyprland's own layer animation on top of that
+-- played a second fade as each one opened and closed, which made closing the
+-- launcher look as if it happened twice.
+hl.layer_rule({ match = { namespace = "quickshell-panel" }, no_anim = true })
+
+-- =====================================================================
 -- Apply default opacity after apps have had a chance to opt out
 -- (was the trailing line in windows.conf)
 -- =====================================================================

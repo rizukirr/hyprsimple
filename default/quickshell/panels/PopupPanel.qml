@@ -18,9 +18,16 @@ PanelWindow {
     readonly property bool open: bar.openPanel === name
     default property alias content: box.data
 
-    // 0 closed, 1 open. Overshoots slightly on the way in.
+    // 0 closed, 1 open. Overshoots slightly on the way in, and leaves quickly.
     property real progress: open ? 1 : 0
-    Behavior on progress { Spring { id: grow } }
+    Behavior on progress {
+        NumberAnimation {
+            id: grow
+            duration: panel.open ? Theme.springAnim : Theme.closeAnim
+            easing.type: panel.open ? Easing.BezierSpline : Easing.InCubic
+            easing.bezierCurve: Theme.springCurve
+        }
+    }
 
     // Exclusive focus takes the keyboard at once, but while it is held Hyprland sends every
     // pointer event to this window, the bar included. So it is held briefly, then relaxed.
@@ -68,11 +75,15 @@ PanelWindow {
     margins.top: Theme.barHeight
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
+    // No input while closing, so what is underneath can be clicked at once.
+    mask: open ? null : noInput
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-panel"
     WlrLayershell.keyboardFocus: !open ? WlrKeyboardFocus.None
         : focusPrimed ? WlrKeyboardFocus.OnDemand
         : WlrKeyboardFocus.Exclusive
+
+    Region { id: noInput }
 
     // vibekit: covers this screen only, add a click catcher per extra monitor if a second one is attached
     MouseArea {

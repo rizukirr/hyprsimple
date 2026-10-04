@@ -47,6 +47,13 @@ check "it starts apps through uwsm, by desktop id" \
 check "and the name the keybinding opens is the one the panel answers to" \
   "$(grep -c 'readonly property string name: "launcher"' "$LAUNCHER")" "1"
 
+# The panels and the launcher animate themselves. Hyprland's own layer
+# animation on top of that played a second fade on open and close.
+PANEL_NAMESPACE="$(grep -ho 'WlrLayershell.namespace: "[^"]*"' "$BAR_DIR/panels/PopupPanel.qml" "$LAUNCHER" | sort -u | sed 's/.*"\(.*\)"/\1/')"
+check "the panels and the launcher share one layer namespace" "$PANEL_NAMESPACE" "quickshell-panel"
+check "and Hyprland is told not to animate it" \
+  "$(sed 's/^[[:space:]]*--.*//' "$REPO/default/hypr/windows.lua" | grep -c "namespace = \"$PANEL_NAMESPACE\" }, no_anim = true")" "1"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which
