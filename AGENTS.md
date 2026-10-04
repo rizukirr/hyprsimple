@@ -44,7 +44,7 @@ An install is a git checkout at `~/.local/share/hyprsimple`. `hyprsimple-update`
 
 | What you changed | How it arrives on update | Needs a migration |
 |---|---|---|
-| `default/hypr/`, `default/rofi/`, `default/dunst/10-hyprsimple.conf` | Read in place through three symlinks, which the `ensure_link` calls re-make on every run, so the pull delivers it. Hyprland applies it at the closing `hyprctl reload` and rofi on its next launch. Nothing restarts dunst here, so its drop-in waits for the next dunst start. | No |
+| `default/hypr/`, `default/dunst/10-hyprsimple.conf` | Read in place through two symlinks, which the `ensure_link` calls re-make on every run, so the pull delivers it. Hyprland applies it at the closing `hyprctl reload`. Nothing restarts dunst here, so its drop-in waits for the next dunst start. | No |
 | Scripts in `.local/bin/` | Copied over `~/.local/bin` on every run, whenever they differ. | No |
 | `packages.txt`, `aur-packages.txt` | Every listed package that is not installed gets installed. | No to add one, yes to remove one |
 | `.config/hypr/themes/templates/` | When the templates' checksum changes, every theme is re-rendered and the active one is delivered and reloaded. | No |

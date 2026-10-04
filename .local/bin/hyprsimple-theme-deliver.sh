@@ -28,11 +28,6 @@ deliver_theme_configs() {
     ln -sf "$THEME_PATH/hypr/colors.lua" "$HOME/.config/hypr/theme-active.lua"
   fi
 
-  # 4. Update Rofi colors
-  if [[ -f "$GEN/rofi-colors.rasi" ]]; then
-    ln -sf "$GEN/rofi-colors.rasi" "$HOME/.config/rofi/rofi-colors.rasi"
-  fi
-
   # 5. Update Ghostty theme
   local GHOSTTY_CONFIG="$HOME/.config/ghostty/config"
   if [[ -f "$GHOSTTY_CONFIG" ]]; then

@@ -1,6 +1,6 @@
 # Making your own theme
 
-A theme in hyprsimple is one directory of colours. You write sixteen palette entries and a few named colours into `colors.toml`, and a theme switch renders them into the bar, rofi, dunst, hyprlock, ghostty, btop and Hyprland's own borders, then reloads each of those programs.
+A theme in hyprsimple is one directory of colours. You write sixteen palette entries and a few named colours into `colors.toml`, and a theme switch renders them into the bar, dunst, hyprlock, ghostty, btop and Hyprland's own borders, then reloads each of those programs.
 
 Everything here happens in `~/.config/hypr/themes/`, which is yours. hyprsimple copies it once at install and never overwrites it, so a theme you add stays through every update.
 
@@ -80,7 +80,6 @@ Rendering writes into `<theme>/generated/`, and a switch puts each file where it
 
 | Generated file | Where it goes |
 | --- | --- |
-| `rofi-colors.rasi` | symlinked to `~/.config/rofi/rofi-colors.rasi` |
 | `dunst-colors` | copied to `~/.config/dunst/dunstrc.d/90-theme.conf` |
 | `hyprland-colors.lua` | symlinked to `~/.config/hypr/theme-active.lua`, the window borders |
 | `hyprlock.conf` | copied to `~/.config/hypr/theme-hyprlock.conf` |
@@ -121,6 +120,6 @@ Themes live in `.config/hypr/themes/` in the repository, with the same layout as
 
 Wallpapers have to pass the image policy, which CI checks on every pull request that touches themes. Run `bin/hyprsimple-dev-optimize-images` and it will fix what it can.
 
-`test/theme-catalogue-test.sh` checks the catalogue: a `colors.toml` with the keys the templates need, swatches distinct enough to tell themes apart in the picker, an icon theme hyprsimple installs, at least one wallpaper of its own that is not an absolute symlink, `light.mode` matching what the background luminance says, and enough contrast in the bar and rofi between the text and what it sits on. Run it before pushing and it names whichever of those a new theme is missing.
+`test/theme-catalogue-test.sh` checks the catalogue: a `colors.toml` with the keys the templates need, swatches distinct enough to tell themes apart in the picker, an icon theme hyprsimple installs, at least one wallpaper of its own that is not an absolute symlink, `light.mode` matching what the background luminance says, and enough contrast in the bar and its panels between the text and what it sits on. Run it before pushing and it names whichever of those a new theme is missing.
 
 If the scheme is a well known one, taking the palette from that project's own ghostty theme in `/usr/share/ghostty/themes/` gives you the colours its authors publish rather than an approximation.

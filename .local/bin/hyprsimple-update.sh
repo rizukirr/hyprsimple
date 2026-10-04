@@ -251,18 +251,16 @@ for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*
   fi
 done
 
-# ---- The three links install-owned defaults arrive through ----------------
+# ---- The two links install-owned defaults arrive through ------------------
 #
-# hyprlock, hypridle and xdph read ~/.config/hypr/hyprsimple; the rofi stubs
-# import ~/.config/rofi/hyprsimple; dunst reads the drop-in symlinked into
-# dunstrc.d. install.sh makes all three and nothing ever re-made them, so a
-# link deleted, or left pointing at an old HYPRSIMPLE_PATH, stayed broken
-# through every update.
+# hyprlock, hypridle and xdph read ~/.config/hypr/hyprsimple, and dunst reads
+# the drop-in symlinked into dunstrc.d. install.sh makes both and nothing ever
+# re-made them, so a link deleted, or left pointing at an old HYPRSIMPLE_PATH,
+# stayed broken through every update.
 #
 # It stays broken quietly. hyprlang ignores a `source =` naming a file that is
-# not there, and rofi ignores a missing @import, both without a word: measured
-# with hyprsunset and `rofi -dump-theme`, each exits 0 and says nothing. So a
-# missing hypr link leaves hypridle.conf with no listeners at all, which means
+# not there, without a word: measured with hyprsunset, it exits 0 and says
+# nothing. So a missing hypr link leaves hypridle.conf with no listeners at all, which means
 # the screen stops dimming, locking and suspending on idle, and nothing
 # anywhere says why.
 #
@@ -289,7 +287,6 @@ ensure_link() {
 }
 
 ensure_link "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple" hypr
-ensure_link "$HYPRSIMPLE_PATH/default/rofi" "$HOME/.config/rofi/hyprsimple" rofi
 ensure_link "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" \
   "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf" dunst
 
@@ -425,7 +422,7 @@ fi
 #
 # Some configs cannot be delivered automatically. starship.toml and yazi.toml
 # are TOML, and that format has no include directive, so there is no equivalent
-# of the rofi stubs or the dunst drop-in for them.
+# of the dunst drop-in for them.
 #
 # hyprsimple-refresh-config.sh has always been able to update one, but nothing
 # ever said that it needed updating, so the command existed and was never run.

@@ -70,8 +70,8 @@ Singleton {
     readonly property int sm: 8
     readonly property int md: 12
     readonly property int lg: 16
-    // vibekit: matches Hyprland decoration:rounding (12) by hand, read it from hyprctl if it should follow config changes
-    readonly property int radius: 12
+    // vibekit: matches Hyprland decoration:rounding (8) by hand, read it from hyprctl if it should follow config changes
+    readonly property int radius: 8
 
     readonly property string font: "JetBrainsMono Nerd Font"
     readonly property string iconFont: "Material Symbols Rounded"

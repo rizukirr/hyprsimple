@@ -236,9 +236,9 @@ webp_row=$(THEMES_DIR="$webp_themes" XDG_CACHE_HOME="$TMP/webp-cache" \
 check "a theme whose only wallpaper is a webp is listed with it" \
   "$(printf '%s\n' "$webp_row" | awk -F'\t' '{print $3}' | grep -c '0-wall.webp')" "1"
 
-# rofi paints its launcher and power menu background through gdk-pixbuf, which
-# reads webp only with this loader installed.
-check "the webp pixbuf loader is installed for rofi" \
+# GTK programs read images through gdk-pixbuf, which reads webp only with this
+# loader installed.
+check "the webp pixbuf loader is installed" \
   "$(grep -cx 'webp-pixbuf-loader' "$REPO/packages.txt")" "1"
 
 # ---- the interface is readable on every theme ---------------------------------
@@ -248,7 +248,7 @@ check "the webp pixbuf loader is installed for rofi" \
 # black: on a dark theme a near-black behind light text, on a light theme still
 # black while the text is dark. Measured before the fix, 37 of 40 themes had at
 # least one pair below 3:1 and every light theme did, catppuccin-latte at 1.3
-# on its bar widgets, everforest-light at 1.0 on its selected rofi row.
+# on its bar widgets, everforest-light at 1.0 on the selected row of its menu.
 #
 # Every theme is rendered through the real renderer and the generated files are
 # measured, rather than the rule being repeated here.
@@ -282,7 +282,7 @@ for name in sorted(os.listdir(themes)):
                    env=dict(os.environ, HYPRSIMPLE_PATH=repo, HOME=home))
     gen = os.path.join(work, "generated")
     files = {n: os.path.join(gen, n) for n in
-             ("quickshell-colors.json", "rofi-colors.rasi")}
+             ("quickshell-colors.json",)}
     text = {}
     for n, path in files.items():
         if not os.path.isfile(path):
@@ -315,20 +315,16 @@ for name in sorted(os.listdir(themes)):
     if near > 3.0:
         bad.append(f"{name}: widget {near:.1f} away from the bar behind it")
 
-    menu = dict(re.findall(r'(\w[\w-]*):\s+(#[0-9a-fA-F]{6})', text["rofi-colors.rasi"]))
-    need = {"background", "background-alt", "foreground", "selected", "active", "urgent", "muted"}
-    if not need <= set(menu):
-        bad.append(f"{name}: rofi colours missing {sorted(need - set(menu))}")
-        continue
-    for key, on in (("selected", "background-alt"), ("foreground", "background"),
-                    ("active", "background"), ("urgent", "background")):
-        c = contrast(menu[key], menu[on])
+    # The bar's panels are drawn on the background itself: their text, the
+    # accent of a selected row, and the danger colour of an error.
+    for key in ("foreground", "accent", "danger"):
+        c = contrast(bar[key], bar["background"])
         if c < 3.0:
-            bad.append(f"{name}: rofi {key} on {on} {c:.1f}")
+            bad.append(f"{name}: panel {key} on background {c:.1f}")
     # Placeholder text is meant to be dim, not absent. It was landing at 1.0.
-    c = contrast(menu["muted"], menu["background"])
+    c = contrast(bar["muted"], bar["background"])
     if c < 2.3:
-        bad.append(f"{name}: rofi placeholder {c:.1f}")
+        bad.append(f"{name}: panel placeholder {c:.1f}")
 print("; ".join(bad))
 PYEOF
 )

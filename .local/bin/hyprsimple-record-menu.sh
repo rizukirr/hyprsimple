@@ -18,5 +18,4 @@ fi
 
 BAR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell"
 
-# Through the helper, so a rofi menu that is open is closed first.
-exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" qs -p "$BAR" ipc call bar toggle record
+exec qs -p "$BAR" ipc call bar toggle record

@@ -33,8 +33,6 @@ cat >"$STUB/qs" <<'STUBEOF'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QS_LOG"
 STUBEOF
-# A rofi that answers with nothing, never the real one.
-printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 for tool in notify-send hyprctl systemctl gsettings pkill busctl; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"
 done
@@ -51,7 +49,7 @@ printf '%s\n' "$H/.config/hypr/themes/demo/backgrounds/1-one.jpg" >"$H/.cache/cu
 
 run() {
   : >"$TMP/qs-log"
-  QS_LOG="$TMP/qs-log" HOME="$H" HYPRSIMPLE_ROFI_PIDFILE="$TMP/no-such-pid" \
+  QS_LOG="$TMP/qs-log" HOME="$H" \
     XDG_CONFIG_HOME="$H/.config" THEME_SWITCHER_NO_RELOAD=1 \
     PATH="$STUB:/usr/bin:/bin" bash "$H/.local/bin/$1" "${@:2}" >/dev/null 2>&1
 }

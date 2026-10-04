@@ -13,7 +13,7 @@
 # Measured on a live install that had switched themes many times:
 # ~/.config/gtk-3.0 and ~/.config/gtk-4.0 both present and both empty.
 #
-# Nothing here touches the real ~/.config and no rofi is reachable.
+# Nothing here touches the real ~/.config.
 
 set -uo pipefail
 
@@ -87,8 +87,7 @@ check "and the user's line survives" "$(grep -c '^# my notes$' "$W/nosection.ini
 # A key under a different section is not the one GTK reads, and is not ours.
 #
 # The first version of this function matched ^gtk-theme-name= anywhere, so it
-# rewrote the one under [Other] and left [Settings] without a key. That is the
-# same unanchored-match mistake theme-switcher.sh had in its rofi rewrite.
+# rewrote the one under [Other] and left [Settings] without a key.
 printf '[Settings]\ngtk-font-name=Sans\n\n[Other]\ngtk-theme-name=Wrong\n' >"$W/sections.ini"
 set_gtk_theme_name "$W/sections.ini" Adwaita-dark
 check "a key under another section is left alone" \
@@ -131,17 +130,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # same decision, lives in the theme directory and needs no session. So these
 # fixtures arrange a theme rather than a gsettings answer.
 
-# A rofi of its own, ahead of the real one. This suite only greps
-# theme-switcher.sh rather than running it, so nothing here reaches a picker
-# today, but the stub directory below is what would be in front if that ever
-# changed. suite-hygiene-test.sh requires it of any suite that names a
-# picker-capable script, and being conservative there costs one line.
-printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 # A qs of its own too. These scripts call the bar, and the real one acts on the
 # bar of whoever is running the tests.
 printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
 chmod +x "$STUB/qs"
-chmod +x "$STUB/rofi"
 
 # An active theme in a fixture home, the way a real one is arranged: a symlink
 # at ~/.config/hypr/theme-active.lua pointing into <theme>/generated/.

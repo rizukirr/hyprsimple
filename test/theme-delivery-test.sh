@@ -44,7 +44,7 @@ pass "found ${#tpl[@]} templates in the repository"
 # ---- a theme whose generated directory holds one file per template ---------
 
 H="$TMP/home"
-mkdir -p "$H/.local/bin" "$H/.config/ghostty" "$H/.config/rofi" "$H/.config/hypr"
+mkdir -p "$H/.local/bin" "$H/.config/ghostty" "$H/.config/hypr"
 THEME="$H/.config/hypr/themes/demo"
 mkdir -p "$THEME/generated"
 for name in "${tpl[@]}"; do
@@ -58,7 +58,6 @@ HOME="$H" bash -c 'source "$1"; deliver_theme_configs "$2"' _ "$DELIVER" "$THEME
 # is spelled out, and the check below fails if a template has no entry.
 declare -A target=(
   [hyprland-colors.lua]="$H/.config/hypr/theme-active.lua"
-  [rofi-colors.rasi]="$H/.config/rofi/rofi-colors.rasi"
   [hyprlock.conf]="$H/.config/hypr/theme-hyprlock.conf"
   [dunst-colors]="$H/.config/dunst/dunstrc.d/90-theme.conf"
   [btop.theme]="$H/.config/btop/themes/current.theme"

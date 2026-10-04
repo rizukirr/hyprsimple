@@ -48,12 +48,8 @@ jobs:
           # this step locally, add --enable=all and read only the codes this
           # step would have caught.
           shellcheck --version | grep version:
-          # The rofi scripts are shell too, and were not in this list. Nothing
-          # had ever linted them: eleven findings were waiting, including an
-          # SC2034 dead variable, which is the class this step's severity was
-          # raised to catch.
           shellcheck --severity=style --exclude=SC2016 \
-            install.sh bootstrap.sh "${bins[@]}" test/*.sh .config/rofi/*/*.sh
+            install.sh bootstrap.sh "${bins[@]}" test/*.sh
           # Migrations deliberately carry no shebang, so the shell is stated
           # here. They are held to the same threshold, not because the shipped
           # ones will ever run again, since install.sh pre-creates their
@@ -131,11 +127,7 @@ jobs:
       - name: update-channel-test
         run: bash test/update-channel-test.sh
 
-      - name: rofi-split-smoke
-        run: bash test/rofi-split-smoke.sh
 
-      - name: rofi-split-migration-test
-        run: bash test/rofi-split-migration-test.sh
 
       - name: update-self-replace-test
         run: bash test/update-self-replace-test.sh
@@ -173,8 +165,6 @@ jobs:
       - name: screen-record-test
         run: bash test/screen-record-test.sh
 
-      - name: rofi-theme-link-test
-        run: bash test/rofi-theme-link-test.sh
 
       - name: setup-network-test
         run: bash test/setup-network-test.sh
@@ -269,8 +259,6 @@ jobs:
       - name: required-helpers-test
         run: bash test/required-helpers-test.sh
 
-      - name: rofi-wallpaper-rule-test
-        run: bash test/rofi-wallpaper-rule-test.sh
 
       - name: gtk-settings-test
         run: bash test/gtk-settings-test.sh
@@ -283,8 +271,11 @@ jobs:
 
 
 
-      - name: menu-exclusive-test
-        run: bash test/menu-exclusive-test.sh
+      - name: clipboard-panel-test
+        run: bash test/clipboard-panel-test.sh
+
+      - name: rofi-removal-test
+        run: bash test/rofi-removal-test.sh
 
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh

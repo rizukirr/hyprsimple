@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Emit one row per theme for hyprsimple-image-picker.sh:
+# Emit one row per theme for the bar's theme picker:
 #
 #   theme directory name <TAB> display name and colour swatches <TAB> wallpaper
 #

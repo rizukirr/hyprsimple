@@ -12,7 +12,7 @@
 # NOTE: this parses the plain-text output of `hyprctl binds`, not `hyprctl -j binds`.
 # Hyprland 0.56.0 emits malformed JSON for the `binds` endpoint (keys and values are
 # misaligned, yielding unquoted tokens like `"keycode": T`), which makes jq bail out
-# and leaves rofi with an empty list. The plain-text output is unaffected.
+# and leaves the list empty. The plain-text output is unaffected.
 
 list_binds() {
 hyprctl binds |
@@ -70,5 +70,4 @@ fi
 
 BAR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell"
 
-# Through the helper, so a rofi menu that is open is closed first.
-exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" qs -p "$BAR" ipc call bar toggle keybinds
+exec qs -p "$BAR" ipc call bar toggle keybinds
