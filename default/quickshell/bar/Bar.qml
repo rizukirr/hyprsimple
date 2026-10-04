@@ -14,7 +14,7 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "launcher", "clipboard", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -174,6 +174,28 @@ PanelWindow {
         bar: bar
         name: "clipboard"
         anchorItem: clock
+    }
+
+    // The theme and wallpaper pickers list their choices and apply the picked one
+    // through hyprsimple's own scripts.
+    ImagePickerPanel {
+        bar: bar
+        name: "themes"
+        anchorItem: clock
+        title: "Theme"
+        listCommand: ["sh", "-c", '"$HOME/.local/bin/hyprsimple-theme-picker.sh" | "$HOME/.local/bin/hyprsimple-thumbnails.sh"']
+        currentCommand: ["sh", "-c", 'basename "$(dirname "$(dirname "$(readlink "$HOME/.config/hypr/theme-active.lua")")")"']
+        applyCommand: [Quickshell.env("HOME") + "/.local/bin/theme-switcher.sh"]
+    }
+
+    ImagePickerPanel {
+        bar: bar
+        name: "wallpapers"
+        anchorItem: clock
+        title: "Wallpaper"
+        listCommand: ["sh", "-c", '"$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" | "$HOME/.local/bin/hyprsimple-thumbnails.sh"']
+        currentCommand: ["cat", Quickshell.env("HOME") + "/.cache/current_wallpaper_path"]
+        applyCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "apply"]
     }
 
     PrayerPanel {

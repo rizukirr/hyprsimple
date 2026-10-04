@@ -215,6 +215,9 @@ jobs:
       - name: bar-test
         run: bash test/bar-test.sh
 
+      - name: picker-panels-test
+        run: bash test/picker-panels-test.sh
+
       - name: shell-init-test
         run: bash test/shell-init-test.sh
 

@@ -314,7 +314,9 @@ mapfile -t picker_scripts < <(
 # too.
 picker_scripts+=(hyprsimple-image-picker.sh)
 
-if (( ${#picker_scripts[@]} < 3 )); then
+# One is enough now. The theme and wallpaper pickers moved into the bar, so
+# hyprsimple-image-picker.sh is the only script left that opens rofi this way.
+if (( ${#picker_scripts[@]} < 1 )); then
   fail "found ${#picker_scripts[@]} scripts that can open a picker, which is too few to be right"
 else
   pass "found ${#picker_scripts[@]} scripts that can open a picker"
@@ -341,6 +343,48 @@ unstubbed_str=""
 (( ${#unstubbed[@]} > 0 )) && unstubbed_str="$(printf '%s ' "${unstubbed[@]}")"
 check "every suite that can reach rofi puts one of its own in front of it" \
   "$unstubbed_str" ""
+
+# The same for qs, which is how a script talks to the bar.
+#
+# A script that calls the bar acts on the real bar of whoever is running the
+# tests. That is not theoretical either: two suites ran screen-record.sh with
+# pgrep stubbed to report a recorder, the script told the real bar a recording
+# had started, and its indicator stayed lit with nothing recording. A script
+# that opens a panel would open it on the maintainer's screen.
+#
+# The scripts that call the bar are read out of the repository, so one that
+# starts calling it later is covered without this check being touched.
+mapfile -t bar_scripts < <(
+  for script in "$REPO/.local/bin"/*.sh; do
+    sed 's/^[[:space:]]*#.*//' "$script" | grep -q 'ipc call bar' &&
+      basename "$script"
+  done
+)
+
+if (( ${#bar_scripts[@]} < 3 )); then
+  fail "found ${#bar_scripts[@]} scripts that call the bar, which is too few to be right"
+else
+  pass "found ${#bar_scripts[@]} scripts that call the bar"
+fi
+
+reaching=()
+for suite in "${suites[@]}"; do
+  code=$(sed 's/^[[:space:]]*#.*//' "$suite")
+  grep -q 'PATH="\$STUB:' <<<"$code" || continue
+  runs_bar_script=0
+  for script in "${bar_scripts[@]}"; do
+    grep -qF "$script" <<<"$code" && runs_bar_script=1
+  done
+  (( runs_bar_script )) || continue
+  # A stand-in written to the stub directory by name, or qs named in a list of
+  # tools to stub.
+  grep -qE '\$STUB/qs|[[:space:]]qs([[:space:];]|$)' <<<"$code" || reaching+=("$(basename "$suite")")
+done
+
+reaching_str=""
+(( ${#reaching[@]} > 0 )) && reaching_str="$(printf '%s ' "${reaching[@]}")"
+check "every suite that can reach the bar puts a qs of its own in front of it" \
+  "$reaching_str" ""
 
 # The same for notify-send, and for the same reason.
 #

@@ -61,6 +61,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # suite that had no stub, and opened a window complaining about a theme inside
 # the fixture.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
+# A qs of its own too. These scripts call the bar, and the real one acts on the
+# bar of whoever is running the tests.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
+chmod +x "$STUB/qs"
 for tool in gsettings hyprctl systemctl pkill busctl notify-send \
   hyprsimple-restart-dunst.sh; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"

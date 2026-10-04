@@ -72,10 +72,11 @@ elif [[ $MODE == "pick" ]]; then
   # Three columns, matching the theme picker. A theme ships at most four
   # wallpapers, so the last row is often short, and consistency with the theme
   # grid was preferred over a tidier final row.
-  SELECTED=$("$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" |
-    "$HOME/.local/bin/hyprsimple-image-picker.sh" \
-      --prompt "Wallpaper" --columns 3 --selected "$CURRENT")
-  [[ -z $SELECTED ]] && exit 0
+  # The picker is a panel of the bar, which runs this again as
+  # `wallpaper-switcher.sh apply <file>` with the wallpaper that was picked.
+  # Through the helper, so a rofi menu that is open is closed first.
+  exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" \
+    qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" ipc call bar toggle wallpapers
 fi
 
 if [[ ! -f $SELECTED ]]; then

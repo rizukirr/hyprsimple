@@ -13,8 +13,9 @@ source "$HOME/.local/bin/hyprsimple-require.sh" 2>/dev/null || {
 require_helper hypr-helpers.sh hyprsimple-theme-deliver.sh
 
 # Usage: theme-switcher.sh [theme-name]
-#   No argument: show rofi picker
-#   With argument: apply theme directly (used by rofi script mode)
+#   No argument: open the bar's theme picker, which runs this again with the
+#                theme that was picked
+#   With argument: apply that theme
 
 THEMES_DIR="$HOME/.config/hypr/themes"
 CACHE_DIR="$HOME/.cache"
@@ -23,8 +24,10 @@ mkdir -p "$CACHE_DIR"
 if [[ -n "$1" ]]; then
   THEME="$1"
 else
-  THEME=$("$HOME/.local/bin/hyprsimple-theme-picker.sh" |
-    "$HOME/.local/bin/hyprsimple-image-picker.sh" --prompt "Theme" --columns 3)
+  # The picker is a panel of the bar. Through the helper, so a rofi menu that is
+  # open is closed first.
+  exec "$HOME/.local/bin/hyprsimple-menu-exclusive.sh" \
+    qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" ipc call bar toggle themes
 fi
 [[ -z "$THEME" ]] && exit 0
 

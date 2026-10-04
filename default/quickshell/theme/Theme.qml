@@ -113,6 +113,13 @@ Singleton {
     readonly property int appRowHeight: 48
     readonly property int appIconSize: 28
     readonly property int pageStep: 6
+    // The theme and wallpaper pickers: the panel's width, the size of one picture,
+    // the size of a color swatch, and how far Page Up and Page Down move.
+    readonly property int pickerWidth: 860
+    readonly property int pickerCardWidth: 280
+    readonly property int pickerCardHeight: 158
+    readonly property int swatchSize: 10
+    readonly property int pickerPageStep: 3
     // The clipboard panel: its width, how tall its list may get, and the height a
     // copied picture is shown at.
     readonly property int clipboardWidth: 520
