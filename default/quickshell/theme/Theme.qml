@@ -24,13 +24,17 @@ Singleton {
     readonly property color danger: colors.danger ?? "#f7768e"
 
     FileView {
+        id: themeFile
         // QS_THEME_FILE points the shell at another file, which is how the reload test avoids the live one.
         path: Quickshell.env("QS_THEME_FILE") || Quickshell.env("HOME") + "/.config/quickshell/theme-active.json"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
         // A missing file means the built-in colors, also when it disappears while running.
-        onLoadFailed: root.colors = ({})
+        onLoadFailed: {
+            root.colors = ({})
+            retry.start()
+        }
         onLoaded: {
             try {
                 root.colors = JSON.parse(text())
@@ -39,6 +43,14 @@ Singleton {
                 console.log("theme: ignoring unreadable", path, e.message)
             }
         }
+    }
+
+    // A file that does not exist cannot be watched, so one created after the shell
+    // started would never be seen. Until a load succeeds, look again every few seconds.
+    Timer {
+        id: retry
+        interval: 3000
+        onTriggered: themeFile.reload()
     }
 
     // Foreground tints draw every hover, selected and field surface, so they follow any theme.

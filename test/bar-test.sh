@@ -129,7 +129,7 @@ run_migration() {
   mkdir -p "$TMP/home/.local/bin"
   cp "$RESTART" "$TMP/home/.local/bin/"
   STATE="$STATE" LOG="$LOG" HYPRSIMPLE_PATH="$TMP/install" HOME="$TMP/home" \
-    PATH="$STUB:/usr/bin:/bin" "$@" bash "$MIGRATION" >"$TMP/out" 2>&1
+    PATH="${MIGRATION_PATH:-$STUB:/usr/bin:/bin}" "$@" "$BASH" "$MIGRATION" >"$TMP/out" 2>&1
   printf '%s' "$?" >"$TMP/rc"
   sleep 0.2
 }
@@ -155,6 +155,49 @@ reset; : >"$STATE/waybar-package"; : >"$STATE/removal-fails"
 run_migration env HYPRLAND_INSTANCE_SIGNATURE=test
 check "a package removal that fails does not fail the update" "$(cat "$TMP/rc")" "0"
 check "and says how to remove it by hand" "$(grep -c 'sudo pacman -Rns waybar' "$TMP/out")" "1"
+
+# The update carries on when a package fails to install, so quickshell can be
+# missing when the migration runs. Autostart already launches it instead of
+# waybar, so stopping waybar as well would leave no bar at all.
+#
+# The system directories are left off PATH for this run, because a machine with
+# quickshell installed has a real qs there. Only the stubs, minus qs, and the
+# few tools the migration needs are reachable.
+NOQS="$TMP/no-qs"; mkdir -p "$NOQS"
+for tool in "$STUB"/*; do
+  [[ $(basename "$tool") == qs ]] || ln -s "$tool" "$NOQS/"
+done
+for tool in rm env; do
+  ln -s "$(command -v "$tool")" "$NOQS/"
+done
+reset; : >"$STATE/waybar"; : >"$STATE/waybar-package"
+MIGRATION_PATH="$NOQS" run_migration "$(command -v env)" HYPRLAND_INSTANCE_SIGNATURE=test
+check "without quickshell the migration fails, so it runs again next time" "$(cat "$TMP/rc")" "1"
+check "and leaves waybar running" "$([[ -e $STATE/waybar ]] && echo running || echo stopped)" "running"
+check "and installed" "$([[ -e $STATE/waybar-package ]] && echo installed || echo removed)" "installed"
+check "and says how to install quickshell" "$(grep -c 'sudo pacman -S quickshell' "$TMP/out")" "1"
+
+# The update copies scripts into ~/.local/bin and never removes one.
+reset
+mkdir -p "$TMP/home/.local/bin"
+for stale in hyprsimple-restart-waybar.sh hyprsimple-refresh-waybar.sh \
+  waybar-muslimtify.sh waybar-screenrecording.sh hyprsimple-audio-menu.sh; do
+  : >"$TMP/home/.local/bin/$stale"
+done
+: >"$TMP/home/.local/bin/volume-notify.sh"
+run_migration env HYPRLAND_INSTANCE_SIGNATURE=test
+check "the scripts that existed for waybar and the rofi menus are removed" \
+  "$(find "$TMP/home/.local/bin" -name '*waybar*' -o -name 'hyprsimple-audio-menu.sh' | wc -l | tr -d ' ')" "0"
+check "and a script that still ships is left alone" \
+  "$([[ -e $TMP/home/.local/bin/volume-notify.sh ]] && echo kept || echo removed)" "kept"
+# Every name the migration removes must really be gone from the repository, or
+# the next update would copy it back and the one after would not remove it.
+still_shipped=0
+for stale in hyprsimple-restart-waybar.sh hyprsimple-refresh-waybar.sh \
+  waybar-muslimtify.sh waybar-screenrecording.sh hyprsimple-audio-menu.sh; do
+  [[ -e $BIN/$stale ]] && still_shipped=$((still_shipped + 1))
+done
+check "and none of them still ships" "$still_shipped" "0"
 
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
