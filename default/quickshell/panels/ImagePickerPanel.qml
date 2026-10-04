@@ -22,7 +22,7 @@ PopupPanel {
 
     // One per row: key, name, picture, and the colors found in the label.
     property var entries: []
-    // Rows read but not yet shown, see the batch timer.
+    // Rows read by the list command so far. They replace entries when it finishes.
     property var arrived: []
     property string currentKey: ""
     readonly property var results: {
@@ -31,8 +31,9 @@ PopupPanel {
         return entries.filter(entry => terms.every(term => entry.name.toLowerCase().includes(term)))
     }
     property int current: 0
-    // Set once the carousel has been moved to the choice in use, so later rows do not move it back.
-    property bool placed: false
+    // Unset for a moment on open, so the carousel is put on the choice in use at
+    // once instead of scrolling there from wherever it was.
+    property bool settled: false
 
     // A label may carry color swatches as markup, the form the list scripts print them in.
     function parse(line) {
@@ -55,31 +56,66 @@ PopupPanel {
         Quickshell.execDetached([...applyCommand, entry.key])
     }
 
-    // Start on the choice in use, once it and its row are both known.
+    // Put the carousel on the choice in use.
     // Not named place: PopupPanel has a function of that name that positions the panel,
     // and a second one here would replace it.
     function startOnCurrent() {
-        if (placed || currentKey === "" || search.text !== "") return
+        if (search.text !== "") return
         const index = entries.findIndex(entry => entry.key === currentKey)
-        if (index < 0) return
-        current = index
-        placed = true
+        if (index >= 0) current = index
+    }
+
+    function sameEntries(a, b) {
+        return a.length === b.length && a.every((entry, i) => entry.key === b[i].key && entry.image === b[i].image)
+    }
+
+    // The choices are read when the bar starts and again on every open, and kept in
+    // between. So the panel opens with its pictures already there and already on the
+    // choice in use. Reading them on open, and showing rows as they arrived, rebuilt
+    // the carousel several times while it was on screen and scrolled it to the choice
+    // in use from the first picture each time.
+    function load() {
+        currentReader.running = true
+        if (lister.running) return
+        arrived = []
+        lister.running = true
     }
 
     panelWidth: Theme.pickerWidth
     focusTarget: search.inputItem
-    onResultsChanged: if (placed || search.text !== "") current = Math.min(current, Math.max(0, results.length - 1))
+    Component.onCompleted: load()
+    onResultsChanged: current = Math.min(current, Math.max(0, results.length - 1))
     onOpenChanged: {
         if (!open) return
         search.text = ""
-        entries = []
-        arrived = []
-        current = 0
-        placed = false
-        currentKey = ""
-        lister.running = false
-        lister.running = true
-        currentReader.running = true
+        settled = false
+        startOnCurrent()
+        Qt.callLater(() => {
+            view.currentIndex = current
+            view.positionViewAtIndex(current, ListView.Center)
+            settle.restart()
+        })
+        load()
+    }
+
+    // A theme switch changes both lists: which theme is in use, and which wallpapers
+    // there are to pick from. The colors change early in a switch and the wallpaper
+    // a little later, so the lists are read again a moment after the colors change.
+    Connections {
+        target: Theme
+        function onColorsChanged() { afterThemeSwitch.restart() }
+    }
+
+    Timer {
+        id: afterThemeSwitch
+        interval: 2000
+        onTriggered: root.load()
+    }
+
+    Timer {
+        id: settle
+        interval: 60
+        onTriggered: root.settled = true
     }
 
     Process {
@@ -88,21 +124,14 @@ PopupPanel {
         stdout: SplitParser {
             onRead: line => {
                 const entry = root.parse(line)
-                if (!entry) return
-                root.arrived.push(entry)
-                batch.start()
+                if (entry) root.arrived.push(entry)
             }
         }
-    }
-
-    // Rows arrive one at a time, and each change to the list rebuilds the carousel.
-    // They are gathered and added a few times a second instead.
-    Timer {
-        id: batch
-        interval: 120
-        onTriggered: {
-            root.entries = [...root.entries, ...root.arrived]
-            root.arrived = []
+        // Swapped in whole, and only when something changed, so a refresh that finds
+        // the same choices leaves the carousel alone.
+        onExited: {
+            if (root.sameEntries(root.entries, root.arrived)) return
+            root.entries = root.arrived
             root.startOnCurrent()
         }
     }
@@ -111,8 +140,12 @@ PopupPanel {
         id: currentReader
         command: root.currentCommand
         stdout: StdioCollector {
+            // Only when the choice in use changed, so a selection the user has
+            // already moved is not pulled back.
             onStreamFinished: {
-                root.currentKey = text.trim()
+                const key = text.trim()
+                if (key === root.currentKey) return
+                root.currentKey = key
                 root.startOnCurrent()
             }
         }
@@ -169,7 +202,8 @@ PopupPanel {
         orientation: ListView.Horizontal
         spacing: Theme.sm
         clip: true
-        model: root.visible ? root.results : []
+        // Kept while the panel is closed, so the pictures are loaded before it opens.
+        model: root.results
         // A new model sends the view back to its first item. A binding would not notice,
         // and writing the same index again moves nothing, so the view is put back on the
         // choice by hand each time the list changes.
@@ -184,7 +218,7 @@ PopupPanel {
         highlightRangeMode: ListView.StrictlyEnforceRange
         preferredHighlightBegin: (width - Theme.pickerCardWidth) / 2
         preferredHighlightEnd: preferredHighlightBegin + Theme.pickerCardWidth
-        highlightMoveDuration: Theme.springAnim
+        highlightMoveDuration: root.settled ? Theme.springAnim : 0
         // Dragging or scrolling the carousel changes the choice too.
         onCurrentIndexChanged: if (moving) root.current = currentIndex
 
@@ -220,8 +254,9 @@ PopupPanel {
                 border.color: Theme.accent
                 scale: card.chosen ? 1 : 0.86
                 opacity: card.chosen ? 1 : 0.55
-                Behavior on scale { Spring {} }
-                Behavior on opacity { Anim {} }
+                // Only once the panel has settled, so nothing shrinks or grows as it opens.
+                Behavior on scale { enabled: root.settled; Spring {} }
+                Behavior on opacity { enabled: root.settled; Anim {} }
 
                 Image {
                     anchors.fill: parent
@@ -277,7 +312,7 @@ PopupPanel {
         StyledText {
             anchors.centerIn: parent
             visible: root.results.length === 0
-            text: root.entries.length === 0 ? "Loading…" : "No matches"
+            text: root.entries.length > 0 ? "No matches" : lister.running ? "Loading…" : "Nothing to pick"
             color: Theme.muted
         }
     }
