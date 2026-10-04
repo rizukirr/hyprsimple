@@ -280,6 +280,9 @@ jobs:
       - name: network-setup-test
         run: bash test/network-setup-test.sh
 
+      - name: wallpaper-ipc-test
+        run: bash test/wallpaper-ipc-test.sh
+
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh
 

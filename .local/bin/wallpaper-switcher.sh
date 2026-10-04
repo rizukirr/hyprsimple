@@ -82,7 +82,7 @@ if [[ ! -f $SELECTED ]]; then
   exit 1
 fi
 
-# Apply wallpaper (remove first then copy so hyprpaper detects change)
+# Apply wallpaper. The copies are what the lock screen and the next login read.
 rm -f "$CACHE_DIR/current_wallpaper" "$CACHE_DIR/current_lockscreen.png"
 cp "$SELECTED" "$CACHE_DIR/current_wallpaper"
 cp "$SELECTED" "$CACHE_DIR/current_lockscreen.png"
@@ -92,7 +92,6 @@ echo "$SELECTED" > "$CACHE_DIR/current_wallpaper_path"
 rm -f "$CACHE_DIR/live_wallpaper_enabled"
 write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
 
-# Reload hyprpaper
-systemctl --user restart hyprpaper.service
+show_wallpaper "$SELECTED"
 
 notify-send "Wallpaper" "$(basename "$SELECTED")" -i "$SELECTED"
