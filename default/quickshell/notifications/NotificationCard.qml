@@ -77,6 +77,9 @@ Rectangle {
                 sourceSize: Qt.size(2 * width, 2 * height)
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
+                // Read from the file every time. A sender may reuse one path for a
+                // picture that changes, and the cached one would be the old picture.
+                cache: false
             }
 
             Icon {

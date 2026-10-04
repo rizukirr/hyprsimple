@@ -232,5 +232,8 @@ if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
   # A theme with no wallpaper leaves the one on screen where it is.
   [[ -n $SHOW ]] && show_wallpaper "$SHOW"
 
-  notify-send "Theme Manager" "Theme '$THEME' applied!" -i "$CACHE_DIR/current_wallpaper"
+  # The wallpaper's own file, not the copy in the cache. That copy keeps one
+  # name for every theme, and the notification showed the picture it had first
+  # read under that name: nord announced with gruvbox's wallpaper.
+  notify-send "Theme Manager" "Theme '$THEME' applied!" -i "${WALLPAPER:-$CACHE_DIR/current_wallpaper}"
 fi

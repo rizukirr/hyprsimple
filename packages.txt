@@ -13,6 +13,10 @@ xdg-desktop-portal-hyprland
 # UI/Menu/Status
 quickshell
 ttf-material-symbols-variable
+# The bar is Qt, and Qt reads webp only with this: without it, it answers
+# "Unsupported image format". Most shipped wallpapers are webp, so the picture
+# in a theme's notification came up empty for those and showed for the rest.
+qt6-imageformats
 # gdk-pixbuf has no webp support of its own, and the shipped wallpapers are
 # webp. With this, GTK programs such as the file manager can show them.
 webp-pixbuf-loader
