@@ -15,6 +15,7 @@ StatusButton {
     label: service.next ? Model.barLabel(service.next, showRemaining) : ""
     // Accent when its panel is open, and when the prayer is close.
     highlighted: soon
+    tooltip: service.next ? `${Model.title(service.next.name)} at ${service.next.time}, in ${Model.formatDuration(service.next.remaining)}` : ""
 
     TapHandler {
         acceptedButtons: Qt.RightButton

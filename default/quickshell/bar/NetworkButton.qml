@@ -13,4 +13,8 @@ StatusButton {
         : wifiNetwork ? Theme.wifiIcon(wifiNetwork.signalStrength)
         : Theme.icon.wifi[0]
     dim: !wired && !wifiNetwork
+    tooltip: wired ? "Ethernet connected"
+        : !Networking.wifiEnabled ? "Wi-Fi off"
+        : wifiNetwork ? `${wifiNetwork.name}, signal ${Math.round(wifiNetwork.signalStrength * 100)}%`
+        : "Wi-Fi not connected"
 }

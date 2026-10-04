@@ -13,7 +13,7 @@ Rectangle {
 
     implicitWidth: content.implicitWidth + 2 * Theme.md
     implicitHeight: Theme.capsule
-    radius: height / 2
+    radius: Theme.capsuleRadius
     color: active ? Theme.surface : Qt.alpha(Theme.surface, 0)
     Behavior on color { CAnim {} }
 
@@ -41,6 +41,13 @@ Rectangle {
     }
 
     StateLayer {
+        id: layer
         onClicked: root.clicked()
+    }
+
+    Tooltip {
+        target: root
+        text: Qt.formatDate(clock.date, "dddd, d MMMM yyyy")
+        hovered: layer.containsMouse && !root.active
     }
 }

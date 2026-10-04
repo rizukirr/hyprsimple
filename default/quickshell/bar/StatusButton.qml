@@ -16,7 +16,9 @@ Item {
     property bool alert: false
     // Off, muted or nothing connected.
     property bool dim: false
-    property real radius: height / 2
+    property real radius: Theme.capsuleInnerRadius
+    // Shown under the item after the pointer rests on it.
+    property string tooltip
     signal clicked()
 
     implicitWidth: content.implicitWidth + Theme.statusSlot - Theme.iconSize
@@ -48,8 +50,15 @@ Item {
 
     // Inset like the capsule's side padding, so the hover shape sits evenly inside the capsule.
     StateLayer {
+        id: layer
         anchors.topMargin: Theme.xs
         anchors.bottomMargin: Theme.xs
         onClicked: root.clicked()
+    }
+
+    Tooltip {
+        target: root
+        text: root.tooltip
+        hovered: layer.containsMouse && !root.active
     }
 }
