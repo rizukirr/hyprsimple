@@ -19,6 +19,8 @@ ColumnLayout {
     // Height of the list, or -1 to take whatever height is left.
     property real listHeight: -1
     readonly property real contentHeight: list.contentHeight
+    // The least height the list needs to show its empty message whole.
+    readonly property real emptyHeight: empty.implicitHeight + 2 * Theme.lg
     property string emptyText: "Nothing found"
     property int current: 0
     readonly property var currentItem: items[current] ?? null
@@ -95,6 +97,7 @@ ColumnLayout {
 
         // Shown when nothing matches.
         Column {
+            id: empty
             anchors.centerIn: parent
             visible: root.items.length === 0
             spacing: Theme.sm
