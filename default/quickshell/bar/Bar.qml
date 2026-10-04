@@ -14,7 +14,7 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "record", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -216,6 +216,14 @@ PanelWindow {
         windowValue: "window"
         // The window's place, when one was chosen, goes last. Without it the recorder asks on screen.
         commandFor: (values, geometry) => [Quickshell.env("HOME") + "/.local/bin/screen-record.sh", ...values, ...(geometry !== "" ? [geometry] : [])]
+    }
+
+    // The list comes from hyprsimple's own script, which reads it from Hyprland.
+    KeybindsPanel {
+        bar: bar
+        name: "keybinds"
+        anchorItem: clock
+        listCommand: [Quickshell.env("HOME") + "/.local/bin/show-keybindings.sh", "--list"]
     }
 
     PrayerPanel {

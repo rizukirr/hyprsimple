@@ -305,7 +305,7 @@ build fails during install.
 | `SUPER + S` | Open the volume panel, to set the volume and choose a speaker |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
-| `SUPER + /` | Show all keybindings |
+| `SUPER + /` | Show all keybindings, in a searchable panel of the bar |
 
 ## Scripts
 
@@ -383,7 +383,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 |--------|-------------|
 | `search.sh` | Fuzzy file finder (ripgrep + fzf) that opens the result in nvim |
 | `search_by_keyword.sh` | Fuzzy content search (ripgrep + fzf) that opens the match in nvim |
-| `show-keybindings.sh` | Show all Hyprland keybindings in a rofi fuzzy-search menu |
+| `show-keybindings.sh` | Open the bar's keybindings panel, a searchable list of every Hyprland keybinding. `--list` prints them instead |
 
 ### hyprsimple management
 
