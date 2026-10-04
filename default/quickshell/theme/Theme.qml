@@ -113,6 +113,11 @@ Singleton {
     readonly property int appRowHeight: 48
     readonly property int appIconSize: 28
     readonly property int pageStep: 6
+    // The clipboard panel: its width, how tall its list may get, and the height a
+    // copied picture is shown at.
+    readonly property int clipboardWidth: 520
+    readonly property int clipboardMaxHeight: 420
+    readonly property int clipboardImageHeight: 56
     readonly property int panelWidthWide: 440
     readonly property int dropdownMaxHeight: 200
     readonly property int settingsMaxHeight: 520

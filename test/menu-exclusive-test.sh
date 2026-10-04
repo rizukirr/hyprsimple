@@ -55,7 +55,7 @@ mapfile -t launches < <(
       sed "s|^|$(basename "$f"):|"
   done
 )
-if ((${#launches[@]} < 5)); then
+if ((${#launches[@]} < 4)); then
   fail "found ${#launches[@]} rofi launches in .local/bin, which is fewer than there are"
 else
   pass "found ${#launches[@]} rofi launches in .local/bin"
@@ -67,7 +67,7 @@ done
 check "every one passes -replace" "${missing[*]:-}" ""
 
 for name in hyprsimple-record-menu.sh hyprsimple-screenshot-menu.sh \
-  show-keybindings.sh hyprsimple-image-picker.sh hyprsimple-clipboard-menu.sh; do
+  show-keybindings.sh hyprsimple-image-picker.sh; do
   check "including $name" "$(printf '%s\n' "${launches[@]}" | grep -c "^$name:")" "1"
 done
 
@@ -162,32 +162,31 @@ check "no pid file at all still runs the command" "$(cat "$TMP/ran")" "gone"
 HYPRSIMPLE_ROFI_PIDFILE="$PIDFILE" PATH="$HBIN" "$BASH_BIN" "$HELPER" >/dev/null 2>&1
 check "with no command it only closes and exits 0" "$?" "0"
 
-# ---- the clipboard menu ----------------------------------------------------------
+# ---- the clipboard panel ---------------------------------------------------------
+#
+# The clipboard history is a panel of the bar. The script behind SUPER + V opens
+# it, and the panel copies the picked entry with a short shell command. That
+# command is read out of the panel and run here against stand-ins, so what is
+# tested is what ships.
+
+PANEL="$REPO/default/quickshell/panels/ClipboardPanel.qml"
+COPY_CMD=$(grep -o "'tmp=\$(mktemp).*rm -f \"\$tmp\"'" "$PANEL" | sed "s/^'//; s/'\$//")
+check "the panel's copy command was read out of it" \
+  "$([[ -n $COPY_CMD ]] && echo read || echo missing)" "read"
 
 CBIN="$TMP/clipbin"; mkdir -p "$CBIN"
 for tool in mktemp rm cat; do ln -sf "$(command -v "$tool")" "$CBIN/$tool"; done
 printf 'binary\000image\001bytes' >"$TMP/image.bin"
 
-cat >"$CBIN/rofi" <<'STUBEOF'
-#!/bin/bash
-printf '%s' "$*" >"$ROFI_ARGS"
-cat >/dev/null
-printf '%s' "${ROFI_PICK:-}"
-exit "${ROFI_RC:-0}"
-STUBEOF
+# cliphist decode is given the entry's id, the way the panel calls it.
 cat >"$CBIN/cliphist" <<'STUBEOF'
 #!/bin/bash
-case "$1" in
-list) printf '1\thello\n2\timage\n3\tgone\n4\tempty\n' ;;
-decode)
-  entry=$(cat)
-  case "$entry" in
-  1*) printf 'hello' ;;
-  2*) cat "$IMAGE" ;;
-  3*) exit 1 ;;
-  4*) exit 0 ;;
-  esac
-  ;;
+[[ $1 == decode ]] || exit 0
+case "$2" in
+1) printf 'hello' ;;
+2) cat "$IMAGE" ;;
+3) exit 1 ;;
+4) exit 0 ;;
 esac
 STUBEOF
 # wl-copy records that it ran and exactly what it was given.
@@ -200,60 +199,76 @@ cat >"$CBIN/notify-send" <<'STUBEOF'
 #!/bin/bash
 printf '%s\n' "$*" >>"$NOTIFY_LOG"
 STUBEOF
-chmod +x "$CBIN/rofi" "$CBIN/cliphist" "$CBIN/wl-copy" "$CBIN/notify-send"
+chmod +x "$CBIN/cliphist" "$CBIN/wl-copy" "$CBIN/notify-send"
 
 check "the real wl-copy is unreachable from the clipboard PATH" \
   "$(PATH="$CBIN" command -v wl-copy)" "$CBIN/wl-copy"
 
-run_clip() {
-  local pick="$1" rc="$2" script="${3:-$CLIP}"
-  : >"$TMP/copy-calls"; rm -f "$TMP/copied"; : >"$TMP/notify"; : >"$TMP/rofi-args"
-  ROFI_PICK="$pick" ROFI_RC="$rc" ROFI_ARGS="$TMP/rofi-args" IMAGE="$TMP/image.bin" \
-    COPIED="$TMP/copied" COPY_CALLS="$TMP/copy-calls" NOTIFY_LOG="$TMP/notify" \
-    XDG_CONFIG_HOME="$TMP/xdg" PATH="$CBIN" "$BASH_BIN" "$script" >/dev/null 2>&1
+# Its temporary file goes to a folder of this suite's own, so what it leaves
+# behind can be counted.
+COPY_TMP="$TMP/copy-tmp"; mkdir -p "$COPY_TMP"
+run_copy() {
+  : >"$TMP/copy-calls"; rm -f "$TMP/copied"
+  IMAGE="$TMP/image.bin" COPIED="$TMP/copied" COPY_CALLS="$TMP/copy-calls" \
+    TMPDIR="$COPY_TMP" PATH="$CBIN" "$BASH_BIN" -c "$COPY_CMD" sh "$1" >/dev/null 2>&1
 }
 calls() { grep -c called "$TMP/copy-calls"; }
 
-# Anti-vacuity: the pipeline this replaced, under the same stubs, really does
-# hand wl-copy nothing when the menu is dismissed. Without this the checks below
-# could pass against a stub that never reproduces the bug.
-cat >"$TMP/old-pipeline.sh" <<'OLDEOF'
-cliphist list | rofi --show dmenu | cliphist decode | wl-copy
-OLDEOF
-run_clip "" 1 "$TMP/old-pipeline.sh"
-check "the old pipeline called wl-copy when the menu was dismissed" "$(calls)" "1"
-check "and handed it nothing, which is what wiped the clipboard" "$(wc -c <"$TMP/copied" | tr -d ' ')" "0"
+# Anti-vacuity: the pipeline the first clipboard menu used, under the same
+# stand-ins, really does hand wl-copy nothing when no entry decodes. Without
+# this the checks below could pass against stand-ins that never reproduce it.
+: >"$TMP/copy-calls"; rm -f "$TMP/copied"
+IMAGE="$TMP/image.bin" COPIED="$TMP/copied" COPY_CALLS="$TMP/copy-calls" PATH="$CBIN" \
+  "$BASH_BIN" -c 'cliphist decode 4 | wl-copy' >/dev/null 2>&1
+check "an unguarded pipeline calls wl-copy with nothing decoded" "$(calls)" "1"
+check "and hands it nothing, which is what wiped the clipboard" "$(wc -c <"$TMP/copied" | tr -d ' ')" "0"
 
-run_clip "" 1
-check "dismissing the menu does not touch the clipboard" "$(calls)" "0"
-
-run_clip "" 143
-check "nor does another menu closing it" "$(calls)" "0"
-
-run_clip "" 0
-check "nor an empty answer" "$(calls)" "0"
-
-run_clip "1	hello" 0
+run_copy 1
 check "picking a text entry copies it" "$(cat "$TMP/copied")" "hello"
 check "once" "$(calls)" "1"
 
-run_clip "2	image" 0
+run_copy 2
 check "picking an image copies its bytes exactly, NULs included" \
   "$(cmp -s "$TMP/image.bin" "$TMP/copied" && echo same || echo differs)" "same"
 
-run_clip "3	gone" 0
+run_copy 3
 check "an entry cliphist can no longer decode does not touch the clipboard" "$(calls)" "0"
 
-run_clip "4	empty" 0
+run_copy 4
 check "nor does one that decodes to nothing" "$(calls)" "0"
 
-run_clip "1	hello" 0
-check "the clipboard menu replaces another menu too" "$(grep -c -- '-replace' "$TMP/rofi-args")" "1"
+check "and the copy command leaves no temporary file behind, whichever way it ended" \
+  "$(find "$COPY_TMP" -type f | wc -l | tr -d ' ')" "0"
+
+# The script behind SUPER + V. qs is a stand-in that records what it was asked.
+cat >"$CBIN/qs" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QS_LOG"
+STUBEOF
+chmod +x "$CBIN/qs"
+CLIP_HOME="$TMP/clip-home"; mkdir -p "$CLIP_HOME/.local/bin"
+cp "$HELPER" "$CLIP_HOME/.local/bin/"
+run_clip() {
+  : >"$TMP/qs-log"; : >"$TMP/notify"
+  # XDG_CONFIG_HOME is set although nothing here starts rofi any more. The
+  # script closes a rofi that is open, and no real config should be in reach.
+  QS_LOG="$TMP/qs-log" NOTIFY_LOG="$TMP/notify" HOME="$CLIP_HOME" \
+    XDG_CONFIG_HOME="$TMP/xdg" HYPRSIMPLE_ROFI_PIDFILE="$TMP/no-such-pid" \
+    PATH="$CBIN" "$BASH_BIN" "$CLIP" >/dev/null 2>&1
+}
+
+run_clip
+check "SUPER + V opens the bar's clipboard panel" \
+  "$(cat "$TMP/qs-log")" "-p $CLIP_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle clipboard"
+check "through the helper, so an open rofi menu is closed first" \
+  "$(sed 's/#.*//' "$CLIP" | grep -c 'hyprsimple-menu-exclusive.sh" qs ')" "1"
+check "and the panel answers to that name" \
+  "$(grep -c 'name: "clipboard"' "$REPO/default/quickshell/bar/Bar.qml")" "1"
 
 rm "$CBIN/cliphist"
-run_clip "1	hello" 0
+run_clip
 check "without cliphist it says so" "$(grep -c 'cliphist is not installed' "$TMP/notify")" "1"
-check "and copies nothing" "$(calls)" "0"
+check "and opens nothing" "$(wc -l <"$TMP/qs-log" | tr -d ' ')" "0"
 
 # ---- the migration ---------------------------------------------------------------
 
