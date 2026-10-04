@@ -117,8 +117,8 @@ PopupPanel {
         emptyText: root.entries.length === 0 ? "Nothing copied yet" : "No matches"
         items: root.results
         active: root.visible
-        // As tall as its rows, up to a limit, with room for the empty message.
-        listHeight: Math.max(2 * Theme.rowHeight, Math.min(contentHeight, Theme.clipboardMaxHeight))
+        // As tall as its rows, up to a limit. With nothing to list, tall enough for the empty message.
+        listHeight: items.length === 0 ? emptyHeight : Math.min(contentHeight, Theme.clipboardMaxHeight)
         onActivated: entry => root.copy(entry)
         onDismissed: root.dismiss()
         // Shift+Delete removes the selected entry. Plain Delete belongs to the text field.
