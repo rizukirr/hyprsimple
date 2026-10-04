@@ -64,6 +64,7 @@ declare -A target=(
   [hyprlock.conf]="$H/.config/hypr/theme-hyprlock.conf"
   [dunst-colors]="$H/.config/dunst/dunstrc.d/90-theme.conf"
   [btop.theme]="$H/.config/btop/themes/current.theme"
+  [quickshell-colors.json]="$H/.config/quickshell/theme-active.json"
   [ghostty.conf]="$H/.config/ghostty/config"
 )
 

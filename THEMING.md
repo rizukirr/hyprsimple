@@ -88,6 +88,7 @@ Rendering writes into `<theme>/generated/`, and a switch puts each file where it
 | `hyprlock.conf` | copied to `~/.config/hypr/theme-hyprlock.conf` |
 | `ghostty.conf` | appended to `~/.config/ghostty/config`, unless the theme has a `ghostty-theme` file |
 | `btop.theme` | copied to `~/.config/btop/themes/current.theme`, and btop is pointed at it |
+| `quickshell-colors.json` | copied to `~/.config/quickshell/theme-active.json`, the interface colours for a Quickshell bar |
 
 Nothing in `generated/` is worth editing. It is overwritten on every switch and on every update that changes a template.
 

@@ -126,4 +126,15 @@ deliver_theme_configs() {
       printf 'color_theme = "current"\n' >>"$BTOP_CONF"
     fi
   fi
+
+  # 9. Update Quickshell colors
+  # Copied, not symlinked. A running shell watches this path for changes, and
+  # Quickshell's FileView reports a file rewritten in place but not a symlink
+  # pointed somewhere new, so a link would leave the old colours on screen until
+  # the shell restarted. The directory is made here because quickshell is not
+  # something hyprsimple installs.
+  if [[ -f "$GEN/quickshell-colors.json" ]]; then
+    mkdir -p "$HOME/.config/quickshell"
+    cp "$GEN/quickshell-colors.json" "$HOME/.config/quickshell/theme-active.json"
+  fi
 }
