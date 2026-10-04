@@ -46,10 +46,9 @@ NLOG="$TMP/notifications"
 
 # The stubs have to outlive the script's liveness check and nothing more. An
 # earlier version slept five seconds, which left four processes named
-# wf-recorder on the machine after one run. screen-record.sh and
-# waybar-screenrecording.sh both ask `pgrep -x wf-recorder` whether a recording
-# is in progress, so those leftovers made two unrelated suites report a
-# recording that was not happening. Each stub records its own pid and the trap
+# wf-recorder on the machine after one run. screen-record.sh asks
+# `pgrep -x wf-recorder` whether a recording is in progress, so those
+# leftovers made unrelated suites report a recording that was not happening. Each stub records its own pid and the trap
 # kills exactly those, so nothing here can reach a real recorder.
 PIDFILE="$TMP/stub-pids"
 : >"$PIDFILE"
@@ -201,11 +200,11 @@ check "a recorder that exits at once is reported rather than ignored" \
 
 # --- stopping waits for the recorder to actually go ------------------------
 #
-# The waybar indicator is driven by RTMIN+8 and nothing else: that module has a
-# signal and no interval, so whatever the module sees when the signal arrives
-# stands until the next recording starts. The stop path used to sleep 0.2s and
-# then signal, so a recorder still finalising its mp4 left the bar claiming to
-# be recording with nothing scheduled to correct it.
+# The bar's recording indicator shows whatever it was last told over ipc and
+# asks at no other time, so what the script reports when it calls stands until
+# the next recording starts. The stop path used to sleep 0.2s and then report,
+# so a recorder still finalising its mp4 left the bar claiming to be recording
+# with nothing scheduled to correct it.
 #
 # Modelled with a pgrep that reports the recorder alive until a marker file
 # appears, and a pkill that creates that marker after a delay. The order of the
@@ -222,12 +221,15 @@ cat >"$STUB/pgrep" <<'STUBEOF'
 exit 0
 STUBEOF
 
+# The call that tells the bar. Its last argument is the state it was told.
+cat >"$STUB/qs" <<'STUBEOF'
+#!/bin/bash
+[[ $* == *"ipc call bar setRecording"* ]] && printf 'signalled\n' >>"$STOP_ORDER"
+exit 0
+STUBEOF
+
 cat >"$STUB/pkill" <<'STUBEOF'
 #!/bin/bash
-if [[ $* == *RTMIN+8* ]]; then
-  printf 'signalled\n' >>"$STOP_ORDER"
-  exit 0
-fi
 # The TERM to the recorder. It goes away only after finalising, which is what
 # the delay stands for: long enough that a fixed 0.2s sleep would signal first.
 #
@@ -238,30 +240,29 @@ if [[ $* == *wl-screenrec* || $* == *wf-recorder* ]] && mkdir "$RECORDER_GONE.on
 fi
 exit 0
 STUBEOF
-chmod +x "$STUB/pgrep" "$STUB/pkill"
+chmod +x "$STUB/pgrep" "$STUB/pkill" "$STUB/qs"
 
 : >"$ORDER"; rm -f "$GONE"; rm -rf "$GONE.once"; : >"$NLOG"
 CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
   STOP_ORDER="$ORDER" RECORDER_GONE="$GONE" \
   PATH="$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" stop >/dev/null 2>&1
 
-check "the recorder is gone before waybar is told to re-read" \
+check "the recorder is gone before the bar is told" \
   "$(tr '\n' ' ' <"$ORDER")" "exited signalled "
-check "and waybar is told exactly once" \
+check "and the bar is told exactly once" \
   "$(grep -c '^signalled$' "$ORDER")" "1"
 
 # A recorder that never exits must not hang the stop for good.
 : >"$ORDER"; rm -f "$GONE"; rm -rf "$GONE.once"
 cat >"$STUB/pkill" <<'STUBEOF'
 #!/bin/bash
-[[ $* == *RTMIN+8* ]] && printf 'signalled\n' >>"$STOP_ORDER"
 exit 0
 STUBEOF
 chmod +x "$STUB/pkill"
 CALL_LOG="$LOG" NOTIFY_LOG="$NLOG" HOME="$HOME_DIR" STUB_PIDS="$PIDFILE" \
   STOP_ORDER="$ORDER" RECORDER_GONE="$GONE" HYPRSIMPLE_RECORDER_STOP_WAIT=3 \
   PATH="$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" stop >/dev/null 2>&1
-check "a recorder that never exits still ends with waybar being told" \
+check "a recorder that never exits still ends with the bar being told" \
   "$(grep -c '^signalled$' "$ORDER")" "1"
 
 # And the wait is bounded by something, or the check above proves only that
@@ -271,12 +272,12 @@ check "the stop wait has a limit rather than looping forever" \
 check "and the fixed sleep it replaced is gone" \
   "$(sed 's/#.*//' "$BIN/screen-record.sh" | grep -c 'sleep 0.2')" "0"
 
-# The module really does have no interval, which is why the sample has to be
-# taken at the right moment.
-check "the waybar recording module is signal driven with no interval" \
-  "$(sed -n '/custom\/screenrecording/,/}/p' "$REPO/.config/waybar/config.jsonc" | grep -c 'interval')" "0"
-check "and it really does carry the signal this script sends" \
-  "$(sed -n '/custom\/screenrecording/,/}/p' "$REPO/.config/waybar/config.jsonc" | grep -c '"signal": 8')" "1"
+# The bar really does not poll, which is why the state has to be reported at
+# the right moment, and it really does answer the call this script makes.
+check "the script tells the bar over ipc" \
+  "$(sed 's/#.*//' "$BIN/screen-record.sh" | grep -c 'ipc call bar setRecording')" "1"
+check "and the bar has a handler by that name" \
+  "$(grep -c 'function setRecording(active: bool): void' "$REPO/default/quickshell/shell.qml")" "1"
 
 # ---- the recorder is chosen by what is installed ---------------------------
 #
@@ -477,7 +478,7 @@ run_window "" yes
 check "cancelling the window pick records nothing" "$(wc -l <"$LOG" | tr -d ' ')" "0"
 
 # This suite once left four processes named wf-recorder running, which made
-# waybar-refresh-test and notification-idiom-test see a recording in progress.
+# notification-idiom-test see a recording in progress.
 # Assert the cleanup rather than trust it.
 leaked=0
 while read -r pid; do

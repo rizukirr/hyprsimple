@@ -62,7 +62,7 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # the fixture.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 for tool in gsettings hyprctl systemctl pkill busctl notify-send \
-  hyprsimple-restart-waybar.sh hyprsimple-restart-dunst.sh; do
+  hyprsimple-restart-dunst.sh; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
 

@@ -64,7 +64,7 @@ code_of() { sed 's/^[[:space:]]*--.*//' "$1"; }
 check "autostart no longer starts hyprsunset itself" \
   "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- hyprsunset')" "0"
 check "stripping comments leaves autostart's code intact" \
-  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- waybar')" "1"
+  "$(code_of "$REPO/default/hypr/autostart.lua" | grep -c 'uwsm app -- qs -p')" "1"
 check "the install enables the service that starts it, so the profiles are read at login" \
   "$(sed 's/#.*//' "$REPO/install.sh" | grep -c 'systemctl --user enable hyprsunset.service')" "1"
 

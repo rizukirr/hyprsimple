@@ -28,20 +28,6 @@ deliver_theme_configs() {
     ln -sf "$THEME_PATH/hypr/colors.lua" "$HOME/.config/hypr/theme-active.lua"
   fi
 
-  # 3. Update Waybar colors
-  if [[ -f "$GEN/waybar-colors.css" ]]; then
-    ln -sf "$GEN/waybar-colors.css" "$HOME/.config/waybar/theme-active.css"
-  elif [[ -f "$THEME_PATH/waybar/colors.css" ]]; then
-    ln -sf "$THEME_PATH/waybar/colors.css" "$HOME/.config/waybar/theme-active.css"
-  fi
-
-  # 3b. Update Waybar clock module (themed calendar)
-  if [[ -f "$GEN/theme-clock.jsonc" ]]; then
-    ln -sf "$GEN/theme-clock.jsonc" "$HOME/.config/waybar/theme-clock.jsonc"
-  elif [[ -f "$THEME_PATH/waybar/theme-clock.jsonc" ]]; then
-    ln -sf "$THEME_PATH/waybar/theme-clock.jsonc" "$HOME/.config/waybar/theme-clock.jsonc"
-  fi
-
   # 4. Update Rofi colors
   if [[ -f "$GEN/rofi-colors.rasi" ]]; then
     ln -sf "$GEN/rofi-colors.rasi" "$HOME/.config/rofi/rofi-colors.rasi"

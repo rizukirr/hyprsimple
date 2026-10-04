@@ -44,7 +44,7 @@ pass "found ${#tpl[@]} templates in the repository"
 # ---- a theme whose generated directory holds one file per template ---------
 
 H="$TMP/home"
-mkdir -p "$H/.local/bin" "$H/.config/ghostty" "$H/.config/waybar" "$H/.config/rofi" "$H/.config/hypr"
+mkdir -p "$H/.local/bin" "$H/.config/ghostty" "$H/.config/rofi" "$H/.config/hypr"
 THEME="$H/.config/hypr/themes/demo"
 mkdir -p "$THEME/generated"
 for name in "${tpl[@]}"; do
@@ -58,8 +58,6 @@ HOME="$H" bash -c 'source "$1"; deliver_theme_configs "$2"' _ "$DELIVER" "$THEME
 # is spelled out, and the check below fails if a template has no entry.
 declare -A target=(
   [hyprland-colors.lua]="$H/.config/hypr/theme-active.lua"
-  [waybar-colors.css]="$H/.config/waybar/theme-active.css"
-  [theme-clock.jsonc]="$H/.config/waybar/theme-clock.jsonc"
   [rofi-colors.rasi]="$H/.config/rofi/rofi-colors.rasi"
   [hyprlock.conf]="$H/.config/hypr/theme-hyprlock.conf"
   [dunst-colors]="$H/.config/dunst/dunstrc.d/90-theme.conf"
@@ -107,18 +105,16 @@ check "with the copies that used to live in the updater gone" \
 
 # ---- the update restarts what it just rewrote ------------------------------
 #
-# waybar reads its stylesheet at startup and dunst its drop-ins at load, so a
-# freshly written colour file is invisible until they are restarted. A theme
-# switch has always done this; the update wrote the files and did not.
-check "the update restarts waybar after delivering" \
-  "$(code "$UPDATER" | grep -cE 'restart-waybar\.sh"? --if-running')" "1"
-check "and dunst" \
+# dunst reads its drop-ins at load, so a freshly written colour file is
+# invisible until it is restarted. A theme switch has always done this; the
+# update wrote the files and did not. The bar is not in this list: it watches
+# its colour file and reloads on its own.
+check "the update restarts dunst after delivering" \
   "$(code "$UPDATER" | grep -cE 'restart-dunst\.sh"? --if-running')" "1"
-present=0
-for s in hyprsimple-restart-waybar.sh hyprsimple-restart-dunst.sh; do
-  [[ -f $REPO/.local/bin/$s ]] && present=$((present + 1))
-done
-check "and those two scripts exist to be called" "$present" "2"
+check "and that script exists to be called" \
+  "$([[ -f $REPO/.local/bin/hyprsimple-restart-dunst.sh ]] && echo present || echo missing)" "present"
+check "and the bar watches its colour file, so it needs no restart" \
+  "$(grep -c 'watchChanges: true' "$REPO/default/quickshell/theme/Theme.qml")" "1"
 
 # ---- delivery does not move the wallpaper ----------------------------------
 #

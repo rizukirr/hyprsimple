@@ -3,7 +3,7 @@
 #
 # It was started by autostart.lua as `uwsm app -- hyprsunset`, which has no
 # restart policy, and hyprsunset does not survive a suspend. Measured across two
-# cycles on one machine: started at login alongside dunst, hypridle and waybar,
+# cycles on one machine: started at login alongside dunst, hypridle and the bar,
 # and the only one of the four gone afterwards, both times. Nothing brought it
 # back, so every profile in hyprsunset.conf stopped applying for the rest of the
 # session.

@@ -63,9 +63,9 @@ if [[ -n "$WALLPAPER" ]]; then
   cp "$WALLPAPER" "$CACHE_DIR/current_wallpaper"
   echo "$WALLPAPER" > "$CACHE_DIR/current_wallpaper_path"
 
-  # Use theme background as rofi launcher/powermenu image
+  # Use theme background as the rofi launcher image
   WP_EXT="${WALLPAPER##*.}"
-  for rofi_type in launcher powermenu; do
+  for rofi_type in launcher; do
     ROFI_TARGET="$HOME/.config/rofi/$rofi_type/images"
     mkdir -p "$ROFI_TARGET"
     [[ -L "$ROFI_TARGET" ]] && rm -f "$ROFI_TARGET" && mkdir -p "$ROFI_TARGET"
@@ -254,8 +254,6 @@ if [[ -z "$THEME_SWITCHER_NO_RELOAD" ]]; then
   hyprctl reload
 
   systemctl --user restart hyprpaper.service
-
-  "$HOME/.local/bin/hyprsimple-restart-waybar.sh" --if-running
 
   "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running
 

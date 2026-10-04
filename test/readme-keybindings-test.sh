@@ -39,7 +39,7 @@ check() {
 # keys nobody has bound. The second was SUPER + S until the sound menu took that
 # key, and an example that collides with a shipped bind is a trap for whoever
 # uncomments it. The stripper is anchored to the start of the line so that
-# `uwsm app -- waybar` keeps its dashes, which is the mistake the lua stripper
+# `uwsm app -- qs` keeps its dashes, which is the mistake the lua stripper
 # in another suite made once.
 lua_files=(
   "$REPO/default/hypr/bindings.lua"

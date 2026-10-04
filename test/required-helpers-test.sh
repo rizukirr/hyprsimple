@@ -41,7 +41,7 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 for c in hyprctl systemctl busctl gsettings brightnessctl; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$c"
 done
-# pkill and pgrep are stubbed too. theme-switcher.sh ends by restarting waybar
+# pkill and pgrep are stubbed too. theme-switcher.sh ends by restarting dunst
 # and dunst through --if-running, and an unstubbed pkill here would reach the
 # maintainer's own session.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/pgrep"
@@ -68,13 +68,12 @@ NLOG="$TMP/notifications"
 build_home() {
   local home="$1"
   rm -rf "${home:?}"
-  mkdir -p "$home/.local/bin" "$home/.cache" "$home/.config/waybar" \
-    "$home/.config/rofi/launcher" "$home/.config/rofi/powermenu" \
+  mkdir -p "$home/.local/bin" "$home/.cache" \
+    "$home/.config/rofi/launcher" \
     "$home/.config/hypr/themes/demo/backgrounds" \
     "$home/.config/hypr/themes/templates"
   cp "$BIN"/*.sh "$home/.local/bin/"
   printf 'x\n' >"$home/.config/rofi/launcher/style.rasi"
-  printf 'x\n' >"$home/.config/rofi/powermenu/style.rasi"
   cp "$REPO/.config/hypr/themes/templates"/*.tpl "$home/.config/hypr/themes/templates/"
   cp "$REPO/.config/hypr/themes/deep-sea/colors.toml" \
     "$home/.config/hypr/themes/demo/colors.toml"
@@ -114,7 +113,7 @@ run_in "$HOME_FIXTURE" theme-switcher.sh demo
 check "with every helper present, a theme switch succeeds" "$(cat "$TMP/rc")" "0"
 check "and says so" "$(grep -c "Theme 'demo' applied" "$NLOG")" "1"
 check "and the delivery really ran, which is what a missing helper skips" \
-  "$([[ -e $HOME_FIXTURE/.config/waybar/theme-active.css ]] && echo delivered || echo missing)" \
+  "$([[ -e $HOME_FIXTURE/.config/quickshell/theme-active.json ]] && echo delivered || echo missing)" \
   "delivered"
 
 build_home "$HOME_FIXTURE"

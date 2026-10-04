@@ -3,7 +3,7 @@
 Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 > [!Note]
-> This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package, daemon, waybar module, and CSS). Run `muslimtify-add` to re-enable it later. Both commands are idempotent and back up your waybar config to `.bak` before editing.
+> This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package and daemon). Run `muslimtify-add` to re-enable it later. Both commands are idempotent. The bar shows prayer times whenever muslimtify is installed.
 
 > [!Warning]
 > Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
@@ -22,10 +22,10 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 ## Features
 
-- **40 themes** with one-key switching, all apps update at once (waybar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
+- **40 themes** with one-key switching, all apps update at once (the bar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
 - **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
-- **Per-theme backgrounds** for app launcher and power menu
+- **Per-theme background** for the app launcher
 - **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
 - **Wayland-native** session via uwsm, no X11 dependencies
 - **Modular Hyprland config** split into focused files
@@ -36,7 +36,8 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **Clipboard history** via cliphist + rofi
 - **Nightlight toggle** for warm screen temperature
 - **Audio output switching** with one key
-- **Prayer times** on waybar via muslimtify
+- **A Quickshell bar** with panels for the calendar, system usage, volume, microphone, network, bluetooth and power
+- **Prayer times** on the bar via muslimtify, with every setting in its panel
 - **Firewall** (UFW) configured out of the box
 - **In-place updates** via `hyprsimple-update`, which never overwrites your `~/.config`
 - **Migrations** that deliver fixes to machines already installed, once each and idempotently
@@ -167,9 +168,8 @@ backup of yours:
 hyprsimple-refresh-config rofi/config.rasi
 ```
 
-`rofi/launcher` and `rofi/powermenu` are not part of this. Both are links into
-the active theme and their styles are rewritten on every theme switch, so they
-belong to the theme rather than to you.
+`rofi/launcher` is not part of this. Its style is rewritten on every theme
+switch, so it belongs to the theme rather than to you.
 
 #### Theme templates
 
@@ -183,7 +183,7 @@ Older installs have a copy of the templates at `~/.config/hypr/themes/templates`
 
 ## Audio
 
-`SUPER + S` opens the sound menu. It lists every speaker and every microphone, marks the ones in use, and switches whichever you pick. Noise suppression stays on the microphone you choose.
+`SUPER + S` opens the bar's volume panel, with a mute switch, a volume slider and every output device. Click a device to make it the default. The microphone has the same panel behind its bar icon. Noise suppression stays on the microphone you choose.
 
 A bluetooth microphone switches the headset into its call profile while it is in use, which lowers playback quality until recording stops. That is how bluetooth headsets work, not something hyprsimple can avoid.
 
@@ -295,14 +295,14 @@ build fails during install.
 
 | Key | Action |
 |-----|--------|
-| `SUPER + ESC` | Power menu |
+| `SUPER + ESC` | Power menu, a panel of the bar |
 | `SUPER + SHIFT + L` | Lock screen |
 | `SUPER + X` | Exit Hyprland |
-| `CTRL + ESC` | Toggle waybar |
+| `CTRL + ESC` | Toggle the bar |
 | `SUPER + N` | Toggle nightlight |
 | `SUPER + D` | Dismiss notifications |
 | `SUPER + SHIFT + I` | Toggle idle lock |
-| `SUPER + S` | Open the sound menu, to choose a speaker and a microphone |
+| `SUPER + S` | Open the volume panel, to set the volume and choose a speaker |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
 | `SUPER + /` | Show all keybindings |
@@ -310,7 +310,7 @@ build fails during install.
 ## Scripts
 
 Helper scripts live in [`.local/bin`](.local/bin) (installed to `~/.local/bin`, which is on `PATH`).
-Most are wired to keybindings or waybar; all can also be run directly from a terminal.
+Most are wired to keybindings or the bar; all can also be run directly from a terminal.
 
 ### Audio
 
@@ -319,7 +319,6 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
 | `hyprsimple-clipboard-menu.sh` | The clipboard history menu behind `SUPER + V`, which copies only when an entry is picked |
 | `hyprsimple-menu-exclusive.sh` | Closes a rofi menu that is already open, then runs the command given, so one menu can replace another |
-| `hyprsimple-audio-menu.sh` | The rofi menu behind `SUPER + S`, which switches the speaker or the microphone |
 | `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
 
@@ -393,9 +392,8 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
-| `hyprsimple-refresh-waybar.sh` | Reset waybar's config and style, keeping your bar position |
-| `hyprsimple-restart-waybar.sh` | Restart waybar. `--if-running` reloads a running bar and does nothing otherwise |
-| `hyprsimple-restart-dunst.sh` | Restart dunst, same shape as the waybar one |
+| `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` stops or starts it |
+| `hyprsimple-restart-dunst.sh` | Restart dunst. `--if-running` does nothing when it is not running |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
@@ -404,8 +402,6 @@ Most are wired to keybindings or waybar; all can also be run directly from a ter
 | Script | Description |
 |--------|-------------|
 | `hyprsimple-muslimtify.sh` | Add or remove the [muslimtify](https://github.com/rizukirr/muslimtify) prayer-times integration |
-| `waybar-muslimtify.sh` | Provide the waybar module output (next prayer + tooltip) for muslimtify |
-| `waybar-screenrecording.sh` | Provide the waybar recording indicator. Redrawn on `SIGRTMIN+8`, which `screen-record.sh` sends |
 
 ### Shell init & internal helpers
 

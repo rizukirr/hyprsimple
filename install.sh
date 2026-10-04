@@ -1048,7 +1048,7 @@ fi
 # scope. autostart.lua used to run `uwsm app -- hyprsunset`, which has no
 # restart policy at all, and hyprsunset does not survive a suspend: measured on
 # one machine across two cycles, started at login with dunst, hypridle and
-# waybar, and the only one of the four gone afterwards, both times. Nothing
+# the bar, and the only one of the four gone afterwards, both times. Nothing
 # brought it back, so every profile in hyprsunset.conf stopped applying for the
 # rest of the session.
 #
@@ -1126,8 +1126,8 @@ echo -e "${YELLOW}Configuring shell integration...${NC}"
 bash "$HOME/.local/bin/terminal.sh" || true
 
 hyprctl reload || true
-bash "$HOME/.local/bin/hyprsimple-restart-waybar.sh"
-echo -e "${YELLOW}Starting waybar...${NC}"
+bash "$HOME/.local/bin/hyprsimple-restart-bar.sh"
+echo -e "${YELLOW}Starting the bar...${NC}"
 sleep 3
 
 # Set default volume to 65% for clean audio output combined with

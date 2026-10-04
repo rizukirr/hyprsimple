@@ -34,7 +34,10 @@ for helper in pass fail check; do
 done
 
 SHIPPED_LAUNCHER="$REPO/.config/rofi/launcher/style.rasi"
-SHIPPED_POWERMENU="$REPO/.config/rofi/powermenu/style.rasi"
+# The rofi power menu is no longer shipped, the bar has a power panel. An older
+# install still has its style file, and the migration below still repairs it,
+# so the launcher's file stands in for it: the two carried the same header.
+SHIPPED_POWERMENU="$SHIPPED_LAUNCHER"
 
 # ---- the premise: the shipped file really does promise this ----------------
 #
@@ -46,8 +49,6 @@ check "and promises everything else is kept" \
   "$(grep -c 'Everything else here is kept' "$SHIPPED_LAUNCHER")" "1"
 check "and carries the url() the switch is meant to rewrite" \
   "$(grep -c 'images/wallpaper\.[a-z]*"' "$SHIPPED_LAUNCHER")" "1"
-check "and the powermenu one says the same" \
-  "$(grep -c 'images/wallpaper\.<ext>' "$SHIPPED_POWERMENU")" "1"
 
 # ---- the pattern the switcher uses, applied the way it applies it ----------
 #

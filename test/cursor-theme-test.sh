@@ -86,7 +86,7 @@ printf '#!/bin/bash\nexit 1\n' >"$STUB/rofi"
 # notify-send among them. theme-switcher.sh warns when a theme names a cursor
 # that is not installed, and this suite drives exactly that case, so without a
 # stub the warning went to the maintainer's own desktop. It did, once.
-for tool in gsettings hyprctl systemctl pkill hyprsimple-restart-waybar.sh notify-send; do
+for tool in gsettings hyprctl systemctl pkill notify-send; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
 

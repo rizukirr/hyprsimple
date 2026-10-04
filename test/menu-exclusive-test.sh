@@ -55,7 +55,7 @@ mapfile -t launches < <(
       sed "s|^|$(basename "$f"):|"
   done
 )
-if ((${#launches[@]} < 6)); then
+if ((${#launches[@]} < 5)); then
   fail "found ${#launches[@]} rofi launches in .local/bin, which is fewer than there are"
 else
   pass "found ${#launches[@]} rofi launches in .local/bin"
@@ -66,12 +66,12 @@ for l in "${launches[@]}"; do
 done
 check "every one passes -replace" "${missing[*]:-}" ""
 
-for name in hyprsimple-record-menu.sh hyprsimple-screenshot-menu.sh hyprsimple-audio-menu.sh \
+for name in hyprsimple-record-menu.sh hyprsimple-screenshot-menu.sh \
   show-keybindings.sh hyprsimple-image-picker.sh hyprsimple-clipboard-menu.sh; do
   check "including $name" "$(printf '%s\n' "${launches[@]}" | grep -c "^$name:")" "1"
 done
 
-# ---- the launcher and power menu go through the helper -------------------------
+# ---- the launcher goes through the helper, the power menu is a bar panel -------
 #
 # vars.lua is evaluated, not grepped, so a quoting slip that leaves the command
 # malformed is seen as the string Hyprland would actually run.
@@ -90,8 +90,10 @@ if [[ -n $LUA ]]; then
   }
   check "SUPER + A starts the launcher through the helper" "$(eval_var menu)" \
     "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh $LUA_HOME/.config/rofi/launcher/launcher.sh"
-  check "and so does the power menu" "$(eval_var powermenu)" \
-    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh $LUA_HOME/.config/rofi/powermenu/powermenu.sh"
+  # The power menu is a panel of the bar, opened over its ipc. HYPRSIMPLE_PATH
+  # is unset for the evaluation so the default install path is what is checked.
+  check "and SUPER + ESCAPE opens the bar's power panel" "$(env -u HYPRSIMPLE_PATH HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.powermenu)" 2>&1)" \
+    "qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle power"
 else
   pass "no lua interpreter here, so vars.lua is not evaluated"
 fi

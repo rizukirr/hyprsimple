@@ -31,7 +31,6 @@ REWRITTEN=(
   hypr/theme-hyprlock.conf
   ghostty/config
   rofi/launcher/style.rasi
-  rofi/powermenu/style.rasi
 )
 is_rewritten() {
   local f
