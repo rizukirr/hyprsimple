@@ -344,6 +344,78 @@ check "the panel holds the command until it has closed" \
 check "and runs it from that timer and nowhere else" \
   "$(grep -c 'Quickshell.execDetached' "$PANEL_QML")" "1"
 
+# ---- the migration clears the old menu from an existing install ---------------
+#
+# The update never removes a script from ~/.local/bin, and never rewrites a
+# file under ~/.config/hypr, so the screenshot menu's script and any binding of
+# the user's own that calls it are left to a migration. It runs against homes
+# of this suite's own.
+
+MIGRATION="$(grep -l 'Clear away the screenshot menu' "$REPO"/migrations/*.sh | head -1)"
+check "the migration was found" "$([[ -n $MIGRATION ]] && echo found || echo missing)" "found"
+
+migrate() {
+  HOME="$1" HYPRSIMPLE_PATH="$REPO" PATH="/usr/bin:/bin" "$BASH_BIN" "$MIGRATION" >"$TMP/mig-out" 2>&1
+  printf '%s' "$?" >"$TMP/rc"
+}
+mig_home() {
+  local h="$TMP/mig-$1"
+  mkdir -p "$h/.local/bin" "$h/.config/hypr/bindings"
+  printf '%s' "$h"
+}
+
+# The ordinary install: the stale script, and no binding of the user's own.
+h=$(mig_home plain)
+printf '#!/bin/bash\n' >"$h/.local/bin/hyprsimple-screenshot-menu.sh"
+printf '#!/bin/bash\n' >"$h/.local/bin/screenshot.sh"
+printf 'hl.bind("SUPER + T", hl.dsp.exec_cmd(vars.terminal), { description = "Terminal" })\n' \
+  >"$h/.config/hypr/bindings/applications.lua"
+plain_before=$(cat "$h/.config/hypr/bindings/applications.lua")
+migrate "$h"
+check "the old menu script is removed" \
+  "$([[ -e $h/.local/bin/hyprsimple-screenshot-menu.sh ]] && echo present || echo removed)" "removed"
+check "and screenshot.sh, which still ships, is left alone" \
+  "$([[ -e $h/.local/bin/screenshot.sh ]] && echo kept || echo removed)" "kept"
+check "a bindings file that does not call the menu is not touched" \
+  "$(cat "$h/.config/hypr/bindings/applications.lua")" "$plain_before"
+check "and gets no backup" "$([[ -e $h/.config/hypr/bindings/applications.lua.bak ]] && echo backed-up || echo none)" "none"
+check "and it succeeds" "$(cat "$TMP/rc")" "0"
+
+# A binding of the user's own that calls the menu.
+h=$(mig_home own)
+printf '#!/bin/bash\n' >"$h/.local/bin/hyprsimple-screenshot-menu.sh"
+{
+  printf -- '-- my own comment\n'
+  printf 'hl.bind("SUPER + T", hl.dsp.exec_cmd(vars.terminal), { description = "Terminal" })\n'
+  printf 'hl.bind("SUPER + P", hl.dsp.exec_cmd(home .. "/.local/bin/hyprsimple-screenshot-menu.sh"), { description = "Shot" })\n'
+} >"$h/.config/hypr/bindings/applications.lua"
+own_before=$(cat "$h/.config/hypr/bindings/applications.lua")
+migrate "$h"
+check "a binding of the user's own is pointed at the picker" \
+  "$(grep -c 'hl.bind("SUPER + P", hl.dsp.exec_cmd(home .. "/.local/bin/screenshot.sh smart"), { description = "Shot" })' "$h/.config/hypr/bindings/applications.lua")" "1"
+check "and no longer names the old script" \
+  "$(grep -c 'hyprsimple-screenshot-menu' "$h/.config/hypr/bindings/applications.lua")" "0"
+check "and every other line is exactly as it was" \
+  "$(grep -v 'SUPER + P' "$h/.config/hypr/bindings/applications.lua")" "$(grep -v 'SUPER + P' <<<"$own_before")"
+check "the file as it was is kept beside it" \
+  "$(cat "$h/.config/hypr/bindings/applications.lua.bak")" "$own_before"
+check "and the migration says which file it changed" \
+  "$(grep -c 'applications.lua now calls screenshot.sh smart' "$TMP/mig-out")" "1"
+
+# Run again. The backup must still hold the original, not the rewritten file.
+migrate "$h"
+check "running it again changes nothing" \
+  "$(grep -c 'screenshot.sh smart' "$h/.config/hypr/bindings/applications.lua")" "1"
+check "and the backup still holds the file as it first was" \
+  "$(cat "$h/.config/hypr/bindings/applications.lua.bak")" "$own_before"
+check "and says there is nothing to do" "$(grep -c 'Nothing to clear away' "$TMP/mig-out")" "1"
+
+# A home with neither the script nor a hypr config must not fail.
+mkdir -p "$TMP/mig-bare"
+migrate "$TMP/mig-bare"
+check "a home with nothing to clear exits 0" "$(cat "$TMP/rc")" "0"
+check "and creates nothing" "$(find "$TMP/mig-bare" -mindepth 1 | wc -l | tr -d ' ')" "0"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1
