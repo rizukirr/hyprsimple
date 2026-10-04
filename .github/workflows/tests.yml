@@ -75,9 +75,6 @@ jobs:
       - name: theme-refresh-test
         run: bash test/theme-refresh-test.sh
 
-      - name: dunst-split-test
-        run: bash test/dunst-split-test.sh
-
       - name: hypr-conf-split-test
         run: bash test/hypr-conf-split-test.sh
 
@@ -276,6 +273,9 @@ jobs:
 
       - name: rofi-removal-test
         run: bash test/rofi-removal-test.sh
+
+      - name: notifications-test
+        run: bash test/notifications-test.sh
 
       - name: theme-catalogue-test
         run: bash test/theme-catalogue-test.sh

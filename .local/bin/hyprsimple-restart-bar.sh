@@ -9,7 +9,9 @@
 # what login and install.sh need.
 #
 # --if-running restarts a bar that is already up and does nothing otherwise.
-# --toggle     stops a running bar and starts a stopped one.
+# --toggle     hides a running bar or shows it again, and starts a stopped one.
+#              Hiding does not stop it: the bar also shows the notifications,
+#              which a stopped one would silently drop.
 #
 # The bar is matched by its config path, not by process name. Quickshell runs
 # any number of configs under the one name "qs", and killing by name would take
@@ -27,8 +29,7 @@ case "${1:-}" in
     ;;
   --toggle)
     if bar_running; then
-      pkill -f -- "qs -p $BAR"
-      exit 0
+      exec qs -p "$BAR" ipc call bar toggleVisible
     fi
     ;;
 esac

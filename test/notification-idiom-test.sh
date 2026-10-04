@@ -1,8 +1,8 @@
 #!/bin/bash
 # hyprsimple sent notifications two ways, notify-send and dunstify, with no rule
-# saying which. This suite pins the single idiom, and the one behaviour the
-# substitution could have broken silently: volume and brightness replace their
-# own previous notification by id rather than stacking.
+# saying which. This suite pins the single idiom, and the one behaviour that is
+# easy to break silently: volume and brightness replace their own previous
+# notification rather than stacking.
 
 set -uo pipefail
 
@@ -18,13 +18,16 @@ check() {
 check "no script calls dunstify" \
   "$(grep -rlE '(^|[^[:alnum:]_-])dunstify' "$REPO/.local/bin/" | wc -l | tr -d ' ')" "0"
 
-# dunstctl is a different tool with no notify-send equivalent, so the check
-# above must not become a blanket ban on everything dunst ships.
-check "notification-dismiss.sh still uses dunstctl" \
-  "$(grep -c 'dunstctl' "$REPO/.local/bin/notification-dismiss.sh")" "1"
+# Dismissing is the bar's to do, since it is what shows them.
+check "notification-dismiss.sh asks the bar to dismiss them" \
+  "$(grep -c 'ipc call bar dismissNotifications' "$REPO/.local/bin/notification-dismiss.sh")" "1"
+check "and no script calls dunstctl" \
+  "$(grep -rlE '(^|[^[:alnum:]_-])dunstctl' "$REPO/.local/bin/" | wc -l | tr -d ' ')" "0"
 
-# Every notification these two send has to replace by id, so a run does not
-# stack a column of them up.
+# Every notification these two send has to take the place of the last one, so a
+# run of key presses does not stack a column of them up. They say so with the
+# synchronous hint, which the bar matches on. Replacing by id does not work: the
+# id a script makes up is not one the bar ever gave out.
 #
 # Counted against how many they send rather than pinned to a number. The
 # numbers were 2 and 1, and adding a notification for "could not read the
@@ -33,13 +36,17 @@ check "notification-dismiss.sh still uses dunstctl" \
 for notifier in volume-notify.sh brightness-notify.sh; do
   script="$REPO/.local/bin/$notifier"
   sends=$(grep -c 'notify-send' "$script")
-  by_id=$(grep -c -- '-r "\?\$NOTIFY_ID' "$script")
+  tagged=$(grep -c 'notify-send .*"\${SAME\[@\]}"' "$script")
   if (( sends < 2 )); then
     fail "$notifier sends $sends notifications, which is fewer than it has"
   else
-    check "every notification $notifier sends replaces by id" "$by_id" "$sends"
+    check "every notification $notifier sends takes the place of the last" "$tagged" "$sends"
   fi
+  check "$notifier names what it replaces with the synchronous hint" \
+    "$(grep -c '^SAME=(-h string:x-canonical-private-synchronous:[a-z]*)$' "$script")" "1"
 done
+check "and the bar matches on that hint" \
+  "$(grep -c 'x-canonical-private-synchronous' "$REPO/default/quickshell/notifications/Notifications.qml")" "1"
 
 # Each converted line, reached by running its own script rather than by
 # replaying the command out of context. A stub notify-send first on PATH
@@ -186,168 +193,8 @@ EOF
     "$(grep -c 'Caps Lock' "$LOG")" "1"
 fi
 
-# The behaviour itself, against the running daemon. Skipped loudly where dunst
-# is not running, which includes CI. A check that silently degrades into a
-# no-op on the runner reads as coverage while proving nothing.
-# Gated on dunstctl actually answering, not on the binary existing and the
-# process being alive. Both of those can be true while the session bus is
-# unreachable, and then every check below returns an empty string and fails
-# with a confusing message instead of skipping.
-if dunstctl count displayed >/dev/null 2>&1; then
-  # Every check below asks about notifications this suite sent, and about
-  # nothing else on the machine.
-  #
-  # This section used to read `dunstctl count displayed`, which counts the whole
-  # stack, so any notification from anything else that landed inside a window
-  # was counted as this suite's. Reproduced deliberately rather than waited for:
-  # with one unrelated notify-send 0.4s into the 1.5s window below, "a critical
-  # notification honours its own -t" read 2 where it wanted 0. That is the flake
-  # that showed up once in a full sweep and would not reproduce on its own.
-  #
-  # Two repairs were tried against a machine sending unrelated notifications
-  # throughout the run, and both broke in their turn:
-  #
-  #   count displayed, differenced around a close by id
-  #     a notification dunst had queued rather than shown read as absent. With
-  #     30 standing, dunst had 19 displayed and 11 waiting.
-  #   displayed plus waiting, differenced the same way
-  #     the total moved between the two reads when something else arrived, so
-  #     the difference came out as -1 rather than 0 or 1.
-  #
-  # Both measured the whole machine and subtracted. dunst offers no way to list
-  # what it is holding, over dunstctl or over its D-Bus interface, so the two
-  # questions here are asked in the two ways it does answer.
-
-  # dunst moves a notification into its history the moment it expires or is
-  # closed, and a live one is not there, so one read of one id says whether
-  # dunst still holds it.
-  held_by_id() {
-    local seen
-    seen=$(dunstctl history |
-      jq --argjson i "$1" '[.data[][] | select(.id.data == $i)] | length')
-    [[ $seen == 0 ]] && printf '1' || printf '0'
-  }
-
-  # How many notifications of one probe dunst is holding. History is the only
-  # listable view, so the probes are closed into it and counted there by an
-  # appname unique to this run and this check, which is what keeps everything
-  # else on the machine out of the number.
-  probe_app() { printf 'hyprsimple-probe-%s-%s' "$$" "$1"; }
-  held_for_app() {
-    dunstctl close-all
-    dunstctl history |
-      jq --arg a "$1" '[.data[][] | select(.appname.data == $a)] | length'
-  }
-
-  # History is a ring, so a long enough burst of other notifications pushes an
-  # entry out of it and these reads would miss a probe that really was there.
-  #
-  # Detected rather than guessed at. A marker is closed into history before each
-  # probe, so it sits older than anything the probe puts there, and eviction
-  # takes the oldest first. A marker still present when the probe is read means
-  # nothing of that age has been dropped and the reading stands. Checked against
-  # dunst rather than against a number, so it does not go stale if
-  # history_length is ever set.
-  mark_history() {
-    local id
-    id=$(notify-send -p -u low -t 1000 --transient "probe" "history marker")
-    dunstctl close "$id" >/dev/null 2>&1
-    printf '%s' "$id"
-  }
-  marker_survives() {
-    [[ $(dunstctl history |
-      jq --argjson i "$1" '[.data[][] | select(.id.data == $i)] | length') != 0 ]]
-  }
-  # Said rather than reported as a product failure, in the same shape as the
-  # timing guard further down.
-  held_check() {
-    local marker="$1"; shift
-    if marker_survives "$marker"; then
-      check "$1" "$2" "$3"
-    else
-      printf 'not ok - inconclusive: dunst evicted a marker from history, so a probe read may have missed one\n' >&2
-      failures=$((failures + 1))
-    fi
-  }
-
-  # The probes have to be able to fail, or every check below reads the same
-  # number for a working dunst and a broken one.
-  dunstctl close-all
-  canary=$(notify-send -p -u low -t 5000 --transient "probe" "canary")
-  check "a notification just sent reads as held" "$(held_by_id "$canary")" "1"
-  dunstctl close "$canary" >/dev/null 2>&1
-  check "and reads as gone once closed" "$(held_by_id "$canary")" "0"
-
-  # --- one id replaces, two ids accumulate -----------------------------------
-
-  app_r=$(probe_app replace)
-  dunstctl close-all
-  mark_r=$(mark_history)
-  notify-send -a "$app_r" -u low -t 3000 -r 4242 --transient "probe" "first"
-  notify-send -a "$app_r" -u low -t 3000 -r 4242 --transient "probe" "second"
-  held_check "$mark_r" "two notify-send with one id leave dunst holding one notification" \
-    "$(held_for_app "$app_r")" "1"
-
-  # Discrimination: the check above is worthless unless the same pair without
-  # -r would actually leave two.
-  app_n=$(probe_app distinct)
-  dunstctl close-all
-  mark_n=$(mark_history)
-  notify-send -a "$app_n" -u low -t 3000 --transient "probe" "first"
-  notify-send -a "$app_n" -u low -t 3000 --transient "probe" "second"
-  held_check "$mark_n" "the same pair without an id leaves it holding two" \
-    "$(held_for_app "$app_n")" "2"
-
-  # --- what dunst does with critical urgency ---------------------------------
-  #
-  # screen-record.sh sends critical notifications with -t 3000, and dunst
-  # documents critical urgency as never expiring by default. It does expire
-  # here, because default/dunst/10-hyprsimple.conf sets a global timeout and
-  # the urgency_critical sections override only colours.
-  #
-  # Both probes are --transient, and that is not incidental. The same file sets
-  # idle_threshold = 120, which stops notifications timing out at all once the
-  # user has been idle that long. An automated run is idle by definition, so
-  # without --transient these checks pass when someone is at the keyboard and
-  # fail when nobody is, which is how they were written and how they flaked.
-  # dunst documents transient as the client-side bypass for exactly this.
-  #
-  # Measured in the failing state rather than reasoned about: with the machine
-  # idle, an ordinary -t 1000 notification was still displayed after 2 seconds
-  # and a transient one was gone, at both critical and low urgency.
-  #
-  # The second races a wall clock against dunst's global timeout, so it reports
-  # how long it actually took. If the elapsed time reaches the timeout the check
-  # could not have concluded anything, and it says so.
-  global_timeout_ms=5000
-  elapsed_ms() { printf '%s' "$(( $(date +%s%3N) - $1 ))"; }
-
-  dunstctl close-all
-  mark_s=$(mark_history)
-  short=$(notify-send -p -u critical -t 1000 --transient "probe" "critical honours -t")
-  sleep 1.5
-  held_check "$mark_s" "a critical notification honours its own -t" \
-    "$(held_by_id "$short")" "0"
-
-  dunstctl close-all
-  mark_l=$(mark_history)
-  started=$(date +%s%3N)
-  long=$(notify-send -p -u critical --transient "probe" "critical without -t outlives it")
-  sleep 1
-  still_held=$(held_by_id "$long")
-  took=$(elapsed_ms "$started")
-  if (( took >= global_timeout_ms )); then
-    printf 'not ok - inconclusive: reading the state took %sms, past the %sms timeout\n' \
-      "$took" "$global_timeout_ms" >&2
-    failures=$((failures + 1))
-  else
-    held_check "$mark_l" "a critical notification without -t outlives that window (${took}ms of ${global_timeout_ms}ms)" \
-      "$still_held" "1"
-  fi
-  dunstctl close-all
-else
-  printf 'skip - dunst not running, replacement behaviour not exercised\n'
-fi
+# What the bar does with the hint, replacing in place, is the bar's own
+# behaviour and is not exercised here: it needs a running notification server.
 
 # --- a level that could not be read is said, not invented ---------------------
 #

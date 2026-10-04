@@ -251,12 +251,11 @@ for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*
   fi
 done
 
-# ---- The two links install-owned defaults arrive through ------------------
+# ---- The link install-owned defaults arrive through ----------------------
 #
-# hyprlock, hypridle and xdph read ~/.config/hypr/hyprsimple, and dunst reads
-# the drop-in symlinked into dunstrc.d. install.sh makes both and nothing ever
-# re-made them, so a link deleted, or left pointing at an old HYPRSIMPLE_PATH,
-# stayed broken through every update.
+# hyprlock, hypridle and xdph read ~/.config/hypr/hyprsimple. install.sh makes
+# the link and nothing ever re-made it, so one deleted, or left pointing at an
+# old HYPRSIMPLE_PATH, stayed broken through every update.
 #
 # It stays broken quietly. hyprlang ignores a `source =` naming a file that is
 # not there, without a word: measured with hyprsunset, it exits 0 and says
@@ -287,8 +286,6 @@ ensure_link() {
 }
 
 ensure_link "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple" hypr
-ensure_link "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" \
-  "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf" dunst
 
 # ---- Packages ------------------------------------------------------------
 
@@ -400,12 +397,9 @@ if [[ -d $TEMPLATES_DIR && -x $RENDERER ]]; then
         source "$DELIVER"
         deliver_theme_configs "${gen%/*}"
 
-        # And restarted, or the freshly written colours sit on disk unread.
-        # dunst reads its drop-ins at load, so delivering without this is the
-        # same invisibility in a new place. A no-op when it is not running.
-        # ghostty is reloaded inside the delivery itself, over its own dbus
-        # interface, and the bar watches its colour file and needs nothing.
-        "$HOME/.local/bin/hyprsimple-restart-dunst.sh" --if-running || true
+        # Nothing is restarted. ghostty is reloaded inside the delivery
+        # itself, over its own dbus interface, and the bar, which also shows
+        # the notifications, watches its colour file.
       else
         # Said rather than skipped quietly. Rendered output that never reaches
         # the program it was for is the bug this whole block exists to prevent.
@@ -421,8 +415,7 @@ fi
 # ---- Configs this update changed that you still hold your own copy of ----
 #
 # Some configs cannot be delivered automatically. starship.toml and yazi.toml
-# are TOML, and that format has no include directive, so there is no equivalent
-# of the dunst drop-in for them.
+# are TOML, and that format has no include directive to hang a default off.
 #
 # hyprsimple-refresh-config.sh has always been able to update one, but nothing
 # ever said that it needed updating, so the command existed and was never run.

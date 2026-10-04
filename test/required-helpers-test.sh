@@ -41,9 +41,8 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 for c in hyprctl systemctl busctl gsettings brightnessctl; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$c"
 done
-# pkill and pgrep are stubbed too. theme-switcher.sh ends by restarting dunst
-# and dunst through --if-running, and an unstubbed pkill here would reach the
-# maintainer's own session.
+# pkill and pgrep are stubbed too, so nothing a script here ends by restarting
+# can reach the maintainer's own session.
 printf '#!/bin/bash\nexit 1\n' >"$STUB/pgrep"
 printf '#!/bin/bash\nexit 0\n' >"$STUB/pkill"
 # A qs of its own too. These scripts call the bar, and the real one acts on the

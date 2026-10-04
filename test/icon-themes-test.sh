@@ -15,15 +15,10 @@
 # This is the shape the btop theme had in #86: the whole chain built, and the
 # last link never connected. There the config key was never set; here the
 # package was never installed.
-#
-# The dunst drop-in named things that were not installed too, and two settings
-# dunst rejects outright. Where dunst is present this suite asks it rather than
-# judging its syntax here.
 
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DROPIN="$REPO/default/dunst/10-hyprsimple.conf"
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP:?}"' EXIT
 
@@ -89,53 +84,6 @@ check "and not in the pacman list, which cannot resolve it" \
   "$(grep -cx 'yaru-icon-theme' "$REPO/packages.txt")" "0"
 check "papirus-icon-theme is in the pacman list, being in extra" \
   "$(grep -cx 'papirus-icon-theme' "$REPO/packages.txt")" "1"
-
-# --- the dunst drop-in -------------------------------------------------------
-
-check "the drop-in no longer hardcodes Papirus icon paths" \
-  "$(grep -c 'icon_path' "$DROPIN")" "0"
-check "and names icon themes with a fallback instead" \
-  "$(grep -c 'icon_theme = "Papirus-Dark, Adwaita"' "$DROPIN")" "1"
-# The drop-in once named rofi as dunst's dmenu, and wofi before that. Neither
-# is installed now, and a dmenu naming a program that is not there fails only
-# when a notification's menu is asked for, long after anyone could connect the
-# two. So the drop-in names none.
-code_of() { sed 's/#.*//' "$1"; }
-check "the drop-in names no dmenu, since no menu program is installed" \
-  "$(code_of "$DROPIN" | grep -c 'dmenu')" "0"
-check "stripping comments leaves the drop-in's settings intact" \
-  "$(code_of "$DROPIN" | grep -c 'icon_theme = "Papirus-Dark, Adwaita"')" "1"
-# grep -c across two files prints one count per file. Summed in the shell,
-# because bc is not installed on a hyprsimple machine.
-wofi_listed=0
-while read -r n; do wofi_listed=$((wofi_listed + n)); done < <(
-  grep -cx 'wofi' "$REPO/packages.txt" "$REPO/aur-packages.txt" | cut -d: -f2
-)
-check "wofi really is absent from both lists, which is why" "$wofi_listed" "0"
-
-if ! command -v dunst >/dev/null 2>&1; then
-  pass "dunst is not installed here, so its verdict is skipped"
-else
-  # A theme directory dunst can find, so the only remaining warning on a
-  # machine without papirus-icon-theme installed does not mask a real one.
-  mkdir -p "$TMP/icons/Papirus-Dark/16x16/status"
-  printf '[Icon Theme]\nName=Papirus-Dark\nDirectories=16x16/status\n[16x16/status]\nSize=16\n' \
-    >"$TMP/icons/Papirus-Dark/index.theme"
-  complaints=$(XDG_DATA_DIRS="$TMP:/usr/share" dunst --config "$DROPIN" --print 2>&1 |
-    grep -icE 'warning|legacy|does.t exist' || true)
-  check "dunst accepts the drop-in with no warning of any kind" "$complaints" "0"
-
-  # And the two it used to make are gone for the right reason, not because the
-  # check stopped looking.
-  probe() {
-    printf '[global]\n%s\n' "$1" >"$TMP/probe.conf"
-    dunst --config "$TMP/probe.conf" --print 2>&1 | grep -icE 'warning|legacy|does.t exist' || true
-  }
-  check "dunst still rejects the old offset syntax, so that check means something" \
-    "$(probe 'offset = 10x10')" "1"
-  check "and still rejects notification_height" \
-    "$(probe 'notification_height = 0')" "1"
-fi
 
 # --- the correction reaches a machine that already exists --------------------
 #

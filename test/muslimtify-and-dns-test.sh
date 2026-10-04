@@ -18,6 +18,10 @@ check() {
 }
 
 STUB="$TMP/bin"; mkdir -p "$STUB"
+# A qs of its own. This suite names the script that restarts the bar, which can
+# also ask the running bar to hide, and the real one would act on the bar of
+# whoever is running the tests.
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"; chmod +x "$STUB/qs"
 
 # installed_pkgs is lifted rather than the script run, because running it
 # invokes an AUR helper and restarts the bar.

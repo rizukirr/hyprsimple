@@ -165,6 +165,18 @@ Singleton {
     // How long a panel holds exclusive keyboard focus before relaxing it.
     readonly property int focusPrime: 75
 
+    // Notifications
+    readonly property int notifyWidth: 360
+    readonly property int notifyMargin: 10
+    readonly property int notifyIconSize: 36
+    readonly property int notifyBodyLines: 5
+    // How many are on screen at once. The oldest leaves when one more arrives.
+    readonly property int notifyMax: 5
+    // How long one stays when its sender did not say, in milliseconds.
+    readonly property int notifyTimeout: 5000
+    // How many the history keeps. The oldest are dropped past that.
+    readonly property int notifyHistoryMax: 50
+
     // Material Symbols ligature names.
     readonly property var icon: ({
         wifi: ["signal_wifi_0_bar", "network_wifi_1_bar", "network_wifi_2_bar", "network_wifi_3_bar", "network_wifi"],

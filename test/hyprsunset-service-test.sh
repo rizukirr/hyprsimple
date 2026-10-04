@@ -3,7 +3,7 @@
 #
 # It was started by autostart.lua as `uwsm app -- hyprsunset`, which has no
 # restart policy, and hyprsunset does not survive a suspend. Measured across two
-# cycles on one machine: started at login alongside dunst, hypridle and the bar,
+# cycles on one machine: started at login alongside hypridle and the bar,
 # and the only one of the four gone afterwards, both times. Nothing brought it
 # back, so every profile in hyprsunset.conf stopped applying for the rest of the
 # session.
@@ -56,7 +56,7 @@ check "and does not leave it at on-failure, which the packaged unit already says
 check "autostart.lua does not run hyprsunset itself any more" \
   "$(lua_code "$AUTOSTART" | grep -c 'hyprsunset')" "0"
 check "and stripping the comments leaves its other launches behind" \
-  "$(lua_code "$AUTOSTART" | grep -c 'uwsm app --')" "7"
+  "$(lua_code "$AUTOSTART" | grep -c 'uwsm app --')" "6"
 
 # ---- install.sh enables the unit and links the drop-in ---------------------
 

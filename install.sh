@@ -1047,14 +1047,14 @@ fi
 # hyprsunset, through the unit its own package ships rather than a bare uwsm
 # scope. autostart.lua used to run `uwsm app -- hyprsunset`, which has no
 # restart policy at all, and hyprsunset does not survive a suspend: measured on
-# one machine across two cycles, started at login with dunst, hypridle and
-# the bar, and the only one of the four gone afterwards, both times. Nothing
+# one machine across two cycles, started at login with hypridle and
+# the bar, and the only one of them gone afterwards, both times. Nothing
 # brought it back, so every profile in hyprsunset.conf stopped applying for the
 # rest of the session.
 #
 # The drop-in beside it raises Restart from on-failure to always, because
 # on-failure does not cover the clean exit hyprsunset makes when its output
-# goes. A symlink, like the dunst drop-in, so an update to it reaches every
+# goes. A symlink, so an update to it reaches every
 # machine without a migration.
 if [ -f /usr/lib/systemd/user/hyprsunset.service ]; then
   echo -e "${YELLOW}Enabling hyprsunset...${NC}"
@@ -1076,12 +1076,6 @@ echo -e "${YELLOW}Initializing Theme Manager (Default: ${DEFAULT_THEME})...${NC}
 CACHE_DIR="$HOME/.cache"
 mkdir -p "$CACHE_DIR"
 mkdir -p "$HOME/.config/btop/themes"
-
-# dunst reads drop-ins from dunstrc.d/ beside the base config. Symlinking the
-# default rather than copying it is what lets hyprsimple-update deliver changes
-# without a migration, the same guarantee package.path gives the lua config.
-mkdir -p "$HOME/.config/dunst/dunstrc.d"
-ln -sfn "$HYPRSIMPLE_PATH/default/dunst/10-hyprsimple.conf" "$HOME/.config/dunst/dunstrc.d/10-hyprsimple.conf"
 
 # hyprlock, hypridle and xdph source their defaults through this link, so no
 # config file has to hardcode an install path that HYPRSIMPLE_PATH can change.

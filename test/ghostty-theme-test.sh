@@ -59,8 +59,7 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # bar of whoever is running the tests.
 printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
 chmod +x "$STUB/qs"
-for tool in gsettings hyprctl systemctl pkill busctl notify-send \
-  hyprsimple-restart-dunst.sh; do
+for tool in gsettings hyprctl systemctl pkill busctl notify-send; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"; chmod +x "$STUB/$tool"
 done
 

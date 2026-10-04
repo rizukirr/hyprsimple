@@ -22,7 +22,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 ## Features
 
-- **40 themes** with one-key switching, all apps update at once (the bar and its menus, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
+- **40 themes** with one-key switching, all apps update at once (the bar with its menus and notifications, ghostty, hyprlock, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
 - **Visual pickers** for themes and wallpapers: a carousel of previews in a panel of the bar, with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
 - **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
@@ -138,7 +138,7 @@ hyprsimple-refresh-config hypr/hyprlock.conf
 
 Writing a migration is documented in [`migrations/README.md`](migrations/README.md).
 
-Some configs cannot be delivered automatically. `starship.toml` and `yazi/yazi.toml` are TOML, so neither has an include directive to hang a default off the way dunst does.
+Some configs cannot be delivered automatically. `starship.toml` and `yazi/yazi.toml` are TOML, and that format has no include directive to hang a default off.
 
 When an update changes one of those and you have your own version, `hyprsimple-update` says so and prints the command to take the new one. It only mentions a file this update actually changed, so editing something on purpose does not nag you every time.
 
@@ -269,7 +269,7 @@ build fails during install.
 | `SUPER + ESC` | Power menu, a panel of the bar |
 | `SUPER + SHIFT + L` | Lock screen |
 | `SUPER + X` | Exit Hyprland |
-| `CTRL + ESC` | Toggle the bar |
+| `CTRL + ESC` | Hide or show the bar |
 | `SUPER + N` | Toggle nightlight |
 | `SUPER + D` | Dismiss notifications |
 | `SUPER + SHIFT + I` | Toggle idle lock |
@@ -289,14 +289,14 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 |--------|-------------|
 | `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
 | `hyprsimple-clipboard-menu.sh` | Opens the bar's clipboard history panel, behind `SUPER + V` |
-| `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
+| `volume-notify.sh` | Show the current PipeWire volume as a notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
 
 ### Display, Theme & Wallpaper
 
 | Script | Description |
 |--------|-------------|
-| `brightness-notify.sh` | Show the current screen brightness via a dunst notification |
+| `brightness-notify.sh` | Show the current screen brightness as a notification |
 | `keyboard-brightness.sh` | Control the keyboard backlight (`up` / `down` / `cycle`) |
 | `toggle-nightlight.sh` | Toggle a warm screen temperature via hyprsunset |
 | `theme-switcher.sh` | Switch theme via the visual picker, or apply one directly by name |
@@ -344,7 +344,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `capslock-notify.sh` | Notify on Caps Lock state changes |
-| `notification-dismiss.sh` | Dismiss all dunst notifications |
+| `notification-dismiss.sh` | Dismiss every notification on screen |
 
 ### Search & Keybindings
 
@@ -361,8 +361,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
-| `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` stops or starts it |
-| `hyprsimple-restart-dunst.sh` | Restart dunst. `--if-running` does nothing when it is not running |
+| `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 

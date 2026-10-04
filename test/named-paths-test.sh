@@ -141,11 +141,10 @@ code_of "$INSTALL" >"$INSTALL_CODE"
 check "stripping comments leaves install.sh's code behind" \
   "$(grep -c '^install_packages()' "$INSTALL_CODE")" "1"
 # systemd/user/hyprsunset.service.d is the drop-in directory the installer
-# creates and links hyprsimple's own file into, the same shape as
-# dunst/dunstrc.d. The file it holds lives in default/, not .config/, so that
+# creates and links hyprsimple's own file into. The file it holds lives in default/, not .config/, so that
 # an update to it reaches every machine without a migration.
 GENERATED="uwsm/env uwsm/env-hyprland btop/themes hypr/hyprsimple
-  dunst/dunstrc.d hypr/theme-active.lua hypr/theme-hyprlock.conf
+  hypr/theme-active.lua hypr/theme-hyprlock.conf
   systemd/user/hyprsunset.service.d"
 
 # Both spellings. install.sh writes "$HOME/.config/..." in code and ~/.config/...
@@ -168,7 +167,7 @@ absent=()
 for rel in "${named[@]}"; do
   # Written by the installer or by a theme switch rather than shipped. Matched
   # as a prefix: the exempt entries name directories, and the paths found
-  # include files inside them, such as the dunst drop-in symlink.
+  # include files inside them.
   exempt=0
   for gen in $GENERATED; do
     [[ $rel == "$gen" || $rel == "$gen"/* ]] && { exempt=1; break; }
