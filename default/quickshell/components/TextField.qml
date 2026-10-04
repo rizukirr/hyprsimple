@@ -7,6 +7,8 @@ Rectangle {
 
     property alias text: input.text
     property string placeholder
+    // Material Symbols name shown at the left, or "" for none.
+    property string icon
     property bool password: false
     // Danger outline, for a rejected value.
     property bool invalid: false
@@ -16,6 +18,8 @@ Rectangle {
     signal accepted()
     signal editingFinished()
     signal escaped()
+    // Every key press, before the field handles it. Set event.accepted to keep it from the field.
+    signal keyPressed(var event)
 
     function focusInput() {
         input.forceActiveFocus()
@@ -28,9 +32,17 @@ Rectangle {
     border.color: invalid ? Theme.danger : input.activeFocus ? Theme.accent : Theme.tint(Theme.tintBorder)
     Behavior on color { CAnim {} }
 
+    Icon {
+        id: glyph
+        anchors { left: parent.left; leftMargin: Theme.md; verticalCenter: parent.verticalCenter }
+        visible: text !== ""
+        text: root.icon
+        color: Theme.muted
+    }
+
     TextInput {
         id: input
-        anchors { fill: parent; leftMargin: Theme.md; rightMargin: Theme.md }
+        anchors { fill: parent; leftMargin: glyph.visible ? glyph.width + Theme.md + Theme.sm : Theme.md; rightMargin: Theme.md }
         verticalAlignment: TextInput.AlignVCenter
         clip: true
         color: Theme.fg
@@ -41,6 +53,7 @@ Rectangle {
         echoMode: root.password ? TextInput.Password : TextInput.Normal
         onAccepted: root.accepted()
         onEditingFinished: root.editingFinished()
+        Keys.onPressed: event => root.keyPressed(event)
         Keys.onEscapePressed: event => {
             if (root.catchEscape) root.escaped()
             else event.accepted = false

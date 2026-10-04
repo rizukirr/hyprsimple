@@ -35,6 +35,18 @@ check "and the delivery really writes that file" \
   "$(grep -c '\.config/quickshell/theme-active.json' "$BIN/hyprsimple-theme-deliver.sh")" "1"
 check "the migration was found" "$([[ -n $MIGRATION ]] && echo found || echo missing)" "found"
 
+# The app launcher is a panel of the bar. Its search is plain JavaScript in its
+# own file, and it starts apps through uwsm so they run in the session's scope
+# like an app started from a keybinding.
+LAUNCHER="$BAR_DIR/panels/LauncherPanel.qml"
+check "the launcher ships" "$([[ -f $LAUNCHER ]] && echo present || echo missing)" "present"
+check "with its search" "$([[ -f $BAR_DIR/launcher/search.js ]] && echo present || echo missing)" "present"
+check "and the bar creates it" "$(grep -c 'LauncherPanel {' "$BAR_DIR/bar/Bar.qml")" "1"
+check "it starts apps through uwsm, by desktop id" \
+  "$(grep -c 'execDetached(\["uwsm", "app", "--", app.id + ".desktop"\])' "$LAUNCHER")" "1"
+check "and the name the keybinding opens is the one the panel answers to" \
+  "$(grep -c 'readonly property string name: "launcher"' "$LAUNCHER")" "1"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which

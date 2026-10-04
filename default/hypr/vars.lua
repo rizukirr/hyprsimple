@@ -4,16 +4,14 @@
 local M = {}
 M.terminal = "ghostty"
 M.fileManager = "nautilus"
--- The launcher script is yours, so rofi's -replace cannot be added to it from
--- here. It goes through hyprsimple-menu-exclusive.sh, which closes a menu that
--- is already open first. Without it, SUPER + A did nothing while another menu
--- was up, because rofi runs one instance at a time.
-M.menu = os.getenv("HOME") .. "/.local/bin/hyprsimple-menu-exclusive.sh "
-  .. os.getenv("HOME") .. "/.config/rofi/launcher/launcher.sh"
--- The bar, and the command that opens one of its panels by name. The power and
--- sound menus are panels of the bar.
+-- The bar, and the command that opens one of its panels by name. The app
+-- launcher, the power menu and the sound menu are panels of the bar.
 M.bar = (os.getenv("HYPRSIMPLE_PATH") or (os.getenv("HOME") .. "/.local/share/hyprsimple")) .. "/default/quickshell"
 M.barPanel = "qs -p " .. M.bar .. " ipc call bar toggle "
+-- The launcher goes through hyprsimple-menu-exclusive.sh, which closes a rofi
+-- menu that is already open first. The menus that are still rofi, such as the
+-- clipboard history, would otherwise stay up behind the launcher.
+M.menu = os.getenv("HOME") .. "/.local/bin/hyprsimple-menu-exclusive.sh " .. M.barPanel .. "launcher"
 M.powermenu = M.barPanel .. "power"
 M.browser = "brave --enable-features=UseOzonePlatform --ozone-platform=wayland"
 M.colorPicker = "hyprpicker"

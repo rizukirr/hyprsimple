@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 import qs.theme
 import qs.components
@@ -13,11 +14,29 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
     property bool recording: false
+
+    // The indicator shows what the bar was last told, and whatever told it can be
+    // wrong or never call back: a test once reported a recording that did not exist.
+    // So while it is lit the bar looks for a recorder itself and clears it when there is none.
+    Timer {
+        interval: Theme.recordingPollMs
+        running: bar.recording
+        repeat: true
+        onTriggered: recorderCheck.running = true
+    }
+
+    Process {
+        id: recorderCheck
+        command: ["sh", "-c", "pgrep -x wf-recorder >/dev/null || pgrep -x wl-screenrec >/dev/null"]
+        onExited: exitCode => {
+            if (exitCode !== 0) bar.recording = false
+        }
+    }
 
     function toggle(name) {
         openPanel = openPanel === name ? "" : name
@@ -144,6 +163,10 @@ PanelWindow {
                 onClicked: bar.toggle("power")
             }
         }
+    }
+
+    LauncherPanel {
+        bar: bar
     }
 
     PrayerPanel {

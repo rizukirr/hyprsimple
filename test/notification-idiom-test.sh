@@ -75,8 +75,13 @@ chmod +x "$STUB/notify-send"
 # suite recorded the screen three times per sweep. A suite that runs
 # screen-record.sh must not be able to reach a real recorder, whatever the
 # script does next.
+#
+# qs is here for a third. screen-record.sh tells the bar whether a recording is
+# running, over the bar's ipc. This suite makes pgrep say one is, to reach the
+# stop path, so the script reported a recording to the real bar of whoever ran
+# the tests, and its indicator stayed lit with nothing recording.
 for tool in wpctl brightnessctl hyprshot pkill upower pw-cli slurp pactl \
-  wf-recorder wl-screenrec; do
+  wf-recorder wl-screenrec qs; do
   printf '#!/bin/bash\nexit 0\n' >"$STUB/$tool"
   chmod +x "$STUB/$tool"
 done
@@ -115,6 +120,9 @@ run_script "screen-record reports a missing monitor source" "No monitor source f
   env XDG_VIDEOS_DIR="$STUB" bash "$BIN/screen-record.sh" region internal
 
 # The stop path needs a recording to appear active, so pgrep must succeed.
+# The real qs must be out of reach while it does, see the stubs above.
+check "this suite cannot reach the real bar" \
+  "$(PATH="$STUB:$PATH" command -v qs)" "$STUB/qs"
 printf '#!/bin/bash\nexit 0\n' >"$STUB/pgrep"; chmod +x "$STUB/pgrep"
 run_script "screen-record reports a saved recording" "Screen recording saved" \
   env XDG_VIDEOS_DIR="$STUB" bash "$BIN/screen-record.sh" stop

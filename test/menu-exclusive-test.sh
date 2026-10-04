@@ -71,7 +71,7 @@ for name in hyprsimple-record-menu.sh hyprsimple-screenshot-menu.sh \
   check "including $name" "$(printf '%s\n' "${launches[@]}" | grep -c "^$name:")" "1"
 done
 
-# ---- the launcher goes through the helper, the power menu is a bar panel -------
+# ---- the launcher and the power menu are bar panels ----------------------------
 #
 # vars.lua is evaluated, not grepped, so a quoting slip that leaves the command
 # malformed is seen as the string Hyprland would actually run.
@@ -85,14 +85,16 @@ if [[ -n $LUA ]]; then
   # is refused by committed-symlinks-test, which keeps any one machine's home
   # out of tracked files.
   LUA_HOME="$TMP/lua-home"
-  eval_var() {
-    HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.$1)" 2>&1
+  # The launcher and the power menu are panels of the bar, opened over its ipc.
+  # HYPRSIMPLE_PATH is unset for the evaluation so the default install path is
+  # what is checked. The launcher still goes through the helper, so a rofi menu
+  # that is open is closed first.
+  bar_var() {
+    env -u HYPRSIMPLE_PATH HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.$1)" 2>&1
   }
-  check "SUPER + A starts the launcher through the helper" "$(eval_var menu)" \
-    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh $LUA_HOME/.config/rofi/launcher/launcher.sh"
-  # The power menu is a panel of the bar, opened over its ipc. HYPRSIMPLE_PATH
-  # is unset for the evaluation so the default install path is what is checked.
-  check "and SUPER + ESCAPE opens the bar's power panel" "$(env -u HYPRSIMPLE_PATH HOME="$LUA_HOME" "$LUA" -e "local M = dofile('$VARS'); io.write(M.powermenu)" 2>&1)" \
+  check "SUPER + A opens the bar's launcher through the helper" "$(bar_var menu)" \
+    "$LUA_HOME/.local/bin/hyprsimple-menu-exclusive.sh qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle launcher"
+  check "and SUPER + ESCAPE opens the bar's power panel" "$(bar_var powermenu)" \
     "qs -p $LUA_HOME/.local/share/hyprsimple/default/quickshell ipc call bar toggle power"
 else
   pass "no lua interpreter here, so vars.lua is not evaluated"

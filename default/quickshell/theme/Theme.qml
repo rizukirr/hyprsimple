@@ -107,6 +107,12 @@ Singleton {
     readonly property int toggleHeight: 22
     readonly property int panelWidth: 340
     readonly property int panelWidthNarrow: 220
+    // The app launcher sidebar: its width, the height of one app row and its icon,
+    // and how far Page Up and Page Down move.
+    readonly property int sidebarWidth: 380
+    readonly property int appRowHeight: 48
+    readonly property int appIconSize: 28
+    readonly property int pageStep: 6
     readonly property int panelWidthWide: 440
     readonly property int dropdownMaxHeight: 200
     readonly property int settingsMaxHeight: 520
@@ -127,6 +133,8 @@ Singleton {
     readonly property var springCurve: [0.38, 1.21, 0.22, 1, 1, 1]
     // Corner radius of a panel, and of the flares that join it to the bar.
     readonly property int panelRadius: 20
+    // How often a lit recording indicator checks that a recorder is still running.
+    readonly property int recordingPollMs: 3000
     // How often the keep-awake item re-reads whether hypridle is running.
     readonly property int awakePollMs: 5000
     // How long a panel holds exclusive keyboard focus before relaxing it.
@@ -160,6 +168,8 @@ Singleton {
         bell: "notifications",
         bellOff: "notifications_off",
         refresh: "refresh",
+        search: "search",
+        noResults: "manage_search",
         awake: "coffee",
         recording: "radio_button_checked",
         cpu: "memory",
