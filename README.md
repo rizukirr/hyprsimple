@@ -259,9 +259,9 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 | Key | Action |
 |-----|--------|
-| `Print` | Open the screenshot menu, a panel of the bar |
+| `Print` | Take a screenshot: drag a region, click a window, or click where there is none for the whole screen |
 
-The menu offers a region, a window or the whole screen, each saved to `~/Pictures/Screenshots` or copied to the clipboard.
+The screen freezes while you pick, and Escape takes nothing. The picture is saved to `~/Pictures/Screenshots` and copied to the clipboard, both.
 
 ### Screen Recording
 
@@ -344,8 +344,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 
 | Script | Description |
 |--------|-------------|
-| `screenshot.sh` | Take a screenshot (`region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard`) |
-| `hyprsimple-screenshot-menu.sh` | Opens the bar's screenshot panel, behind `Print`, which picks what to capture and whether to save or copy it |
+| `screenshot.sh` | Take a screenshot. `smart`, behind `Print`, picks on a frozen screen and both saves and copies. The other modes capture one thing: `region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard` |
 | `screen-record.sh` | Start/stop screen recording (region, window or output; mic, internal, or no audio) |
 | `hyprsimple-record-menu.sh` | Opens the bar's record panel, behind `SUPER + R`, which picks what to record and starts or stops it |
 | `screen-record-active.sh` | Report whether a screen recording is currently running |

@@ -23,6 +23,7 @@ nwg-look
 gnome-themes-extra
 
 # Screenshots & Screen tools
+grim
 slurp
 wf-recorder
 
