@@ -13,7 +13,7 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -144,6 +144,10 @@ PanelWindow {
                 onClicked: bar.toggle("power")
             }
         }
+    }
+
+    LauncherPanel {
+        bar: bar
     }
 
     PrayerPanel {

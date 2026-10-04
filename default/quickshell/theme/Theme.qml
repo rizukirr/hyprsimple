@@ -107,6 +107,12 @@ Singleton {
     readonly property int toggleHeight: 22
     readonly property int panelWidth: 340
     readonly property int panelWidthNarrow: 220
+    // The app launcher sidebar: its width, the height of one app row and its icon,
+    // and how far Page Up and Page Down move.
+    readonly property int sidebarWidth: 380
+    readonly property int appRowHeight: 48
+    readonly property int appIconSize: 28
+    readonly property int pageStep: 6
     readonly property int panelWidthWide: 440
     readonly property int dropdownMaxHeight: 200
     readonly property int settingsMaxHeight: 520
@@ -160,6 +166,8 @@ Singleton {
         bell: "notifications",
         bellOff: "notifications_off",
         refresh: "refresh",
+        search: "search",
+        noResults: "manage_search",
         awake: "coffee",
         recording: "radio_button_checked",
         cpu: "memory",

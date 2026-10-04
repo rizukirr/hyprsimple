@@ -25,7 +25,6 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **40 themes** with one-key switching, all apps update at once (the bar, rofi, ghostty, hyprlock, dunst, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
 - **Visual pickers** for themes and wallpapers: a rofi grid of previews with each theme's colour swatches, filterable by typing
 - **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
-- **Per-theme background** for the app launcher
 - **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
 - **Wayland-native** session via uwsm, no X11 dependencies
 - **Modular Hyprland config** split into focused files
@@ -36,6 +35,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **Clipboard history** via cliphist + rofi
 - **Nightlight toggle** for warm screen temperature
 - **Audio output switching** with one key
+- **An app launcher** in a sidebar that grows from the left edge, searching names, keywords and initials, with the apps you start most listed first
 - **A Quickshell bar** with panels for the calendar, system usage, volume, microphone, network, bluetooth and power
 - **Prayer times** on the bar via muslimtify, with every setting in its panel
 - **Firewall** (UFW) configured out of the box
@@ -220,7 +220,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 |-----|--------|
 | `SUPER + T` | Open terminal (Ghostty) |
 | `SUPER + B` | Open browser (Brave) |
-| `SUPER + A` | App launcher (Rofi) |
+| `SUPER + A` | App launcher, a sidebar of the bar |
 | `SUPER + F` | File manager (Nautilus) |
 | `SUPER + V` | Clipboard history |
 | `SUPER + M` | Color picker |
