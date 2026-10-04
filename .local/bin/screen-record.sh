@@ -9,6 +9,7 @@ fi
 
 SCOPE="$1"      # "region", "window", "output", or "stop"
 AUDIO_MODE="$2" # "mic", "internal", or "none"
+WINDOW_BOX="$3" # for "window": the box of a window chosen beforehand, as "x,y wxh"
 
 # The monitor of the default sink, which is what "system audio" means here.
 #
@@ -199,9 +200,21 @@ elif [[ "$SCOPE" == "window" ]]; then
     notify-send "No window on screen to record" -u critical -t 3000
     exit 1
   fi
-  # -r: only the boxes offered can be picked, so a click lands on a window
-  # rather than dragging out a region.
-  window=$(slurp -r <<<"$boxes") || exit 1
+  if [[ -n $WINDOW_BOX ]]; then
+    # Chosen from the list in the bar's record panel, so there is nothing to
+    # pick on screen. It is checked against what is on screen now all the same:
+    # a window can move or close between being listed and getting here, and a
+    # box that is no longer a window's would record whatever is in its place.
+    if ! grep -qxF -- "$WINDOW_BOX" <<<"$boxes"; then
+      notify-send "That window is no longer where it was, so nothing was recorded" -u critical -t 3000
+      exit 1
+    fi
+    window=$WINDOW_BOX
+  else
+    # -r: only the boxes offered can be picked, so a click lands on a window
+    # rather than dragging out a region.
+    window=$(slurp -r <<<"$boxes") || exit 1
+  fi
   start_screenrecording -g "$window"
 elif [[ "$SCOPE" == "output" ]]; then
   output=$(slurp -o) || exit 1

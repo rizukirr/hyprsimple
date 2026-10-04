@@ -461,7 +461,7 @@ run_window() {
     DEFAULT_SINK="$SINK" SOURCE_LIST="$SOURCES" HYPRSIMPLE_RECORDER_START_WAIT=0.05 \
     MONITORS_JSON="$TMP/monitors.json" CLIENTS_JSON="${1:-$TMP/clients.json}" \
     SLURP_ARGS="$TMP/slurp-args" SLURP_STDIN="$TMP/slurp-stdin" SLURP_CANCEL="${2:-}" \
-    PATH="$WIN:$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" window none >/dev/null 2>&1 </dev/null
+    PATH="$WIN:$STUB:/usr/bin:/bin" bash "$BIN/screen-record.sh" window none ${3:+"$3"} >/dev/null 2>&1 </dev/null
   kill_stubs
 }
 
@@ -480,6 +480,22 @@ check "rather than opening a picker with nothing in it" "$(wc -c <"$TMP/slurp-ar
 
 run_window "" yes
 check "cancelling the window pick records nothing" "$(wc -l <"$LOG" | tr -d ' ')" "0"
+
+# A window chosen beforehand, from the list in the bar's record panel. Its box
+# comes as a third argument and there is nothing left to pick on screen.
+run_window "" "" "1930,40 1280x720"
+check "a window chosen beforehand is recorded" "$(grep -c -- '-g 1930,40 1280x720' "$LOG")" "1"
+check "without opening a picker" "$(wc -c <"$TMP/slurp-args" | tr -d ' ')" "0"
+
+# The box is checked against what is on screen now. The window can have moved
+# or closed since it was listed, and its old box would record whatever is there.
+run_window "" "" "50,50 100x100"
+check "a box that is no window's records nothing" "$(wc -l <"$LOG" | tr -d ' ')" "0"
+check "and it says why" "$(grep -c 'no longer where it was' "$NLOG")" "1"
+check "and opens no picker either" "$(wc -c <"$TMP/slurp-args" | tr -d ' ')" "0"
+
+run_window "" "" "0,0 500x500"
+check "nor does the box of a window on a workspace nobody is looking at" "$(wc -l <"$LOG" | tr -d ' ')" "0"
 
 # This suite once left four processes named wf-recorder running, which made
 # notification-idiom-test see a recording in progress.
