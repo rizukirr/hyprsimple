@@ -56,17 +56,10 @@ PanelWindow {
 
     // The entry list reorders itself when an app starts, so it is always re-sorted here.
     readonly property var apps: DesktopEntries.applications.values.filter(app => !app.noDisplay && app.name !== "")
-    readonly property var results: Search.results(apps, search.text, launches)
-    property int current: 0
+    readonly property var results: Search.results(apps, picker.text, launches)
 
     function dismiss() {
         if (open) bar.openPanel = ""
-    }
-
-    function move(step) {
-        if (results.length === 0) return
-        current = Math.max(0, Math.min(results.length - 1, current + step))
-        list.positionViewAtIndex(current, ListView.Contain)
     }
 
     // Closed first, so the drawer is already leaving when the app's window arrives.
@@ -82,11 +75,6 @@ PanelWindow {
         Quickshell.execDetached(["uwsm", "app", "--", app.id + ".desktop"])
     }
 
-    onResultsChanged: {
-        current = 0
-        list.positionViewAtBeginning()
-    }
-
     onOpenChanged: {
         if (!open) {
             opening.stop()
@@ -97,8 +85,8 @@ PanelWindow {
         opening.start()
         focusPrimed = false
         prime.restart()
-        search.text = ""
-        Qt.callLater(() => search.focusInput())
+        picker.reset()
+        Qt.callLater(() => picker.inputItem.forceActiveFocus())
     }
 
     Timer {
@@ -211,57 +199,25 @@ PanelWindow {
                 spacing: Theme.md
                 opacity: Math.max(0, Math.min(1, panel.progress))
 
-                TextField {
-                    id: search
-                    Layout.fillWidth: true
-                    icon: Theme.icon.search
-                    placeholder: "Search apps"
-                    catchEscape: true
-                    // The first Esc clears what was typed, the next one closes.
-                    onEscaped: {
-                        if (text !== "") text = ""
-                        else panel.dismiss()
-                    }
-                    onAccepted: panel.launch(panel.results[panel.current])
-                    onKeyPressed: event => {
-                        const ctrl = event.modifiers & Qt.ControlModifier
-                        if (event.key === Qt.Key_Down || (ctrl && (event.key === Qt.Key_N || event.key === Qt.Key_J))) panel.move(1)
-                        else if (event.key === Qt.Key_Up || (ctrl && (event.key === Qt.Key_P || event.key === Qt.Key_K))) panel.move(-1)
-                        else if (event.key === Qt.Key_PageDown) panel.move(Theme.pageStep)
-                        else if (event.key === Qt.Key_PageUp) panel.move(-Theme.pageStep)
-                        else return
-                        event.accepted = true
-                    }
-                }
-
-                ListView {
-                    id: list
+                PickerList {
+                    id: picker
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
+                    placeholder: "Search apps"
+                    emptyText: "No apps found"
+                    items: panel.results
                     // Rows, and so icons, exist only while the sidebar is on screen.
-                    model: panel.visible ? panel.results : []
-                    currentIndex: panel.current
-                    // One tint that glides between rows, where each row drawing its own would jump.
-                    highlightFollowsCurrentItem: false
-                    highlight: Rectangle {
-                        width: list.width
-                        height: Theme.appRowHeight
-                        y: list.currentItem?.y ?? 0
-                        radius: Theme.radius
-                        color: Theme.tint(Theme.tintSelected)
-                        Behavior on y { Spring {} }
-                    }
+                    active: panel.visible
+                    onActivated: app => panel.launch(app)
+                    onDismissed: panel.dismiss()
 
                     delegate: Item {
                         id: row
 
                         required property var modelData
-                        required property int index
 
-                        width: list.width
+                        width: ListView.view.width
                         height: Theme.appRowHeight
 
                         RowLayout {
@@ -303,26 +259,7 @@ PanelWindow {
                         // Hover has its own tint and does not move the keyboard selection.
                         StateLayer {
                             radius: Theme.radius
-                            onClicked: panel.launch(row.modelData)
-                        }
-                    }
-
-                    // Shown when nothing matches.
-                    Column {
-                        anchors.centerIn: parent
-                        visible: panel.results.length === 0
-                        spacing: Theme.sm
-
-                        Icon {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: Theme.icon.noResults
-                            color: Theme.muted
-                            font.pixelSize: Theme.fontSizeLarge * 2
-                        }
-                        StyledText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: "No apps found"
-                            color: Theme.muted
+                            onClicked: picker.activated(row.modelData)
                         }
                     }
                 }

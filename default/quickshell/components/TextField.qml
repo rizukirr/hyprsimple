@@ -15,6 +15,8 @@ Rectangle {
     // When set, Esc emits escaped and stops there. Otherwise Esc carries on to whatever contains the field.
     property bool catchEscape: false
     readonly property bool editing: input.activeFocus
+    // The item that actually holds the keyboard focus.
+    readonly property Item inputItem: input
     signal accepted()
     signal editingFinished()
     signal escaped()

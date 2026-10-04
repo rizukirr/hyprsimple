@@ -32,7 +32,7 @@ Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 - **Smart battery** with auto brightness and power profiles
 - **Screen recording** with mic, system audio, or silent modes
 - **Screenshot** for monitor, window, region, or clipboard
-- **Clipboard history** via cliphist + rofi
+- **Clipboard history** in a panel of the bar, with search, pictures shown as pictures, and removing one entry or all of them
 - **Nightlight toggle** for warm screen temperature
 - **Audio output switching** with one key
 - **An app launcher** in a sidebar that grows from the left edge, searching names, keywords and initials, with the apps you start most listed first
@@ -222,7 +222,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + B` | Open browser (Brave) |
 | `SUPER + A` | App launcher, a sidebar of the bar |
 | `SUPER + F` | File manager (Nautilus) |
-| `SUPER + V` | Clipboard history |
+| `SUPER + V` | Clipboard history, a panel of the bar |
 | `SUPER + M` | Color picker |
 
 ### Window Management
@@ -317,7 +317,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `audio-switch.sh` | Cycle through available audio output devices, for a bind of your own |
-| `hyprsimple-clipboard-menu.sh` | The clipboard history menu behind `SUPER + V`, which copies only when an entry is picked |
+| `hyprsimple-clipboard-menu.sh` | Opens the bar's clipboard history panel, behind `SUPER + V` |
 | `hyprsimple-menu-exclusive.sh` | Closes a rofi menu that is already open, then runs the command given, so one menu can replace another |
 | `volume-notify.sh` | Show the current PipeWire volume via a dunst notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |

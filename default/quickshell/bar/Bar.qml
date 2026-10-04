@@ -14,7 +14,7 @@ PanelWindow {
     id: bar
 
     required property var modelData
-    // Open panel: "", "launcher", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "launcher", "clipboard", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
 
     // A screen recording is running. Set over ipc, see shell.qml.
@@ -167,6 +167,13 @@ PanelWindow {
 
     LauncherPanel {
         bar: bar
+    }
+
+    // Anchored to the clock, which is what puts it at the top centre.
+    ClipboardPanel {
+        bar: bar
+        name: "clipboard"
+        anchorItem: clock
     }
 
     PrayerPanel {
