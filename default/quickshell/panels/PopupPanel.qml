@@ -19,14 +19,31 @@ PanelWindow {
     default property alias content: box.data
 
     // 0 closed, 1 open. Overshoots slightly on the way in, and leaves quickly.
-    property real progress: open ? 1 : 0
-    Behavior on progress {
-        NumberAnimation {
-            id: grow
-            duration: panel.open ? Theme.springAnim : Theme.closeAnim
-            easing.type: panel.open ? Easing.BezierSpline : Easing.InCubic
-            easing.bezierCurve: Theme.springCurve
-        }
+    //
+    // Opening and closing are two separate animations, started by hand. One animation
+    // whose duration and curve were bound to open changed curve while it was already
+    // running: a close began on the opening curve, which is nearly finished within a
+    // few frames, then switched to the closing curve, which has barely started by
+    // then. The panel shut, sprang back open and shut again.
+    property real progress: 0
+
+    NumberAnimation {
+        id: opening
+        target: panel
+        property: "progress"
+        to: 1
+        duration: Theme.springAnim
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Theme.springCurve
+    }
+
+    NumberAnimation {
+        id: closing
+        target: panel
+        property: "progress"
+        to: 0
+        duration: Theme.closeAnim
+        easing.type: Easing.InCubic
     }
 
     // Exclusive focus takes the keyboard at once, but while it is held Hyprland sends every
@@ -56,7 +73,13 @@ PanelWindow {
 
     onPanelWidthChanged: if (open) place()
     onOpenChanged: {
-        if (!open) return
+        if (!open) {
+            opening.stop()
+            closing.start()
+            return
+        }
+        closing.stop()
+        opening.start()
         focusPrimed = false
         prime.restart()
         place()
@@ -70,7 +93,7 @@ PanelWindow {
     }
 
     screen: bar.screen
-    visible: open || grow.running
+    visible: open || closing.running
     anchors { top: true; bottom: true; left: true; right: true }
     margins.top: Theme.barHeight
     exclusionMode: ExclusionMode.Ignore
