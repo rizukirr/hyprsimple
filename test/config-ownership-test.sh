@@ -38,11 +38,14 @@ is_rewritten() {
   return 1
 }
 
-# Config files a person edits by hand. Theme data, images and the strict-JSON
-# .luarc.json are not configuration in this sense and are left out.
+# Config files a person edits by hand. Theme data, images, the strict-JSON
+# .luarc.json and fastfetch's logo are not configuration in this sense and are
+# left out. The logo is the picture fastfetch prints, so a header line in it
+# would be printed as part of the picture.
 mapfile -t configs < <(
   find "$REPO/.config" -type f \
-    ! -path '*/themes/*' ! -name '.luarc.json' ! -name '*.sh' |
+    ! -path '*/themes/*' ! -name '.luarc.json' ! -name '*.sh' \
+    ! -path '*/fastfetch/ascii.txt' |
     sed "s|$REPO/.config/||" | LC_ALL=C sort
 )
 
