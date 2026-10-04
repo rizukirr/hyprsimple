@@ -37,6 +37,28 @@ for call in dismissNotifications toggleVisible; do
   check "the bar answers $call over ipc" "$(grep -c "function $call(): void" "$BAR/shell.qml")" "1"
 done
 
+# ---- a notification shows the picture it was sent, not an earlier one -----------
+#
+# A theme switch announced nord with gruvbox's wallpaper. It sent the copy in
+# the cache, which keeps one name for every theme, and the card showed the
+# picture it had first read under that name.
+check "the card reads its picture from the file every time" \
+  "$(grep -c '^                cache: false$' "$BAR/notifications/NotificationCard.qml")" "1"
+check "and a theme switch sends the wallpaper's own file" \
+  "$(sed 's/^[[:space:]]*#.*//' "$REPO/.local/bin/theme-switcher.sh" |
+    grep -c 'notify-send "Theme Manager" .* -i "\${WALLPAPER:-\$CACHE_DIR/current_wallpaper}"')" "1"
+
+# ---- a notification shows the picture it was sent, not an earlier one -----------
+#
+# A theme switch announced nord with gruvbox's wallpaper. It sent the copy in
+# the cache, which keeps one name for every theme, and the card showed the
+# picture it had first read under that name.
+check "the card reads its picture from the file every time" \
+  "$(grep -c '^                cache: false$' "$BAR/notifications/NotificationCard.qml")" "1"
+check "and a theme switch sends the wallpaper's own file" \
+  "$(sed 's/^[[:space:]]*#.*//' "$REPO/.local/bin/theme-switcher.sh" |
+    grep -c 'notify-send "Theme Manager" .* -i "\${WALLPAPER:-\$CACHE_DIR/current_wallpaper}"')" "1"
+
 # ---- nothing shipped starts or installs dunst -----------------------------------
 
 check "dunst is in neither package list" \

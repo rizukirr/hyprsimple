@@ -1,9 +1,12 @@
 #!/bin/bash
-# Checks that a wallpaper is shown by asking hyprpaper over its ipc, and that
-# hyprpaper is restarted only when it does not answer.
+# Checks that one wallpaper is shown by asking hyprpaper over its ipc, that a
+# folder of them is not, and that a restart does not wait for hyprpaper to stop.
 #
 # A restart was the only way it was done, and hyprpaper takes about two seconds
 # to stop: measured on one machine, 1.9s of a 2.2s theme switch.
+#
+# A folder was sent over ipc once. hyprpaper answered as if it had taken it,
+# then failed to load it as an image, and the screen had no wallpaper.
 #
 # hyprctl and systemctl are stand-ins that record what they were asked. Nothing
 # here reaches the real hyprpaper or changes a wallpaper.
@@ -51,21 +54,36 @@ show() {
     'source "$1"; show_wallpaper "$2"' _ "$BIN/hypr-helpers.sh" "$2"
 }
 restarts() { grep -c '^systemctl --user restart hyprpaper.service$' "$TMP/calls"; }
+# Stopped at once, then started, in that order.
+fast_restart() { grep '^systemctl' "$TMP/calls" | paste -sd'|'; }
+# reset-failed between them: systemd refuses to start a unit that failed five
+# times in ten seconds, and a unit killed this way counts as failed. Without it
+# a few theme switches in a row left hyprpaper down.
+FAST="systemctl --user kill --signal=SIGKILL hyprpaper.service|systemctl --user reset-failed hyprpaper.service|systemctl --user restart hyprpaper.service"
 
-show ok "/themes/nord/backgrounds/a wall.webp"
-check "the wallpaper is set over ipc, with its path whole" \
-  "$(cat "$TMP/calls")" "hyprctl hyprpaper wallpaper ,/themes/nord/backgrounds/a wall.webp,cover"
+# Real paths, since the helper tells an image from a folder by looking.
+BG="$TMP/themes/nord/backgrounds"; mkdir -p "$BG"
+: >"$BG/a wall.webp"; : >"$BG/b.webp"
+
+show ok "$BG/a wall.webp"
+check "one image is set over ipc, with its path whole" \
+  "$(cat "$TMP/calls")" "hyprctl hyprpaper wallpaper ,$BG/a wall.webp,cover"
 check "and hyprpaper is not restarted" "$(restarts)" "0"
 
-show ok "/themes/nord/backgrounds"
-check "a folder to cycle through is set the same way" \
-  "$(cat "$TMP/calls")" "hyprctl hyprpaper wallpaper ,/themes/nord/backgrounds,cover"
+show ok "$BG"
+check "a folder is never sent over ipc, which takes it and then shows nothing" \
+  "$(grep -c '^hyprctl' "$TMP/calls")" "0"
+check "hyprpaper is started again on its config instead, without waiting for it to stop" \
+  "$(fast_restart)" "$FAST"
 
-show refuses "/themes/nord/backgrounds/a.webp"
-check "a request hyprpaper refuses falls back to a restart" "$(restarts)" "1"
+show refuses "$BG/b.webp"
+check "an image hyprpaper refuses falls back to the same restart" "$(fast_restart)" "$FAST"
 
-show down "/themes/nord/backgrounds/a.webp"
-check "and so does a hyprpaper that is not running" "$(restarts)" "1"
+show down "$BG/b.webp"
+check "and so does a hyprpaper that is not running" "$(fast_restart)" "$FAST"
+
+show ok "$BG/gone.webp"
+check "an image that is not there is not sent either" "$(grep -c '^hyprctl' "$TMP/calls")" "0"
 
 # ---- the two scripts that change the wallpaper use it ---------------------------
 
@@ -84,6 +102,18 @@ check "neither asks hyprpaper to show the cache file" \
   "$(code "$BIN/theme-switcher.sh" "$BIN/wallpaper-switcher.sh" | grep -c 'show_wallpaper .*current_wallpaper')" "0"
 check "hyprpaper.conf is still written, for the next login" \
   "$(code "$BIN/theme-switcher.sh" | grep -c 'write_hyprpaper_conf')" "2"
+
+# ---- the bar can show a webp wallpaper ------------------------------------------
+#
+# A theme switch puts the wallpaper in its notification, and the bar that shows
+# it is Qt, which reads webp only through qt6-imageformats.
+webp=$(find "$REPO/.config/hypr/themes" -path '*/backgrounds/*' -name '*.webp' | wc -l | tr -d ' ')
+if ((webp < 1)); then
+  pass "no shipped wallpaper is webp, so the bar needs nothing more to show one"
+else
+  check "$webp shipped wallpapers are webp, and what lets the bar read them is installed" \
+    "$(grep -cx 'qt6-imageformats' "$REPO/packages.txt")" "1"
+fi
 
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
