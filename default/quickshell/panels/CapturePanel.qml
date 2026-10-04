@@ -4,7 +4,7 @@ import Quickshell
 import qs.theme
 import qs.components
 
-// A few choices and one button, for taking a screenshot or starting a recording.
+// A few choices and one button, for starting a capture such as a recording.
 // Each group of choices is a row of options with one selected. The button runs a
 // command built from the selected values, after the panel has left the screen.
 PopupPanel {
@@ -48,7 +48,7 @@ PopupPanel {
     panelWidth: Theme.captureWidth
     focusTarget: keys
     onOpenChanged: if (open) focused = 0
-    // Not started until the panel is gone, or a screenshot would have the panel in it.
+    // Not started until the panel is gone, or the capture would have the panel in it.
     onVisibleChanged: if (!visible && pending) afterClose.restart()
 
     Timer {

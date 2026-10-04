@@ -182,21 +182,14 @@ check "and the README documents both rows" \
 # Only the description differed, and descriptions are not compared. So the one
 # case that prompted the suite is pinned by name.
 #
-# That row is gone: Print opens a menu now and the chords were removed. What the
-# wrong row got wrong survives in the menu, though. An entry says what it
-# captures, and the mode it runs has to capture that, so the whole screen entry
-# is pinned to a mode that grabs the output rather than a region.
-#
-# The menu is a panel of the bar now, which builds the mode from two choices.
-# The whole screen is its "monitor" area, and the rule that names the mode is
-# read out of the bar.
-BAR_QML="$REPO/default/quickshell/bar/Bar.qml"
-screen_clip_mode=$(grep -o 'area === "monitor" ? "[a-z-]*"' "$BAR_QML" | sed 's/.*"\(.*\)"$/\1/')
-check "the whole screen clipboard entry runs the clipboard mode" "$screen_clip_mode" "clipboard"
-check "and that mode captures the whole output, not a region" \
+# That row is gone, and so is the menu that replaced the chords. Print goes
+# straight to a picker now. What the wrong row got wrong can still happen in
+# screenshot.sh's own modes, though, so the whole screen clipboard mode is
+# pinned to grabbing the output rather than a region.
+check "the clipboard mode captures the whole output, not a region" \
   "$(sed -n '/^clipboard)/,/;;/p' "$REPO/.local/bin/screenshot.sh" | grep -c -- '-m output')" "1"
-check "and the README documents Print as the menu" \
-  "$(sed -n "${start},${end}p" "$README" | grep -c 'Print` | Open the screenshot menu')" "1"
+check "and the README documents Print as taking the screenshot itself" \
+  "$(sed -n "${start},${end}p" "$README" | grep -c 'Print` | Take a screenshot: drag a region, click a window')" "1"
 
 # --- every shipped script appears in the README -------------------------------
 #
