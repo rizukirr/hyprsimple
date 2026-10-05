@@ -74,8 +74,26 @@ function formatDuration(minutes) {
   return pad(Math.floor(total / 60)) + ":" + pad(total % 60)
 }
 
-function minutesOfDay(date) {
-  return date.getHours() * 60 + date.getMinutes()
+// Minutes east of UTC from muslimtify's location output, whose "gmt" reads
+// "UTC+7.0" or "UTC-3.5". null when it is not there.
+function parseGmt(text) {
+  var data = parseJson(text)
+  var match = /^UTC([+-])(\d+(?:\.\d+)?)$/.exec(String((data && data.gmt) || ""))
+  if (!match) return null
+  return Math.round(parseFloat(match[2]) * 60) * (match[1] === "-" ? -1 : 1)
+}
+
+// Minutes since midnight where the prayer times are for: the zone `offset`
+// minutes east of UTC, or the system's when that is not known.
+function minutesOfDay(date, offset) {
+  if (offset === null || offset === undefined) return date.getHours() * 60 + date.getMinutes()
+  return (((date.getUTCHours() * 60 + date.getUTCMinutes() + offset) % 1440) + 1440) % 1440
+}
+
+// Which day it is there, as a number that changes at that zone's midnight.
+function dayOf(date, offset) {
+  if (offset === null || offset === undefined) return date.getDate()
+  return Math.floor((date.getTime() / 60000 + offset) / 1440)
 }
 
 function formatDate(date) {

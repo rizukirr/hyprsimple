@@ -14,7 +14,7 @@ Column {
     signal settingsRequested()
     signal linkRequested(string url)
 
-    readonly property int nowMinutes: Model.minutesOfDay(service.now)
+    readonly property int nowMinutes: service.nowMinutes
     readonly property var next: service.next
 
     spacing: Theme.sm

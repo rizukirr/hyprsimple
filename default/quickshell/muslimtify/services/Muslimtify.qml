@@ -23,8 +23,11 @@ Item {
   property var timezones: []
   property var errors: ({})
   property var now: new Date()
+  // Minutes east of UTC where the times are for, from muslimtify, so the countdown
+  // follows its clock when that is not the system's. null until it has answered.
+  property var utcOffset: null
   // An int, so `next` and everything bound to it only move when the minute does.
-  readonly property int nowMinutes: Model.minutesOfDay(root.now)
+  readonly property int nowMinutes: Model.minutesOfDay(root.now, root.utcOffset)
   readonly property var next: Model.nextPrayer(root.today, root.tomorrow, root.nowMinutes)
 
   property var queue: []
@@ -61,6 +64,7 @@ Item {
     root.todayStderr = ""
     todayProcess.running = true
     tomorrowProcess.running = true
+    locationProcess.running = true
   }
 
   function loadTimezones() {
@@ -174,6 +178,15 @@ Item {
   }
 
   Process {
+    id: locationProcess
+    command: ["muslimtify", "location", "--json"]
+    stdout: StdioCollector {
+      id: locationOut
+      onStreamFinished: root.utcOffset = Model.parseGmt(locationOut.text)
+    }
+  }
+
+  Process {
     id: methodsProcess
     command: ["muslimtify", "method", "--list"]
     stdout: StdioCollector {
@@ -237,7 +250,7 @@ Item {
     onTriggered: {
       var previous = root.now
       root.now = new Date()
-      if (previous.getDate() !== root.now.getDate()) root.refresh()
+      if (Model.dayOf(previous, root.utcOffset) !== Model.dayOf(root.now, root.utcOffset)) root.refresh()
     }
   }
 }

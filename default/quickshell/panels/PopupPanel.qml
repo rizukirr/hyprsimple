@@ -108,7 +108,7 @@ PanelWindow {
 
     Region { id: noInput }
 
-    // vibekit: covers this screen only, add a click catcher per extra monitor if a second one is attached
+    // Covers this screen. OtherScreenCatcher, one per bar, covers the others.
     MouseArea {
         anchors.fill: parent
         enabled: panel.open

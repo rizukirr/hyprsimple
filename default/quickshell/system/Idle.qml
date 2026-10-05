@@ -18,8 +18,12 @@ Item {
         toggleProcess.running = true
     }
 
+    function check() {
+        checkProcess.running = true
+    }
+
     Process {
-        id: check
+        id: checkProcess
         command: ["pgrep", "-x", "hypridle"]
         running: true
         onExited: exitCode => root.awake = exitCode !== 0
@@ -28,7 +32,7 @@ Item {
     Process {
         id: toggleProcess
         command: [Quickshell.env("HOME") + "/.local/bin/toggle-idle.sh"]
-        onExited: check.running = true
+        onExited: root.check()
     }
 
     Process {
@@ -38,7 +42,7 @@ Item {
         running: true
         stdout: SplitParser {
             onRead: line => {
-                if (line.includes("member=NameOwnerChanged")) check.running = true
+                if (line.includes("member=NameOwnerChanged")) root.check()
             }
         }
         // Started again if it ever dies, after a pause so a missing dbus-monitor
@@ -50,7 +54,7 @@ Item {
         id: restart
         interval: 5000
         onTriggered: {
-            check.running = true
+            root.check()
             watcher.running = true
         }
     }

@@ -420,6 +420,12 @@ printf 'uwsm %s\n' "$*" >>"$CALL_LOG"
 : >"$IDLE_STARTED"
 exit 0
 STUBEOF
+# The bar, which the script tells to look at hypridle again.
+cat >"$STUB/qs" <<'STUBEOF'
+#!/bin/bash
+printf 'qs %s\n' "$*" >>"$CALL_LOG"
+STUBEOF
+chmod +x "$STUB/qs"
 cat >"$IDLE/pkill" <<'STUBEOF'
 #!/bin/bash
 printf 'pkill %s\n' "$*" >>"$CALL_LOG"
@@ -431,7 +437,7 @@ chmod +x "$IDLE"/*
 
 run_idle() {
   CALL_LOG="$LOG" IDLE_STARTED="$IDLE_STARTED" HYPRSIMPLE_IDLE_START_WAIT=0.1 \
-    PATH="$IDLE:/usr/bin:/bin" bash "$BIN/toggle-idle.sh" >/dev/null 2>&1
+    PATH="$IDLE:$STUB:/usr/bin:/bin" bash "$BIN/toggle-idle.sh" >/dev/null 2>&1
   printf '%s' "$?" >"$TMP/idle-rc"
 }
 
@@ -440,6 +446,8 @@ rm -f "$IDLE_STARTED"; : >"$LOG"
 UWSM_FAILS=1 run_idle
 check "a hypridle that will not start is not reported as locking" \
   "$(grep -c 'Now locking when idle' "$LOG")" "0"
+check "and the bar is not told, since nothing changed" \
+  "$(grep -c 'ipc call bar checkIdle' "$LOG")" "0"
 check "and the user is told the screen will not lock" \
   "$(grep -c 'will not lock when idle' "$LOG")" "1"
 check "critically, because a lock that is not armed is worth interrupting for" \
@@ -453,12 +461,15 @@ rm -f "$IDLE_STARTED"; : >"$LOG"
 run_idle
 check "a hypridle that starts is reported as locking" \
   "$(grep -c 'Now locking when idle' "$LOG")" "1"
+check "and the bar is told to look again" \
+  "$(grep -c 'ipc call bar checkIdle' "$LOG")" "1"
 check "and the script exits 0" "$(cat "$TMP/idle-rc")" "0"
 
 # Running again turns it off, because pgrep now finds it.
 : >"$LOG"
 run_idle
 check "a second press stops it" "$(grep -c 'Stopped locking when idle' "$LOG")" "1"
+check "and the bar is told again" "$(grep -c 'ipc call bar checkIdle' "$LOG")" "1"
 check "and exits 0" "$(cat "$TMP/idle-rc")" "0"
 
 # The stop can fail too, and then idle locking is still on.

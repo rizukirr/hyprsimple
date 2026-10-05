@@ -47,6 +47,13 @@ ShellRoot {
         id: idleWatch
     }
 
+    // One panel at a time across every monitor: the bar that has it open, or null.
+    readonly property var panelOwner: bars.instances.find(bar => bar.openPanel !== "") ?? null
+
+    function closeOthers(opener) {
+        bars.instances.forEach(bar => { if (bar !== opener) bar.openPanel = "" })
+    }
+
     Variants {
         id: bars
         model: Quickshell.screens
@@ -57,6 +64,8 @@ ShellRoot {
             muslimtify: prayers
             stats: systemStats
             idle: idleWatch
+            panelOwner: root.panelOwner
+            onOpened: opener => root.closeOthers(opener)
         }
     }
 
@@ -79,6 +88,12 @@ ShellRoot {
         // A bar told true with no recorder running clears itself, see Bar.qml.
         function setRecording(active: bool): void {
             root.recording = active
+        }
+
+        // Re-reads whether hypridle runs. toggle-idle.sh calls it, so the keep-awake
+        // item follows the keybinding even when the bus does not say.
+        function checkIdle(): void {
+            idleWatch.check()
         }
 
         // Hides the bars, or shows them again.

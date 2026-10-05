@@ -17,6 +17,10 @@ PanelWindow {
     required property var modelData
     // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
+    // The bar with a panel open, on any monitor, or null. Opening one here closes it there.
+    required property var panelOwner
+    signal opened(var opener)
+    onOpenPanelChanged: if (openPanel !== "") opened(bar)
 
     // A screen recording is running. Set over ipc and checked in shell.qml.
     required property bool recording
@@ -170,6 +174,8 @@ PanelWindow {
         name: "clipboard"
         anchorItem: clock
     }
+
+    OtherScreenCatcher { bar: bar }
 
     // The theme and wallpaper pickers list their choices and apply the picked one
     // through hyprsimple's own scripts.
