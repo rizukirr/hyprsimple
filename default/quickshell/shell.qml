@@ -4,6 +4,8 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import qs.bar
 import qs.muslimtify.services
+import qs.system
+import qs.theme
 import qs.notifications
 
 ShellRoot {
@@ -12,9 +14,37 @@ ShellRoot {
     // The bars are hidden, with the shell still running. Notifications need it running.
     property bool barsHidden: false
 
-    // Prayer times, read once and shown by every bar.
+    // A screen recording is running, as told over ipc. Whatever told it can be
+    // wrong or never call back: a test once reported a recording that did not exist.
+    // So while it is lit the shell looks for a recorder itself and clears it when there is none.
+    property bool recording: false
+
+    Timer {
+        interval: Theme.recordingPollMs
+        running: root.recording
+        repeat: true
+        onTriggered: recorderCheck.running = true
+    }
+
+    Process {
+        id: recorderCheck
+        command: ["sh", "-c", "pgrep -x wf-recorder >/dev/null || pgrep -x wl-screenrec >/dev/null"]
+        onExited: exitCode => {
+            if (exitCode !== 0) root.recording = false
+        }
+    }
+
+    // Read once and shown by every bar.
     Muslimtify {
         id: prayers
+    }
+
+    Stats {
+        id: systemStats
+    }
+
+    Idle {
+        id: idleWatch
     }
 
     Variants {
@@ -23,7 +53,10 @@ ShellRoot {
 
         Bar {
             visible: !root.barsHidden
+            recording: root.recording
             muslimtify: prayers
+            stats: systemStats
+            idle: idleWatch
         }
     }
 
@@ -45,7 +78,7 @@ ShellRoot {
         // vibekit: the state lives in the running shell, so a bar restarted mid-recording shows nothing until the next call
         // A bar told true with no recorder running clears itself, see Bar.qml.
         function setRecording(active: bool): void {
-            bars.instances.forEach(bar => bar.recording = active)
+            root.recording = active
         }
 
         // Hides the bars, or shows them again.

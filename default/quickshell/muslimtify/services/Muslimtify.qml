@@ -23,7 +23,9 @@ Item {
   property var timezones: []
   property var errors: ({})
   property var now: new Date()
-  readonly property var next: Model.nextPrayer(root.today, root.tomorrow, Model.minutesOfDay(root.now))
+  // An int, so `next` and everything bound to it only move when the minute does.
+  readonly property int nowMinutes: Model.minutesOfDay(root.now)
+  readonly property var next: Model.nextPrayer(root.today, root.tomorrow, root.nowMinutes)
 
   property var queue: []
   property var current: null

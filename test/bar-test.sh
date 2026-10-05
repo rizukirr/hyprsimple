@@ -264,6 +264,20 @@ check "the prayer service is made once, in the shell" \
 check "and not once per bar" \
   "$(grep -c '^ *Muslimtify {' "$BAR_DIR/bar/Bar.qml")" "0"
 
+# The same went for the keep-awake button, which ran pgrep every 5 seconds on
+# every monitor, and for the stats and recorder checks. hypridle owns a bus
+# name while it runs, so one dbus-monitor on that name replaces the poll.
+check "the keep-awake button has no timer" \
+  "$(grep -c 'Timer {' "$BAR_DIR/bar/AwakeButton.qml")" "0"
+check "and hypridle is watched over the bus, in one place" \
+  "$(grep -c 'command: \["dbus-monitor"' "$BAR_DIR/system/Idle.qml")" "1"
+check "which runs a check only when the name changes hands" \
+  "$(grep -c 'NameOwnerChanged.*check.running = true' "$BAR_DIR/system/Idle.qml")" "1"
+check "stats, idle and the recorder check are made once, in the shell" \
+  "$(grep -c -E '^ *(Stats|Idle) \{|id: recorderCheck' "$BAR_DIR/shell.qml")" "3"
+check "and not once per bar" \
+  "$(grep -c -E '^ *(Stats|Idle) \{|id: recorderCheck' "$BAR_DIR/bar/Bar.qml")" "0"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1

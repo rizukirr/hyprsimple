@@ -50,9 +50,10 @@ Singleton {
         }
     }
 
-    // How long one stays up, in milliseconds. 0 stays until dismissed.
+    // How long one stays up, in milliseconds. 0 stays until dismissed, which is
+    // also what a sender asking for 0 means. -1 leaves it to us.
     function timeoutFor(notification) {
-        if (notification.expireTimeout > 0) return notification.expireTimeout
+        if (notification.expireTimeout >= 0) return notification.expireTimeout
         return notification.urgency === NotificationUrgency.Critical ? 0 : Theme.notifyTimeout
     }
 
