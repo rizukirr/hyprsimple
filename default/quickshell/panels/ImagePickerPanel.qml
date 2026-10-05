@@ -22,8 +22,6 @@ PopupPanel {
 
     // One per row: key, name, picture, and the colors found in the label.
     property var entries: []
-    // Rows read by the list command so far. They replace entries when it finishes.
-    property var arrived: []
     property string currentKey: ""
     readonly property var results: {
         const terms = search.text.toLowerCase().split(/\s+/).filter(term => term !== "")
@@ -76,8 +74,6 @@ PopupPanel {
     // in use from the first picture each time.
     function load() {
         currentReader.running = true
-        if (lister.running) return
-        arrived = []
         lister.running = true
     }
 
@@ -103,7 +99,7 @@ PopupPanel {
     // a little later, so the lists are read again a moment after the colors change.
     Connections {
         target: Theme
-        function onColorsChanged() { afterThemeSwitch.restart() }
+        function onSwitched() { afterThemeSwitch.restart() }
     }
 
     Timer {
@@ -121,18 +117,15 @@ PopupPanel {
     Process {
         id: lister
         command: root.listCommand
-        stdout: SplitParser {
-            onRead: line => {
-                const entry = root.parse(line)
-                if (entry) root.arrived.push(entry)
-            }
-        }
         // Swapped in whole, and only when something changed, so a refresh that finds
         // the same choices leaves the carousel alone.
-        onExited: {
-            if (root.sameEntries(root.entries, root.arrived)) return
-            root.entries = root.arrived
-            root.startOnCurrent()
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const arrived = text.split("\n").map(root.parse).filter(entry => entry !== null)
+                if (root.sameEntries(root.entries, arrived)) return
+                root.entries = arrived
+                root.startOnCurrent()
+            }
         }
     }
 

@@ -41,11 +41,18 @@ Singleton {
             try {
                 root.colors = JSON.parse(text())
                 console.log("theme: loaded", path)
+                if (root.loaded) root.switched()
+                root.loaded = true
             } catch (e) {
                 console.log("theme: ignoring unreadable", path, e.message)
             }
         }
     }
+
+    // The theme file was read again after a first read: a theme switch, as opposed
+    // to the colors arriving at startup.
+    property bool loaded: false
+    signal switched()
 
     // A file that does not exist cannot be watched, so one created after the shell
     // started would never be seen. Until a load succeeds, look again every few seconds.
