@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.bar
+import qs.muslimtify.services
 import qs.notifications
 
 ShellRoot {
@@ -11,12 +12,18 @@ ShellRoot {
     // The bars are hidden, with the shell still running. Notifications need it running.
     property bool barsHidden: false
 
+    // Prayer times, read once and shown by every bar.
+    Muslimtify {
+        id: prayers
+    }
+
     Variants {
         id: bars
         model: Quickshell.screens
 
         Bar {
             visible: !root.barsHidden
+            muslimtify: prayers
         }
     }
 

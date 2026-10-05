@@ -9,8 +9,6 @@ import "../lib/Model.js" as Model
 Item {
   id: root
 
-  property int refreshSeconds: 30
-
   readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/muslimtify/config.json"
 
   property bool probed: false
@@ -221,9 +219,11 @@ Item {
     }
   }
 
+  // The times change at midnight and when the config does, and both of those
+  // already refresh. This only tries again after a read that failed.
   Timer {
-    interval: Math.max(5, Math.min(60, root.refreshSeconds)) * 1000
-    running: root.available
+    interval: 30000
+    running: root.available && root.todayFailed
     repeat: true
     onTriggered: root.refresh()
   }

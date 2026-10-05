@@ -247,6 +247,23 @@ for stale in "${STALE[@]}"; do
 done
 check "and none of the removed ones still ships" "$still_shipped" "0"
 
+# ---- prayer times -----------------------------------------------------------
+#
+# The times change at midnight and when the config does. A bar that ran
+# muslimtify on a timer spawned it thousands of times a day for nothing, and
+# once per monitor, so the timer that is left may only run after a failed read
+# and the service is made once for every bar.
+
+SERVICE="$BAR_DIR/muslimtify/services/Muslimtify.qml"
+check "the only timer that reads prayer times again runs after a failed read" \
+  "$(grep -B4 'onTriggered: root.refresh()' "$SERVICE" | grep -c 'running: .*root.todayFailed')" "1"
+check "and nothing else reads them on a timer" \
+  "$(grep -c 'onTriggered: root.refresh()' "$SERVICE")" "1"
+check "the prayer service is made once, in the shell" \
+  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/shell.qml")" "1"
+check "and not once per bar" \
+  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/bar/Bar.qml")" "0"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1

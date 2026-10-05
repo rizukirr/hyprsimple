@@ -50,9 +50,8 @@ PanelWindow {
     color: Theme.bg
     Behavior on color { CAnim {} }
 
-    Muslimtify {
-        id: muslimtify
-    }
+    // One for every bar, made in shell.qml.
+    required property Muslimtify muslimtify
 
     Stats {
         id: stats
