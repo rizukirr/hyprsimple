@@ -201,6 +201,7 @@ Singleton {
         link: "link",
         unlink: "link_off",
         trash: "delete",
+        add: "add",
         loading: "progress_activity",
         battery: ["battery_0_bar", "battery_1_bar", "battery_2_bar", "battery_3_bar", "battery_4_bar", "battery_5_bar", "battery_6_bar", "battery_full"],
         batteryCharging: "battery_charging_full",

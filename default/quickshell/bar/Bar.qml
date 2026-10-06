@@ -197,6 +197,13 @@ PanelWindow {
         listCommand: ["sh", "-c", '"$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" | "$HOME/.local/bin/hyprsimple-thumbnails.sh"']
         currentCommand: ["cat", Quickshell.env("HOME") + "/.cache/current_wallpaper_path"]
         applyCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "apply"]
+        // The last tile asks for an image file and copies it into the theme.
+        addCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "add"]
+        addLabel: "Add a wallpaper"
+        // Live wallpaper, which the flag file records.
+        switchLabel: "Cycle through these every 30 seconds"
+        switchStateCommand: ["test", "-f", Quickshell.env("HOME") + "/.cache/live_wallpaper_enabled"]
+        switchCommand: [Quickshell.env("HOME") + "/.local/bin/live-wallpaper-toggle.sh"]
     }
 
     // Recordings are made by hyprsimple's own script. The panel only chooses what

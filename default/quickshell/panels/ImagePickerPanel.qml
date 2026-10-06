@@ -20,14 +20,30 @@ PopupPanel {
     // Run with the picked key added as its last argument.
     required property var applyCommand
 
+    // Set to give the carousel a last tile that adds a choice. It is run as it is
+    // when that tile is picked, and is expected to ask for whatever it needs.
+    property var addCommand: null
+    property string addLabel: "Add"
+
+    // Set all three to put a switch under the carousel. switchStateCommand exits 0
+    // when it is on, and switchCommand is run with "on" or "off" added.
+    property string switchLabel: ""
+    property var switchStateCommand: null
+    property var switchCommand: null
+    property bool switchOn: false
+
     // One per row: key, name, picture, and the colors found in the label.
     property var entries: []
     property string currentKey: ""
     readonly property var results: {
         const terms = search.text.toLowerCase().split(/\s+/).filter(term => term !== "")
-        if (terms.length === 0) return entries
+        // The add tile is a row like any other, so the keys that reach a picture
+        // reach it too. It is left out of a search, which is for finding one.
+        if (terms.length === 0) return addCommand ? [...entries, { key: "", name: addLabel, image: "", swatches: [], add: true }] : entries
         return entries.filter(entry => terms.every(term => entry.name.toLowerCase().includes(term)))
     }
+    // The choices on show, not counting the add tile.
+    readonly property int choiceCount: results.filter(entry => !entry.add).length
     property int current: 0
     // Unset for a moment on open, so the carousel is put on the choice in use at
     // once instead of scrolling there from wherever it was.
@@ -51,7 +67,16 @@ PopupPanel {
     function apply(entry) {
         if (!entry) return
         dismiss()
-        Quickshell.execDetached([...applyCommand, entry.key])
+        if (entry.add) Quickshell.execDetached(addCommand)
+        else Quickshell.execDetached([...applyCommand, entry.key])
+    }
+
+    function flipSwitch() {
+        if (!switchCommand || switcher.running) return
+        // Shown at once, and put right by the state read when the command ends.
+        switchOn = !switchOn
+        switcher.command = [...switchCommand, switchOn ? "on" : "off"]
+        switcher.running = true
     }
 
     // Put the carousel on the choice in use.
@@ -75,6 +100,7 @@ PopupPanel {
     function load() {
         currentReader.running = true
         lister.running = true
+        if (switchStateCommand) switchReader.running = true
     }
 
     panelWidth: Theme.pickerWidth
@@ -144,6 +170,17 @@ PopupPanel {
         }
     }
 
+    Process {
+        id: switchReader
+        command: root.switchStateCommand ?? []
+        onExited: exitCode => root.switchOn = exitCode === 0
+    }
+
+    Process {
+        id: switcher
+        onExited: switchReader.running = true
+    }
+
     RowLayout {
         width: parent.width
         spacing: Theme.md
@@ -173,13 +210,14 @@ PopupPanel {
                 else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (ctrl && event.key === Qt.Key_P)) root.move(-1)
                 else if (event.key === Qt.Key_PageDown) root.move(Theme.pickerPageStep)
                 else if (event.key === Qt.Key_PageUp) root.move(-Theme.pickerPageStep)
+                else if (ctrl && event.key === Qt.Key_L && root.switchLabel !== "") root.flipSwitch()
                 else return
                 event.accepted = true
             }
         }
         StyledText {
             rightPadding: Theme.sm
-            text: root.results.length === 0 ? "" : `${root.current + 1} of ${root.results.length}`
+            text: root.choiceCount === 0 || root.results[root.current]?.add ? "" : `${root.current + 1} of ${root.choiceCount}`
             color: Theme.muted
             font.pixelSize: Theme.fontSizeSmall
         }
@@ -262,6 +300,15 @@ PopupPanel {
                     source: root.visible && card.modelData.image !== "" ? "file://" + card.modelData.image : ""
                 }
 
+                // The add tile has no picture, so it shows what it does.
+                Icon {
+                    anchors.centerIn: parent
+                    visible: card.modelData.add ?? false
+                    text: Theme.icon.add
+                    font.pixelSize: Theme.pickerCardHeight / 3
+                    color: card.chosen ? Theme.accent : Theme.muted
+                }
+
                 StateLayer {
                     radius: Theme.radius
                     // A click on a neighbour brings it to the middle, a click on the middle one picks it.
@@ -310,6 +357,29 @@ PopupPanel {
             visible: root.results.length === 0
             text: root.entries.length > 0 ? "No matches" : lister.running ? "Loading…" : "Nothing to pick"
             color: Theme.muted
+        }
+    }
+
+    RowLayout {
+        visible: root.switchLabel !== ""
+        width: parent.width
+        spacing: Theme.md
+
+        StyledText {
+            Layout.fillWidth: true
+            leftPadding: Theme.sm
+            text: root.switchLabel
+            elide: Text.ElideRight
+        }
+        StyledText {
+            text: "Ctrl + L"
+            color: Theme.muted
+            font.pixelSize: Theme.fontSizeSmall
+        }
+        Toggle {
+            Layout.rightMargin: Theme.sm
+            checked: root.switchOn
+            onToggled: root.flipSwitch()
         }
     }
 }

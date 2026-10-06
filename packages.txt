@@ -17,6 +17,9 @@ ttf-material-symbols-variable
 # "Unsupported image format". Most shipped wallpapers are webp, so the picture
 # in a theme's notification came up empty for those and showed for the rest.
 qt6-imageformats
+# The file dialog behind the wallpaper picker's add tile. Its libraries, gtk4
+# and libadwaita, are already here for the file manager.
+zenity
 # gdk-pixbuf has no webp support of its own, and the shipped wallpapers are
 # webp. With this, GTK programs such as the file manager can show them.
 webp-pixbuf-loader

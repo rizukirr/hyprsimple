@@ -123,6 +123,9 @@ hl.window_rule({
 })
 hl.window_rule({ match = { class = "org.gnome.Calculator" }, float = true })
 
+-- The file dialog the wallpaper picker's add tile opens.
+hl.window_rule({ match = { class = "zenity" }, tag = "+floating-window" })
+
 -- Password managers float, and are left out of a screen share: sharing the
 -- whole screen in a call would otherwise share an open vault with it.
 --
