@@ -86,6 +86,8 @@ STUBEOF
 cat >"$STUB/qs" <<'STUBEOF'
 #!/bin/bash
 printf 'qs %s\n' "$*" >>"$LOG"
+# kill asks the bar to quit. It does, unless the case says this one is stuck.
+if [[ $1 == kill && ! -e $STATE/quit-ignored ]]; then rm -f "$STATE/bar"; fi
 exit 0
 STUBEOF
 cat >"$STUB/pacman" <<'STUBEOF'
@@ -127,7 +129,36 @@ check "--if-running does nothing when no bar is up" "$(started)" "0"
 reset; : >"$STATE/bar"
 run_restart --if-running
 check "--if-running restarts a bar that is up" "$(started)" "1"
-check "after stopping the old one" "$(grep -c '^pkill ' "$LOG")" "1"
+
+# The old bar is asked to quit, not signalled.
+#
+# Quickshell does not take its child processes down when a signal ends it, and
+# the bar has one that never exits by itself: the dbus-monitor that watches
+# hypridle. Every restart left one behind, owned by systemd, until logout.
+# Measured on Quickshell 0.3.1 with a config whose only child is a sleep:
+#
+#   SIGTERM, what pkill sends   the shell exits, the sleep survives
+#   SIGHUP                      the shell exits, the sleep survives
+#   qs kill -p <config>         the shell exits, the sleep is gone
+check "after asking the old one to quit" \
+  "$(grep -c "^qs kill -p $TMP/install/default/quickshell$" "$LOG")" "1"
+check "and without signalling a bar that did quit" "$(grep -c '^pkill ' "$LOG")" "0"
+quit_line=$(grep -n '^qs kill ' "$LOG" | head -1 | cut -d: -f1)
+start_line=$(grep -n '^uwsm app -- qs -p ' "$LOG" | head -1 | cut -d: -f1)
+check "and the new bar starts after the old one was told to go" \
+  "$(( ${quit_line:-0} > 0 && ${start_line:-0} > ${quit_line:-0} ))" "1"
+
+# A bar that does not answer still has to go, or two of them run at once.
+reset; : >"$STATE/bar"; : >"$STATE/quit-ignored"
+run_restart --if-running
+check "a bar that ignores the request is signalled" "$(grep -c '^pkill -f ' "$LOG")" "1"
+check "only after it was asked" \
+  "$(( $(grep -n '^pkill ' "$LOG" | head -1 | cut -d: -f1) > $(grep -n '^qs kill ' "$LOG" | head -1 | cut -d: -f1) ))" "1"
+check "and the new bar is still started" "$(started)" "1"
+
+reset
+run_restart
+check "with no bar running nothing is asked to quit" "$(grep -c '^qs kill ' "$LOG")" "0"
 
 reset; : >"$STATE/bar"
 run_restart --toggle
