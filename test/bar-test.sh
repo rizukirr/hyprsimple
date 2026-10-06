@@ -70,6 +70,24 @@ check "a picker row has one picture" "$(grep -c '^[[:space:]]*source: ' <<<"$pic
 check "and loads it only while the panel is on screen" \
   "$(grep -c '^[[:space:]]*source: root\.visible && ' <<<"$picker_code")" "1"
 
+# An untouched bar drew about eleven frames a second.
+#
+# The system panel's meters animate to each new value, and they get one every
+# two seconds whether the panel is open or not. A running animation makes every
+# visible window draw, so the closed panel kept the bar drawing. Counted from
+# Qt's render loop log on a copy of the bar nobody touched, over twenty seconds:
+#
+#   as shipped                           222 frames, 2.1% of a core
+#   stats read every ten minutes           0 frames
+#   meter animated only while on screen    0 frames, 0.1% of a core
+#
+# With the panel open the meters still animate: 67 frames in six seconds.
+METER="$BAR_DIR/components/Meter.qml"
+meter_code="$(sed 's|^[[:space:]]*//.*||' "$METER")"
+check "a meter animates its width" "$(grep -c 'Behavior on width' <<<"$meter_code")" "1"
+check "and only in a window that is on screen" \
+  "$(grep -c 'Behavior on width { enabled: root.Window.window?.visible ?? false; Anim {} }' <<<"$meter_code")" "1"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which
