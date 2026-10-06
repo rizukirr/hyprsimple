@@ -158,6 +158,9 @@ for _, rule in ipairs(rules) do
   if rule.tag == "-default-opacity" and type(class) == "string" and class:find("youtube", 1, true) then
     print("webapp_pattern", class)
   end
+  if rule.no_screen_share and rule.tag == "+floating-window" and type(class) == "string" then
+    print("vault_pattern", class)
+  end
 end
 LUA
 )
@@ -227,6 +230,49 @@ check "a portal window floats without its title being asked" \
 #   monitor_w-600-40      -> x 1280, right edge 1880
 check "picture in picture is still moved to its corner" "$(fact pip_moves)" "1"
 check "and not by a width it does not have yet" "$(fact pip_moves_by_window_w)" "0"
+
+# --- a password manager stays out of a screen share ---------------------------
+#
+# Sharing the whole screen in a call shared an open password manager with it.
+# Measured with a terminal full of text and a screenshot of its middle, which
+# reads the screen the way a share does:
+#
+#   no rule                  9909 distinct colours, the text
+#   no_screen_share = true   1 colour, black
+#
+# The same rule floats them, since a vault is something opened over the work
+# and closed again.
+mapfile -t vault_patterns < <(fact vault_pattern)
+if (( ${#vault_patterns[@]} == 0 )); then
+  fail "no rule keeps a password manager out of a screen share"
+fi
+vault_matches() {
+  local pattern
+  for pattern in "${vault_patterns[@]}"; do
+    printf '%s' "$1" | grep -qxE -- "$pattern" && { echo yes; return; }
+  done
+  echo no
+}
+
+# 1Password 8.12 renamed its window class to the reverse-DNS form, and the
+# third is the Bitwarden extension's own window in a chromium browser.
+for class in \
+  "1Password" \
+  "1password" \
+  "com.onepassword.OnePassword" \
+  "Bitwarden" \
+  "chrome-nngceckbapebfimnlniiiahkandclblb-Default" \
+  "brave-nngceckbapebfimnlniiiahkandclblb-Profile_1"; do
+  check "hidden from a share: $class" "$(vault_matches "$class")" "yes"
+done
+
+for class in \
+  "brave-browser" \
+  "com.mitchellh.ghostty" \
+  "chrome-mail.google.com__-Default" \
+  "Bitwarden-helper"; do
+  check "left alone: $class" "$(vault_matches "$class")" "no"
+done
 
 # --- windows.lua still loads --------------------------------------------------
 
