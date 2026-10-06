@@ -1081,7 +1081,7 @@ mkdir -p "$HOME/.config/btop/themes"
 # config file has to hardcode an install path that HYPRSIMPLE_PATH can change.
 ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
 
-# Live wallpaper is off unless someone turns it on, with SUPER + CTRL + W. It
+# Live wallpaper is off unless someone turns it on, in the wallpaper picker. It
 # cycles through a theme's backgrounds, and nearly every theme ships one, so on
 # by default it did nothing a person could see. A flag already there is left
 # alone: on a machine being installed again it is that person's choice.

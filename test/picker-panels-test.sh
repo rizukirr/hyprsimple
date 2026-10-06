@@ -87,6 +87,94 @@ run theme-switcher.sh demo
 check "theme-switcher.sh with a theme opens no picker either" \
   "$(grep -c 'toggle themes' "$TMP/qs-log")" "0"
 
+# ---- adding a wallpaper ----------------------------------------------------
+#
+# The picker's last tile runs `wallpaper-switcher.sh add`, which asks for a file
+# with zenity, copies it into the theme and shows it. zenity here is a stand-in
+# that answers with whatever the case put in $ZENITY_PICK, or is cancelled when
+# that is empty, and records how it was asked.
+cat >"$STUB/zenity" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$ZENITY_LOG"
+[[ -n ${ZENITY_PICK:-} ]] || exit 1
+printf '%s\n' "$ZENITY_PICK"
+STUBEOF
+chmod +x "$STUB/zenity"
+
+BG="$H/.config/hypr/themes/demo/backgrounds"
+SRC="$TMP/pictures"; mkdir -p "$SRC"
+printf 'holiday\n' >"$SRC/Holiday Photo.JPG"
+printf 'not a picture\n' >"$SRC/notes.txt"
+printf 'a different two\n' >"$SRC/2-two.jpg"
+
+add() {
+  : >"$TMP/zenity-log"
+  ZENITY_LOG="$TMP/zenity-log" ZENITY_PICK="$1" run wallpaper-switcher.sh add
+  printf '%s' "$?" >"$TMP/add-rc"
+}
+wallpapers() { find "$BG" -type f | wc -l | tr -d ' '; }
+
+check "the picker's add tile runs wallpaper-switcher.sh add" \
+  "$(grep -c 'addCommand: \[Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "add"\]' "$BAR_QML")" "1"
+
+before=$(wallpapers)
+add "$SRC/Holiday Photo.JPG"
+check "adding asks for a file" "$(grep -c -- '--file-selection' "$TMP/zenity-log")" "1"
+check "and copies it into the theme, name and all" \
+  "$(cat "$BG/Holiday Photo.JPG" 2>/dev/null)" "holiday"
+check "leaving the original where it was" "$(cat "$SRC/Holiday Photo.JPG")" "holiday"
+check "the theme has one wallpaper more" "$(wallpapers)" "$((before + 1))"
+check "and the new one is the wallpaper now" \
+  "$(cat "$H/.cache/current_wallpaper_path")" "$BG/Holiday Photo.JPG"
+check "adding opens no picker" "$(wc -l <"$TMP/qs-log" | tr -d ' ')" "0"
+
+add "$SRC/Holiday Photo.JPG"
+check "the same picture chosen twice is not copied twice" "$(wallpapers)" "$((before + 1))"
+
+# A different picture under a name the theme already has. The one there is not
+# overwritten: it may be the only copy of a wallpaper someone likes.
+add "$SRC/2-two.jpg"
+check "a name already taken keeps the picture that had it" "$(cat "$BG/2-two.jpg")" "two"
+check "and the new picture gets a number" "$(cat "$BG/2-two-2.jpg" 2>/dev/null)" "a different two"
+check "which is the one shown" "$(cat "$H/.cache/current_wallpaper_path")" "$BG/2-two-2.jpg"
+
+# The dialog's filter does not stop a path being typed in.
+count=$(wallpapers); shown=$(cat "$H/.cache/current_wallpaper_path")
+add "$SRC/notes.txt"
+check "a file that is not an image is not copied in" "$(wallpapers)" "$count"
+check "and is reported as a failure" "$(cat "$TMP/add-rc")" "1"
+check "with the wallpaper left as it was" "$(cat "$H/.cache/current_wallpaper_path")" "$shown"
+
+add ""
+check "cancelling the dialog adds nothing" "$(wallpapers)" "$count"
+check "and is not a failure" "$(cat "$TMP/add-rc")" "0"
+check "with the wallpaper left as it was" "$(cat "$H/.cache/current_wallpaper_path")" "$shown"
+
+add "$SRC/gone.png"
+check "a file that is not there adds nothing" "$(wallpapers)" "$count"
+
+# Without zenity the user is told, rather than nothing happening.
+NOZEN="$TMP/nozen"; mkdir -p "$NOZEN"
+for tool in "$STUB"/*; do
+  [[ $(basename "$tool") == zenity ]] || ln -s "$tool" "$NOZEN/$(basename "$tool")"
+done
+cat >"$NOZEN/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$NOTIFY_LOG"
+STUBEOF
+chmod +x "$NOZEN/notify-send"
+BARE_BIN="$TMP/bare-bin"; mkdir -p "$BARE_BIN"
+for tool in bash cat dirname basename find sort cp rm cmp mkdir; do
+  ln -s "$(command -v "$tool")" "$BARE_BIN/$tool"
+done
+: >"$TMP/notify-log"
+NOTIFY_LOG="$TMP/notify-log" QS_LOG="$TMP/qs-log" HOME="$H" PATH="$NOZEN:$BARE_BIN" \
+  "$BASH" "$H/.local/bin/wallpaper-switcher.sh" add >/dev/null 2>&1
+check "without zenity, adding fails" "$?" "1"
+check "and says what is missing" "$(grep -c 'zenity is missing' "$TMP/notify-log")" "1"
+check "zenity is in the packages an install and an update bring" \
+  "$(grep -cx 'zenity' "$REPO/packages.txt")" "1"
+
 # ---- the thumbnail script --------------------------------------------------
 
 # magick writes a marker naming its source as the thumbnail, and counts its runs.

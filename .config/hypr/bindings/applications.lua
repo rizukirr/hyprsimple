@@ -12,8 +12,6 @@ local home = os.getenv("HOME")
 
 hl.bind("SUPER + SHIFT + T", hl.dsp.exec_cmd(home .. "/.local/bin/theme-switcher.sh"),                 { description = "Theme Switcher" })
 hl.bind("SUPER + SHIFT + W", hl.dsp.exec_cmd(home .. "/.local/bin/wallpaper-switcher.sh pick"),        { description = "Wallpaper Picker" })
-hl.bind("SUPER + ALT + W",   hl.dsp.exec_cmd(home .. "/.local/bin/wallpaper-switcher.sh next"),        { description = "Next Wallpaper" })
-hl.bind("SUPER + CTRL + W",  hl.dsp.exec_cmd(home .. "/.local/bin/live-wallpaper-toggle.sh"),          { description = "Toggle Live Wallpaper" })
 
 hl.bind("SUPER + T", hl.dsp.exec_cmd(vars.terminal),    { description = "Terminal" })
 hl.bind("SUPER + B", hl.dsp.exec_cmd(vars.browser),     { description = "Browser" })

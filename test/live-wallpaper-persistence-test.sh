@@ -99,8 +99,9 @@ check "and keeps cycling" "$(cycling)" "1"
 install_code="$(sed 's/^[[:space:]]*#.*//' "$REPO/install.sh")"
 check "install.sh does not turn live wallpaper on" \
   "$(grep -c 'live_wallpaper_enabled' <<<"$install_code")" "0"
-check "the key that turns it on is still bound" \
-  "$(grep -rc 'live-wallpaper-toggle.sh' "$REPO/.config/hypr/bindings/applications.lua")" "1"
+# It is turned on from the wallpaper picker, which has a switch for it.
+check "the picker's switch still turns it on" \
+  "$(grep -c 'switchCommand: \[Quickshell.env("HOME") + "/.local/bin/live-wallpaper-toggle.sh"\]' "$REPO/default/quickshell/bar/Bar.qml")" "1"
 
 setup
 run on

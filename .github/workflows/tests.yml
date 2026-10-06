@@ -226,6 +226,9 @@ jobs:
       - name: panel-keybinds-test
         run: bash test/panel-keybinds-test.sh
 
+      - name: wallpaper-keys-migration-test
+        run: bash test/wallpaper-keys-migration-test.sh
+
       - name: ghostty-theme-test
         run: bash test/ghostty-theme-test.sh
 

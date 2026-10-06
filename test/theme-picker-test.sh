@@ -231,9 +231,11 @@ check "the wallpaper producer's label has no extension and no leading sort prefi
 check "grep finds no sed or tr applied to the picker output in theme-switcher.sh" \
   "$(grep -A2 'hyprsimple-theme-picker.sh"' "$REPO/.local/bin/theme-switcher.sh" | grep -cE '^[[:space:]]*(sed|tr) ')" "0"
 
-# ---- a theme with exactly one wallpaper skips the picker entirely ---------
-# Four shipped themes have exactly one wallpaper, so wallpaper-switcher.sh's
-# early exit is reached in practice, not just in this fixture.
+# ---- a theme with exactly one wallpaper still opens the picker -------------
+# It used to stop with "Only one wallpaper in this theme", which was true while
+# a picker could only choose. The picker is also where a wallpaper is added and
+# where cycling is switched on, and 37 of the 40 shipped themes have one
+# wallpaper, so that notice shut the door on nearly every theme.
 
 ws_home="$TMP/ws-home"
 must_be_fixture "$ws_home"
@@ -263,8 +265,14 @@ PATH="$ws_notify_bin:$PATH" HOME="$ws_home" bash "$WALLPAPER_SWITCHER" pick >/de
 ws_exit=$?
 
 check "a fixture theme holding exactly one wallpaper makes wallpaper-switcher.sh pick exit 0" "$ws_exit" "0"
-check "a fixture theme holding exactly one wallpaper makes wallpaper-switcher.sh pick skip invoking the picker" \
-  "$([[ -e $ws_marker ]] && echo invoked || echo not-invoked)" "not-invoked"
+check "a fixture theme holding exactly one wallpaper still opens the picker" \
+  "$([[ -e $ws_marker ]] && echo invoked || echo not-invoked)" "invoked"
+
+# next has nowhere to go with one wallpaper, and still says so without opening anything.
+rm -f "$ws_marker"
+PATH="$ws_notify_bin:$PATH" HOME="$ws_home" bash "$WALLPAPER_SWITCHER" next >/dev/null 2>&1
+check "next on a theme with one wallpaper exits 0" "$?" "0"
+check "and opens nothing" "$([[ -e $ws_marker ]] && echo invoked || echo not-invoked)" "not-invoked"
 
 if ((failures > 0)); then printf '\n%s check(s) failed\n' "$failures" >&2; exit 1; fi
 printf '\nall checks passed\n'
