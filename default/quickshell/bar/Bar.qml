@@ -200,6 +200,8 @@ PanelWindow {
         // The last tile asks for an image file and copies it into the theme.
         addCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "add"]
         addLabel: "Add a wallpaper"
+        // Asked about first, in the panel, and never the theme's last one.
+        deleteCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "delete"]
         // Live wallpaper, which the flag file records.
         switchLabel: "Cycle through these every 30 seconds"
         switchStateCommand: ["test", "-f", Quickshell.env("HOME") + "/.cache/live_wallpaper_enabled"]

@@ -175,6 +175,67 @@ check "and says what is missing" "$(grep -c 'zenity is missing' "$TMP/notify-log
 check "zenity is in the packages an install and an update bring" \
   "$(grep -cx 'zenity' "$REPO/packages.txt")" "1"
 
+# ---- deleting a wallpaper --------------------------------------------------
+#
+# The picker asks first, in a dialog of its own, and only then runs
+# `wallpaper-switcher.sh delete <file>`. What the script has to get right is
+# what it is willing to remove: a wallpaper this theme lists, and never the
+# last one.
+delete() {
+  run wallpaper-switcher.sh delete "$1"
+  printf '%s' "$?" >"$TMP/delete-rc"
+}
+
+check "the picker deletes through wallpaper-switcher.sh delete" \
+  "$(grep -c 'deleteCommand: \[Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "delete"\]' "$BAR_QML")" "1"
+
+count=$(wallpapers); shown=$(cat "$H/.cache/current_wallpaper_path")
+check "the fixture's wallpaper on screen is not the one about to go" \
+  "$([[ $shown != "$BG/Holiday Photo.JPG" ]] && echo other || echo same)" "other"
+delete "$BG/Holiday Photo.JPG"
+check "deleting removes the file" "$([[ -e "$BG/Holiday Photo.JPG" ]] && echo there || echo gone)" "gone"
+check "and only that one" "$(wallpapers)" "$((count - 1))"
+check "and succeeds" "$(cat "$TMP/delete-rc")" "0"
+check "a wallpaper that was not on screen leaves the one that was" \
+  "$(cat "$H/.cache/current_wallpaper_path")" "$shown"
+check "the picture it was added from is untouched" "$(cat "$SRC/Holiday Photo.JPG")" "holiday"
+
+# The one on screen. The theme lists 1-one.jpg, 2-two-2.jpg, 2-two.jpg, in the
+# order sort gives them, so 2-two.jpg follows the one being deleted.
+check "the wallpaper on screen is the middle one listed" "$shown" "$BG/2-two-2.jpg"
+delete "$shown"
+check "deleting the wallpaper on screen removes it" "$([[ -e $shown ]] && echo there || echo gone)" "gone"
+check "and shows the one after it" "$(cat "$H/.cache/current_wallpaper_path")" "$BG/2-two.jpg"
+check "which is a file that exists" "$([[ -f $(cat "$H/.cache/current_wallpaper_path") ]] && echo yes || echo no)" "yes"
+
+# Anything the theme does not list is refused, whatever it is.
+count=$(wallpapers)
+printf 'keep me\n' >"$TMP/outside.jpg"
+delete "$TMP/outside.jpg"
+check "a file outside the theme is not deleted" "$(cat "$TMP/outside.jpg" 2>/dev/null)" "keep me"
+check "and that is a failure" "$(cat "$TMP/delete-rc")" "1"
+delete "$BG/../../../../../outside.jpg"
+check "nor one reached by climbing out of the theme" "$(cat "$TMP/outside.jpg" 2>/dev/null)" "keep me"
+printf 'notes\n' >"$BG/notes.txt"
+delete "$BG/notes.txt"
+check "nor a file in the theme that is not a wallpaper" "$(cat "$BG/notes.txt" 2>/dev/null)" "notes"
+rm -f "$BG/notes.txt"
+delete ""
+check "no file named deletes nothing" "$(wallpapers)" "$count"
+check "and is a failure" "$(cat "$TMP/delete-rc")" "1"
+
+# Down to one, which stays. 2-two.jpg is on screen and is the last listed, so
+# what follows it is the first.
+delete "$BG/2-two.jpg"
+check "two wallpapers can go down to one" "$(wallpapers)" "1"
+check "and the last one listed is followed by the first" \
+  "$(cat "$H/.cache/current_wallpaper_path")" "$BG/1-one.jpg"
+last=$(find "$BG" -type f)
+delete "$last"
+check "the only wallpaper in a theme is not deleted" "$([[ -f $last ]] && echo kept || echo gone)" "kept"
+check "and that is a failure" "$(cat "$TMP/delete-rc")" "1"
+check "it is still the wallpaper" "$(cat "$H/.cache/current_wallpaper_path")" "$last"
+
 # ---- the thumbnail script --------------------------------------------------
 
 # magick writes a marker naming its source as the thumbnail, and counts its runs.
