@@ -11,4 +11,14 @@ hl.bind("SUPER + N",         hl.dsp.exec_cmd(home .. "/.local/bin/toggle-nightli
 hl.bind("SUPER + SHIFT + I", hl.dsp.exec_cmd(home .. "/.local/bin/toggle-idle.sh"),             { description = "Toggle Idle Prevention" })
 hl.bind("SUPER + D",         hl.dsp.exec_cmd(home .. "/.local/bin/notification-dismiss.sh"),    { description = "Dismiss Notifications" })
 hl.bind("SUPER + S",         hl.dsp.exec_cmd(vars.barPanel .. "volume"),                        { description = "Sound (panel: volume and output device)" })
-hl.bind("SUPER + slash",     hl.dsp.exec_cmd(home .. "/.local/bin/show-keybindings.sh"),        { description = "Show Keybindings" })
+-- The panels that only had a button on the bar. A SHIFT or ALT one sits beside
+-- the key it is related to: N is the nightlight, B the browser, D dismisses
+-- notifications and S is the speaker.
+hl.bind("SUPER + ALT + S",   hl.dsp.exec_cmd(vars.barPanel .. "mic"),                           { description = "Microphone (panel: level and input device)" })
+hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(vars.barPanel .. "network"),                       { description = "Network (panel)" })
+hl.bind("SUPER + SHIFT + B", hl.dsp.exec_cmd(vars.barPanel .. "bluetooth"),                     { description = "Bluetooth (panel)" })
+hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(vars.barPanel .. "notifications"),                 { description = "Notifications (panel)" })
+hl.bind("SUPER + C",         hl.dsp.exec_cmd(vars.barPanel .. "calendar"),                      { description = "Calendar (panel)" })
+hl.bind("SUPER + P",         hl.dsp.exec_cmd(vars.barPanel .. "prayer"),                        { description = "Prayer Times (panel)" })
+hl.bind("SUPER + I",         hl.dsp.exec_cmd(vars.barPanel .. "system"),                        { description = "System (panel)" })
+hl.bind("SUPER + slash",    hl.dsp.exec_cmd(home .. "/.local/bin/show-keybindings.sh"),        { description = "Show Keybindings" })

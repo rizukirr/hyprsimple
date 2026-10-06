@@ -269,6 +269,13 @@ build fails during install.
 | `SUPER + D` | Dismiss notifications |
 | `SUPER + SHIFT + I` | Toggle idle lock |
 | `SUPER + S` | Open the volume panel, to set the volume and choose a speaker |
+| `SUPER + ALT + S` | Open the microphone panel |
+| `SUPER + SHIFT + N` | Open the network panel |
+| `SUPER + SHIFT + B` | Open the bluetooth panel |
+| `SUPER + SHIFT + D` | Open the notifications panel |
+| `SUPER + C` | Open the calendar panel |
+| `SUPER + P` | Open the prayer times panel |
+| `SUPER + I` | Open the system panel |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
 | `SUPER + /` | Show all keybindings, in a searchable panel of the bar |
