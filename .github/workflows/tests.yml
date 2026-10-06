@@ -223,6 +223,9 @@ jobs:
       - name: keybinding-viewer-test
         run: bash test/keybinding-viewer-test.sh
 
+      - name: panel-keybinds-test
+        run: bash test/panel-keybinds-test.sh
+
       - name: ghostty-theme-test
         run: bash test/ghostty-theme-test.sh
 
