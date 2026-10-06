@@ -256,7 +256,10 @@ PopupPanel {
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     sourceSize: Qt.size(2 * Theme.pickerCardWidth, 2 * Theme.pickerCardHeight)
-                    source: card.modelData.image !== "" ? "file://" + card.modelData.image : ""
+                    // Held only while the panel is on screen. The rows are built when the
+                    // bar starts, and each one decoded its picture then: about 9 MB for
+                    // the two pickers, in a session that may never open either.
+                    source: root.visible && card.modelData.image !== "" ? "file://" + card.modelData.image : ""
                 }
 
                 StateLayer {

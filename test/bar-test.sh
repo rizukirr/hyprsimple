@@ -54,6 +54,22 @@ check "the panels and the launcher share one layer namespace" "$PANEL_NAMESPACE"
 check "and Hyprland is told not to animate it" \
   "$(sed 's/^[[:space:]]*--.*//' "$REPO/default/hypr/windows.lua" | grep -c "namespace = \"$PANEL_NAMESPACE\" }, no_anim = true")" "1"
 
+# The theme and wallpaper pickers build their rows when the bar starts, so a
+# picker opens already on the choice in use. Each row decoded its picture then
+# as well, and held it for a panel that was closed. Measured with the bar
+# hidden, on one monitor, as private memory eight seconds after start:
+#
+#   pictures loaded at start         84, 88, 88 MB
+#   pictures loaded while on screen  76, 79, 72 MB
+#
+# The saving lasts until a picker is first opened. After one open and close the
+# two measure the same, 92 MB against 93.
+PICKER_PANEL="$BAR_DIR/panels/ImagePickerPanel.qml"
+picker_code="$(sed 's|^[[:space:]]*//.*||' "$PICKER_PANEL")"
+check "a picker row has one picture" "$(grep -c '^[[:space:]]*source: ' <<<"$picker_code")" "1"
+check "and loads it only while the panel is on screen" \
+  "$(grep -c '^[[:space:]]*source: root\.visible && ' <<<"$picker_code")" "1"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which
