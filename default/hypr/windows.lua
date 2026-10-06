@@ -123,6 +123,23 @@ hl.window_rule({
 })
 hl.window_rule({ match = { class = "org.gnome.Calculator" }, float = true })
 
+-- Password managers float, and are left out of a screen share: sharing the
+-- whole screen in a call would otherwise share an open vault with it.
+--
+-- 1Password 8.12 renamed its class to the reverse-DNS form, so both are named.
+-- The last is the Bitwarden extension's own window, whose class starts with the
+-- browser and ends with the profile, like any site installed as an app.
+hl.window_rule({
+	match = { class = "^(1[pP]assword|com\\.onepassword\\.OnePassword|Bitwarden)$" },
+	no_screen_share = true,
+	tag = "+floating-window",
+})
+hl.window_rule({
+	match = { class = "^.+-nngceckbapebfimnlniiiahkandclblb-.*$" },
+	no_screen_share = true,
+	tag = "+floating-window",
+})
+
 -- No transparency on media windows
 hl.window_rule({
 	match = {
