@@ -11,6 +11,19 @@ import qs.notifications
 ShellRoot {
     id: root
 
+    // The installed bar does not reload itself when its files change.
+    //
+    // Quickshell reloads a running config as its files change, and an update
+    // changes them one at a time. A reload that lands between two of them reads a
+    // file using a type whose own file has not arrived, fails, and puts a red
+    // "Config reload failed" window on the screen. hyprsimple-update restarts the
+    // bar once everything is in place, so the reload gains nothing there.
+    //
+    // A bar run from anywhere else, a checkout being worked on, still reloads as
+    // its files are saved.
+    readonly property string installedDir: (Quickshell.env("HYPRSIMPLE_PATH") || Quickshell.env("HOME") + "/.local/share/hyprsimple") + "/default/quickshell"
+    Component.onCompleted: if (Quickshell.shellDir === installedDir) Quickshell.watchFiles = false
+
     // The bars are hidden, with the shell still running. Notifications need it running.
     property bool barsHidden: false
 
