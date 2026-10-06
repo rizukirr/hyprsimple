@@ -34,5 +34,22 @@ case "${1:-}" in
     ;;
 esac
 
-pkill -f -- "qs -p $BAR"
+# The old bar is asked to quit, and signalled only if it does not.
+#
+# Quickshell does not take its child processes down when a signal ends it. The
+# bar has one that never exits by itself, the dbus-monitor that watches
+# hypridle, so every restart by pkill left one behind until logout. Asked to
+# quit, it stops them first.
+#
+# It gets two seconds, since a signal sent while it is still quitting would
+# cut that short and orphan them after all.
+if bar_running; then
+  qs kill -p "$BAR" >/dev/null 2>&1
+  for _ in {1..20}; do
+    bar_running || break
+    sleep 0.1
+  done
+  bar_running && pkill -f -- "qs -p $BAR"
+fi
+
 setsid uwsm app -- qs -p "$BAR" >/dev/null 2>&1 &
