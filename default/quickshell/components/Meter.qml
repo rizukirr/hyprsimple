@@ -16,7 +16,12 @@ Rectangle {
         height: parent.height
         radius: height / 2
         color: Theme.accent
-        Behavior on width { Anim {} }
+        // Animated only in a window that is on screen. A running animation makes
+        // every visible window draw, whichever window it is in, and the system
+        // panel's meters get a new value every two seconds while it is closed.
+        // That had the bar drawing about eleven frames a second with nothing on
+        // it changing.
+        Behavior on width { enabled: root.Window.window?.visible ?? false; Anim {} }
         Behavior on color { CAnim {} }
     }
 }
