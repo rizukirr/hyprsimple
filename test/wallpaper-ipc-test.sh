@@ -33,6 +33,11 @@ STUB="$TMP/stub"; mkdir -p "$STUB"
 cat >"$STUB/hyprctl" <<'STUBEOF'
 #!/bin/bash
 printf 'hyprctl %s\n' "$*" >>"$CALLS"
+# What is on screen now, one "monitor: path" line each, as hyprpaper prints it.
+if [[ $* == "hyprpaper listactive" && ${HYPRPAPER:-ok} == ok ]]; then
+  [[ -n ${ACTIVE:-} ]] && printf 'eDP-1: %s\n' "$ACTIVE"
+  exit 0
+fi
 case "${HYPRPAPER:-ok}" in
 ok) exit 0 ;;
 refuses) echo "error: invalid hyprpaper request"; exit 0 ;;
@@ -84,6 +89,49 @@ check "and so does a hyprpaper that is not running" "$(fast_restart)" "$FAST"
 
 show ok "$BG/gone.webp"
 check "an image that is not there is not sent either" "$(grep -c '^hyprctl' "$TMP/calls")" "0"
+
+# ---- a folder holding one image is that image ------------------------------------
+#
+# Live wallpaper hands show_wallpaper the theme's folder, and that meant a
+# restart on every theme switch. 37 of the 40 shipped themes have one image, so
+# there was nothing to cycle through and the restart bought nothing. It is not
+# the 0.01s it was once measured at either. On a hyprpaper that had been up for
+# more than a few seconds:
+#
+#   systemctl restart, after the SIGKILL   1.836s, 1.846s
+#   the same on one three seconds old      0.035s, 0.031s
+#   one image over ipc                     0.015s
+#
+# So a theme switch waited almost two seconds for its wallpaper.
+ONE="$TMP/themes/gruvbox/backgrounds"; mkdir -p "$ONE"
+: >"$ONE/only one.JPG"
+SOLO="$TMP/themes/dracula/backgrounds"; mkdir -p "$SOLO"
+: >"$SOLO/0-dracula.webp"
+
+show_while() {
+  : >"$TMP/calls"
+  CALLS="$TMP/calls" ACTIVE="$1" HYPRPAPER="${3:-ok}" PATH="$STUB" "$BASH_BIN" -c \
+    'source "$1"; show_wallpaper "$2"' _ "$BIN/hypr-helpers.sh" "$2"
+}
+
+show_while "$SOLO/0-dracula.webp" "$ONE"
+check "a folder of one image is set over ipc, as that image" \
+  "$(grep -c "^hyprctl hyprpaper wallpaper ,$ONE/only one.JPG,cover$" "$TMP/calls")" "1"
+check "and hyprpaper is not restarted" "$(restarts)" "0"
+
+# hyprpaper cycling through the last theme's folder is still doing so after an
+# ipc request, so that one has to be stopped.
+show_while "$BG/b.webp" "$ONE"
+check "unless hyprpaper is cycling through several now, which only a restart stops" \
+  "$(fast_restart)" "$FAST"
+check "and then nothing is sent over ipc" "$(grep -c '^hyprctl hyprpaper wallpaper' "$TMP/calls")" "0"
+
+show_while "" "$ONE" down
+check "a folder of one image still restarts a hyprpaper that is not running" "$(fast_restart)" "$FAST"
+
+show_while "$SOLO/0-dracula.webp" "$BG"
+check "a folder of several is still never sent over ipc" "$(grep -c '^hyprctl' "$TMP/calls")" "0"
+check "and still restarts" "$(fast_restart)" "$FAST"
 
 # ---- the two scripts that change the wallpaper use it ---------------------------
 
