@@ -219,7 +219,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + SHIFT + T` | Switch theme, from a carousel of wallpapers and colour swatches |
 | `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel |
 | `SUPER + ALT + W` | Cycle to next wallpaper |
-| `SUPER + CTRL + W` | Toggle live wallpaper, cycling backgrounds every 30s |
+| `SUPER + CTRL + W` | Toggle live wallpaper, cycling the theme's backgrounds every 30s. Off by default |
 
 ### Screenshot
 

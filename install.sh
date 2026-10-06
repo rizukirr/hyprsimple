@@ -1081,8 +1081,10 @@ mkdir -p "$HOME/.config/btop/themes"
 # config file has to hardcode an install path that HYPRSIMPLE_PATH can change.
 ln -sfn "$HYPRSIMPLE_PATH/default/hypr" "$HOME/.config/hypr/hyprsimple"
 
-# Enable live wallpaper by default (theme-switcher reads this when writing hyprpaper.conf)
-touch "$CACHE_DIR/live_wallpaper_enabled"
+# Live wallpaper is off unless someone turns it on, with SUPER + CTRL + W. It
+# cycles through a theme's backgrounds, and nearly every theme ships one, so on
+# by default it did nothing a person could see. A flag already there is left
+# alone: on a machine being installed again it is that person's choice.
 
 # Apply the default theme via theme-switcher.sh (skip runtime reloads — Hyprland isn't running yet)
 THEME_SWITCHER_NO_RELOAD=1 bash "$HOME/.local/bin/theme-switcher.sh" "$DEFAULT_THEME"

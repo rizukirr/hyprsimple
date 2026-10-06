@@ -81,14 +81,26 @@ login
 check "and a login leaves it off" "$(flag)" "off"
 check "with the cycling still stopped" "$(cycling)" "0"
 
-# --- leaving it on lasts too, which is the default -------------------------
+# --- leaving it on lasts too ------------------------------------------------
 #
 # Without this the fix could be a way to never turn live wallpaper on at all.
+# setup leaves the flag in place, which is a machine where it was on.
 
 setup
 login
-check "a fresh install stays on through a login" "$(flag)" "on"
+check "a machine that had it on stays on through a login" "$(flag)" "on"
 check "and keeps cycling" "$(cycling)" "1"
+
+# --- a new install starts with it off ----------------------------------------
+#
+# install.sh created the flag, so every new install cycled through the theme's
+# backgrounds. 37 of the 40 shipped themes have one, so there was nothing to
+# see, and what it cost was a restart of hyprpaper on every theme switch.
+install_code="$(sed 's/^[[:space:]]*#.*//' "$REPO/install.sh")"
+check "install.sh does not turn live wallpaper on" \
+  "$(grep -c 'live_wallpaper_enabled' <<<"$install_code")" "0"
+check "the key that turns it on is still bound" \
+  "$(grep -rc 'live-wallpaper-toggle.sh' "$REPO/.config/hypr/bindings/applications.lua")" "1"
 
 setup
 run on
