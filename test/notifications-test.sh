@@ -192,6 +192,18 @@ migrate "$TMP/home-bare"
 check "a home with nothing of dunst's exits 0" "$(cat "$TMP/rc")" "0"
 check "and creates nothing" "$(find "$TMP/home-bare" -mindepth 1 | wc -l | tr -d ' ')" "0"
 
+# ---- pictures sent as bytes --------------------------------------------------------
+#
+# A picture an app attaches as bytes is served from the notification object, so
+# a history row built after the notification closed showed nothing. The service
+# keeps such a notification alive, closed, while its record is in the history.
+
+SERVICE="$BAR/notifications/Notifications.qml"
+check "a notification whose picture is served from itself is kept alive" \
+  "$(grep -c 'RetainableLock { locked: true }' "$SERVICE")" "1"
+check "and let go wherever a record leaves the history: clear, forget, trim, not kept" \
+  "$(grep -c 'release(' "$SERVICE")" "5"
+
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

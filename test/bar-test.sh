@@ -247,6 +247,49 @@ for stale in "${STALE[@]}"; do
 done
 check "and none of the removed ones still ships" "$still_shipped" "0"
 
+# ---- prayer times -----------------------------------------------------------
+#
+# The times change at midnight and when the config does. A bar that ran
+# muslimtify on a timer spawned it thousands of times a day for nothing, and
+# once per monitor, so the timer that is left may only run after a failed read
+# and the service is made once for every bar.
+
+SERVICE="$BAR_DIR/muslimtify/services/Muslimtify.qml"
+check "the only timer that reads prayer times again runs after a failed read" \
+  "$(grep -B4 'onTriggered: root.refresh()' "$SERVICE" | grep -c 'running: .*root.todayFailed')" "1"
+check "and nothing else reads them on a timer" \
+  "$(grep -c 'onTriggered: root.refresh()' "$SERVICE")" "1"
+check "the prayer service is made once, in the shell" \
+  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/shell.qml")" "1"
+check "and not once per bar" \
+  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/bar/Bar.qml")" "0"
+
+# The same went for the keep-awake button, which ran pgrep every 5 seconds on
+# every monitor, and for the stats and recorder checks. hypridle owns a bus
+# name while it runs, so one dbus-monitor on that name replaces the poll.
+check "the keep-awake button has no timer" \
+  "$(grep -c 'Timer {' "$BAR_DIR/bar/AwakeButton.qml")" "0"
+check "and hypridle is watched over the bus, in one place" \
+  "$(grep -c 'command: \["dbus-monitor"' "$BAR_DIR/system/Idle.qml")" "1"
+check "which runs a check only when the name changes hands" \
+  "$(grep -c 'NameOwnerChanged.*root.check()' "$BAR_DIR/system/Idle.qml")" "1"
+check "stats, idle and the recorder check are made once, in the shell" \
+  "$(grep -c -E '^ *(Stats|Idle) \{|id: recorderCheck' "$BAR_DIR/shell.qml")" "3"
+check "and not once per bar" \
+  "$(grep -c -E '^ *(Stats|Idle) \{|id: recorderCheck' "$BAR_DIR/bar/Bar.qml")" "0"
+
+# With two monitors, each bar had its own open panel and its own launch counts.
+check "one panel at a time across monitors: the shell knows which bar has it" \
+  "$(grep -c 'readonly property var panelOwner' "$BAR_DIR/shell.qml")" "1"
+check "and a bar opening one closes the others" \
+  "$(grep -c 'onOpened: opener => root.closeOthers(opener)' "$BAR_DIR/shell.qml")" "1"
+check "and every bar catches clicks for a panel on another screen" \
+  "$(grep -c 'OtherScreenCatcher { bar: bar }' "$BAR_DIR/bar/Bar.qml")" "1"
+check "launch counts are one singleton" \
+  "$(grep -c '^pragma Singleton' "$BAR_DIR/launcher/Launches.qml")" "1"
+check "and the launcher keeps none of its own" \
+  "$(grep -c 'launchesFile\|property var launches' "$BAR_DIR/panels/LauncherPanel.qml")" "0"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1

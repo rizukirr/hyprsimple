@@ -32,18 +32,27 @@ Singleton {
         onFileChanged: reload()
         // A missing file means the built-in colors, also when it disappears while running.
         onLoadFailed: {
-            root.colors = ({})
+            // Assigned once: every new object counts as a change, and the
+            // pickers re-read their lists on each one.
+            if (Object.keys(root.colors).length > 0) root.colors = ({})
             retry.start()
         }
         onLoaded: {
             try {
                 root.colors = JSON.parse(text())
                 console.log("theme: loaded", path)
+                if (root.loaded) root.switched()
+                root.loaded = true
             } catch (e) {
                 console.log("theme: ignoring unreadable", path, e.message)
             }
         }
     }
+
+    // The theme file was read again after a first read: a theme switch, as opposed
+    // to the colors arriving at startup.
+    property bool loaded: false
+    signal switched()
 
     // A file that does not exist cannot be watched, so one created after the shell
     // started would never be seen. Until a load succeeds, look again every few seconds.
@@ -160,8 +169,6 @@ Singleton {
     readonly property int panelRadius: 20
     // How often a lit recording indicator checks that a recorder is still running.
     readonly property int recordingPollMs: 3000
-    // How often the keep-awake item re-reads whether hypridle is running.
-    readonly property int awakePollMs: 5000
     // How long a panel holds exclusive keyboard focus before relaxing it.
     readonly property int focusPrime: 75
 

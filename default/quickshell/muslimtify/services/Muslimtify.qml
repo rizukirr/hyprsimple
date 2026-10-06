@@ -9,8 +9,6 @@ import "../lib/Model.js" as Model
 Item {
   id: root
 
-  property int refreshSeconds: 30
-
   readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/muslimtify/config.json"
 
   property bool probed: false
@@ -25,7 +23,12 @@ Item {
   property var timezones: []
   property var errors: ({})
   property var now: new Date()
-  readonly property var next: Model.nextPrayer(root.today, root.tomorrow, Model.minutesOfDay(root.now))
+  // Minutes east of UTC where the times are for, from muslimtify, so the countdown
+  // follows its clock when that is not the system's. null until it has answered.
+  property var utcOffset: null
+  // An int, so `next` and everything bound to it only move when the minute does.
+  readonly property int nowMinutes: Model.minutesOfDay(root.now, root.utcOffset)
+  readonly property var next: Model.nextPrayer(root.today, root.tomorrow, root.nowMinutes)
 
   property var queue: []
   property var current: null
@@ -61,6 +64,7 @@ Item {
     root.todayStderr = ""
     todayProcess.running = true
     tomorrowProcess.running = true
+    locationProcess.running = true
   }
 
   function loadTimezones() {
@@ -174,6 +178,15 @@ Item {
   }
 
   Process {
+    id: locationProcess
+    command: ["muslimtify", "location", "--json"]
+    stdout: StdioCollector {
+      id: locationOut
+      onStreamFinished: root.utcOffset = Model.parseGmt(locationOut.text)
+    }
+  }
+
+  Process {
     id: methodsProcess
     command: ["muslimtify", "method", "--list"]
     stdout: StdioCollector {
@@ -221,9 +234,11 @@ Item {
     }
   }
 
+  // The times change at midnight and when the config does, and both of those
+  // already refresh. This only tries again after a read that failed.
   Timer {
-    interval: Math.max(5, Math.min(60, root.refreshSeconds)) * 1000
-    running: root.available
+    interval: 30000
+    running: root.available && root.todayFailed
     repeat: true
     onTriggered: root.refresh()
   }
@@ -235,7 +250,7 @@ Item {
     onTriggered: {
       var previous = root.now
       root.now = new Date()
-      if (previous.getDate() !== root.now.getDate()) root.refresh()
+      if (Model.dayOf(previous, root.utcOffset) !== Model.dayOf(root.now, root.utcOffset)) root.refresh()
     }
   }
 }

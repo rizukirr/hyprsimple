@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.theme
 import qs.components
+import qs.launcher
 import "../launcher/search.js" as Search
 
 // App launcher: a sidebar that grows out of the left screen edge, below the bar,
@@ -49,14 +50,9 @@ PanelWindow {
     // pointer event to this window, the bar included. So it is held briefly, then relaxed.
     property bool focusPrimed: false
 
-    // How many times each app was started from here, by desktop id. Kept so the apps
-    // used most are listed first.
-    property var launches: ({})
-    readonly property string launchesPath: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/hyprsimple/launcher.json"
-
     // The entry list reorders itself when an app starts, so it is always re-sorted here.
     readonly property var apps: DesktopEntries.applications.values.filter(app => !app.noDisplay && app.name !== "")
-    readonly property var results: Search.results(apps, picker.text, launches)
+    readonly property var results: Search.results(apps, picker.text, Launches.launches)
 
     function dismiss() {
         if (open) bar.openPanel = ""
@@ -66,11 +62,7 @@ PanelWindow {
     function launch(app) {
         if (!app) return
         dismiss()
-        // A new object, because a write into the existing one is not seen as a change.
-        const next = Object.assign({}, launches)
-        next[app.id] = (next[app.id] ?? 0) + 1
-        launches = next
-        launchesFile.setText(JSON.stringify(next))
+        Launches.record(app.id)
         // Through uwsm, so the app runs in the session's own scope like one started by a keybinding.
         Quickshell.execDetached(["uwsm", "app", "--", app.id + ".desktop"])
     }
@@ -93,19 +85,6 @@ PanelWindow {
         id: prime
         interval: Theme.focusPrime
         onTriggered: panel.focusPrimed = true
-    }
-
-    FileView {
-        id: launchesFile
-        path: panel.launchesPath
-        printErrors: false
-        onLoaded: {
-            try {
-                panel.launches = JSON.parse(text())
-            } catch (e) {
-                console.log("launcher: ignoring unreadable", path, e.message)
-            }
-        }
     }
 
     screen: bar.screen

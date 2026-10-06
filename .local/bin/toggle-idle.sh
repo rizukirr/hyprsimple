@@ -17,8 +17,15 @@
 # through the wait.
 IDLE_START_WAIT="${HYPRSIMPLE_IDLE_START_WAIT:-0.4}"
 
+# The bar's keep-awake item shows whether hypridle runs. It is told, so it
+# follows this keybinding at once. Nothing happens when the bar is down.
+tell_bar() {
+  qs -p "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell" ipc call bar checkIdle >/dev/null 2>&1 || true
+}
+
 if pgrep -x hypridle >/dev/null; then
   if pkill -x hypridle; then
+    tell_bar
     notify-send "Idle" "Stopped locking when idle"
   else
     notify-send -u critical "Idle" "Could not stop hypridle, so the screen still locks when idle"
@@ -33,5 +40,6 @@ else
     exit 1
   fi
 
+  tell_bar
   notify-send "Idle" "Now locking when idle"
 fi

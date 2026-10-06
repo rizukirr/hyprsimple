@@ -44,8 +44,18 @@ PopupPanel {
             "sh", entry.id])
     }
 
+    // Entries to delete that the remover has not taken yet. One asked for while
+    // it runs waits here, since setting running on a running process does nothing.
+    property var removing: []
+
     function remove(entry) {
-        remover.command = ["sh", "-c", 'printf "%s\\n" "$1" | cliphist delete', "sh", entry.line]
+        removing = removing.concat([entry.line])
+        if (!remover.running) removeNext()
+    }
+
+    function removeNext() {
+        remover.command = ["sh", "-c", 'printf "%s\\n" "$@" | cliphist delete', "sh", ...removing]
+        removing = []
         remover.running = true
     }
 
@@ -77,7 +87,7 @@ PopupPanel {
 
     Process {
         id: remover
-        onExited: root.load()
+        onExited: root.removing.length > 0 ? root.removeNext() : root.load()
     }
 
     Process {

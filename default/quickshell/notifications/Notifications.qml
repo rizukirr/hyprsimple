@@ -22,12 +22,32 @@ Singleton {
     property bool silent: false
 
     function clearHistory() {
+        release(history)
         history = []
         unread = 0
     }
 
     function forget(record) {
+        release([record])
         history = history.filter(r => r !== record)
+    }
+
+    function remember(record) {
+        const kept = [record, ...history]
+        release(kept.slice(Theme.notifyHistoryMax))
+        history = kept.slice(0, Theme.notifyHistoryMax)
+        unread++
+    }
+
+    // A picture sent as bytes is served from the notification itself, so one is kept
+    // alive, closed, for as long as its record is in the history.
+    function release(records) {
+        records.forEach(record => record.lock?.destroy())
+    }
+
+    Component {
+        id: lockComp
+        RetainableLock { locked: true }
     }
 
     // An image the sender attached wins over its icon. An icon is a path or a theme name.
@@ -40,19 +60,22 @@ Singleton {
 
     // What a card shows, copied out of the notification, which is gone as soon as it closes.
     function recordOf(notification) {
+        const picture = pictureOf(notification)
         return {
             appName: notification.appName,
             summary: notification.summary,
             body: notification.body,
-            picture: pictureOf(notification),
+            picture: picture,
             critical: notification.urgency === NotificationUrgency.Critical,
-            time: new Date()
+            time: new Date(),
+            lock: picture.startsWith("image://") ? lockComp.createObject(root, { object: notification }) : null
         }
     }
 
-    // How long one stays up, in milliseconds. 0 stays until dismissed.
+    // How long one stays up, in milliseconds. 0 stays until dismissed, which is
+    // also what a sender asking for 0 means. -1 leaves it to us.
     function timeoutFor(notification) {
-        if (notification.expireTimeout > 0) return notification.expireTimeout
+        if (notification.expireTimeout >= 0) return notification.expireTimeout
         return notification.urgency === NotificationUrgency.Critical ? 0 : Theme.notifyTimeout
     }
 
@@ -88,10 +111,8 @@ Singleton {
             const record = root.recordOf(notification)
             // A level that is replaced on every key press, and one the sender marked as
             // passing, are not worth keeping.
-            if (!tag && !notification.transient) {
-                root.history = [record, ...root.history].slice(0, Theme.notifyHistoryMax)
-                root.unread++
-            }
+            if (!tag && !notification.transient) root.remember(record)
+            else root.release([record])
             if (root.silent && !record.critical) {
                 notification.dismiss()
                 return

@@ -78,6 +78,12 @@ PanelWindow {
         onTriggered: panel.focusPrimed = true
     }
 
+    // One that arrives while the list is on screen has been seen.
+    Connections {
+        target: Notifications
+        function onUnreadChanged() { if (panel.open) Notifications.unread = 0 }
+    }
+
     screen: bar.screen
     visible: open || closing.running
     anchors { top: true; bottom: true; left: true; right: true }

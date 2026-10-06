@@ -17,27 +17,13 @@ PanelWindow {
     required property var modelData
     // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
+    // The bar with a panel open, on any monitor, or null. Opening one here closes it there.
+    required property var panelOwner
+    signal opened(var opener)
+    onOpenPanelChanged: if (openPanel !== "") opened(bar)
 
-    // A screen recording is running. Set over ipc, see shell.qml.
-    property bool recording: false
-
-    // The indicator shows what the bar was last told, and whatever told it can be
-    // wrong or never call back: a test once reported a recording that did not exist.
-    // So while it is lit the bar looks for a recorder itself and clears it when there is none.
-    Timer {
-        interval: Theme.recordingPollMs
-        running: bar.recording
-        repeat: true
-        onTriggered: recorderCheck.running = true
-    }
-
-    Process {
-        id: recorderCheck
-        command: ["sh", "-c", "pgrep -x wf-recorder >/dev/null || pgrep -x wl-screenrec >/dev/null"]
-        onExited: exitCode => {
-            if (exitCode !== 0) bar.recording = false
-        }
-    }
+    // A screen recording is running. Set over ipc and checked in shell.qml.
+    required property bool recording
 
     function toggle(name) {
         openPanel = openPanel === name ? "" : name
@@ -50,13 +36,10 @@ PanelWindow {
     color: Theme.bg
     Behavior on color { CAnim {} }
 
-    Muslimtify {
-        id: muslimtify
-    }
-
-    Stats {
-        id: stats
-    }
+    // One of each for every bar, made in shell.qml.
+    required property Muslimtify muslimtify
+    required property Stats stats
+    required property Idle idle
 
     Row {
         anchors { left: parent.left; leftMargin: Theme.barInset; verticalCenter: parent.verticalCenter }
@@ -163,7 +146,7 @@ PanelWindow {
                 onClicked: bar.toggle("notifications")
             }
 
-            AwakeButton {}
+            AwakeButton { idle: bar.idle }
 
             BatteryButton {}
 
@@ -191,6 +174,8 @@ PanelWindow {
         name: "clipboard"
         anchorItem: clock
     }
+
+    OtherScreenCatcher { bar: bar }
 
     // The theme and wallpaper pickers list their choices and apply the picked one
     // through hyprsimple's own scripts.
@@ -259,7 +244,7 @@ PanelWindow {
         bar: bar
         name: "system"
         anchorItem: systemButton
-        stats: stats
+        stats: bar.stats
     }
 
     AudioPanel {
