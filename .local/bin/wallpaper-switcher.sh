@@ -10,9 +10,10 @@ source "$HOME/.local/bin/hyprsimple-require.sh" 2>/dev/null || {
 require_helper hypr-helpers.sh
 
 # Switch wallpaper within the current theme
-# Usage: wallpaper-switcher.sh [pick|add|next|apply <file>]
-#   pick  - choose from the bar's wallpaper picker (default)
-#   add   - choose an image file, copy it into the theme and show it
+# Usage: wallpaper-switcher.sh [pick|add|next|apply <file>|delete <file>]
+#   pick   - choose from the bar's wallpaper picker (default)
+#   add    - choose an image file, copy it into the theme and show it
+#   delete - remove the given wallpaper from the theme, for good
 #   next  - cycle to next wallpaper, for a bind of your own
 #   apply - show the given wallpaper, which is what the picker runs
 
@@ -99,6 +100,40 @@ elif [[ $MODE == "add" ]]; then
     notify-send -u critical "Wallpaper" "Could not copy $NAME into $BG_DIR"
     exit 1
   fi
+elif [[ $MODE == "delete" ]]; then
+  TARGET="$2"
+  # Only a wallpaper this theme lists, named exactly as it is listed. That is
+  # what keeps a path from anywhere else, or one with .. in it, away from rm:
+  # the list comes from find inside the theme's own backgrounds.
+  LISTED=0
+  for wallpaper in "${WALLPAPERS[@]}"; do
+    [[ $wallpaper == "$TARGET" ]] && LISTED=1
+  done
+  if (( ! LISTED )); then
+    notify-send "Wallpaper" "Not deleted: that is not a wallpaper of this theme"
+    exit 1
+  fi
+  # A theme with no wallpaper has nothing to show at the next login, and the
+  # picker would have nothing to start from.
+  if (( ${#WALLPAPERS[@]} == 1 )); then
+    notify-send "Wallpaper" "Not deleted: it is the only wallpaper in this theme"
+    exit 1
+  fi
+  if ! rm -f -- "$TARGET" || [[ -e $TARGET ]]; then
+    notify-send -u critical "Wallpaper" "Could not delete $(basename "$TARGET")"
+    exit 1
+  fi
+  # One that was not on screen is gone and that is all. The one on screen is
+  # replaced by the wallpaper after it, or the first when it was the last.
+  notify-send "Wallpaper" "Deleted $(basename "$TARGET")"
+  [[ $TARGET == "$CURRENT" ]] || exit 0
+  SELECTED=""
+  for i in "${!WALLPAPERS[@]}"; do
+    if [[ ${WALLPAPERS[$i]} == "$TARGET" ]]; then
+      SELECTED="${WALLPAPERS[$(( (i + 1) % ${#WALLPAPERS[@]} ))]}"
+      break
+    fi
+  done
 elif [[ $MODE == "next" ]]; then
   if (( ${#WALLPAPERS[@]} == 0 )); then
     notify-send "Wallpaper" "No wallpapers found"
@@ -120,7 +155,7 @@ elif [[ $MODE == "next" ]]; then
   done
   SELECTED="${WALLPAPERS[$NEXT]}"
 else
-  echo "Usage: wallpaper-switcher.sh [pick|add|next|apply <file>]" >&2
+  echo "Usage: wallpaper-switcher.sh [pick|add|next|apply <file>|delete <file>]" >&2
   exit 1
 fi
 

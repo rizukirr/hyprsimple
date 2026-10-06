@@ -217,7 +217,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | Key | Action |
 |-----|--------|
 | `SUPER + SHIFT + T` | Switch theme, from a carousel of wallpapers and colour swatches |
-| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel. Its last tile adds one from a file, and the switch under it cycles through them every 30s |
+| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel. Its last tile adds one from a file, `Shift + Delete` or the bin on a picture deletes it after asking, and the switch under it cycles through them every 30s |
 
 ### Screenshot
 
@@ -301,7 +301,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `toggle-nightlight.sh` | Toggle a warm screen temperature via hyprsunset |
 | `theme-switcher.sh` | Switch theme via the visual picker, or apply one directly by name |
 | `theme-apply-templates.sh` | Generate themed app configs from a theme's `colors.toml` |
-| `wallpaper-switcher.sh` | Pick, add or cycle a wallpaper within the current theme. `next` cycles, for a bind of your own |
+| `wallpaper-switcher.sh` | Pick, add, delete or cycle a wallpaper within the current theme. `next` cycles, for a bind of your own |
 | `hyprsimple-theme-picker.sh` | List one row per theme, with its wallpaper and colour swatches, for the bar's theme picker |
 | `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, for the bar's wallpaper picker |
 | `hyprsimple-thumbnails.sh` | Swap the image in each of those rows for a small cached thumbnail, which is what the pickers show |

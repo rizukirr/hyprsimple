@@ -25,6 +25,32 @@ PopupPanel {
     property var addCommand: null
     property string addLabel: "Add"
 
+    // Set to let a choice be deleted. It is run with the key added as its last
+    // argument, and only after the question below has been answered with Delete.
+    property var deleteCommand: null
+    // The choice being asked about, or null when nothing is.
+    property var confirming: null
+    // Which answer Enter gives. Cancel, until Delete is moved to on purpose.
+    property bool confirmDelete: false
+    // The last choice cannot go, and neither can the add tile.
+    function deletable(entry) {
+        return deleteCommand !== null && !!entry && !entry.add && entries.length > 1
+    }
+
+    function askDelete(entry) {
+        if (!deletable(entry)) return
+        confirmDelete = false
+        confirming = entry
+    }
+
+    function answer(confirmed) {
+        const entry = confirming
+        confirming = null
+        if (!confirmed || !entry) return
+        Quickshell.execDetached([...deleteCommand, entry.key])
+        afterDelete.restart()
+    }
+
     // Set all three to put a switch under the carousel. switchStateCommand exits 0
     // when it is on, and switchCommand is run with "on" or "off" added.
     property string switchLabel: ""
@@ -108,6 +134,8 @@ PopupPanel {
     Component.onCompleted: load()
     onResultsChanged: current = Math.min(current, Math.max(0, results.length - 1))
     onOpenChanged: {
+        // A question left open is not carried to the next time the panel opens.
+        confirming = null
         if (!open) return
         search.text = ""
         settled = false
@@ -131,6 +159,13 @@ PopupPanel {
     Timer {
         id: afterThemeSwitch
         interval: 2000
+        onTriggered: root.load()
+    }
+
+    // The list is read again once the file has had time to go.
+    Timer {
+        id: afterDelete
+        interval: 400
         onTriggered: root.load()
     }
 
@@ -198,14 +233,31 @@ PopupPanel {
             catchEscape: true
             // The first Esc clears what was typed, the next one closes.
             onEscaped: {
-                if (text !== "") text = ""
+                if (root.confirming) root.answer(false)
+                else if (text !== "") text = ""
                 else root.dismiss()
             }
-            onAccepted: root.apply(root.results[root.current])
+            onAccepted: {
+                if (root.confirming) root.answer(root.confirmDelete)
+                else root.apply(root.results[root.current])
+            }
             // Left and Right move through the pictures, since the search text is short
             // and the pictures are what is being chosen.
             onKeyPressed: event => {
                 const ctrl = event.modifiers & Qt.ControlModifier
+                // While the question is up the keys answer it, and nothing else moves.
+                if (root.confirming) {
+                    if (event.key === Qt.Key_Left || event.key === Qt.Key_Right || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                        root.confirmDelete = !root.confirmDelete
+                    event.accepted = true
+                    return
+                }
+                // Shift+Delete, since plain Delete belongs to the text field.
+                if (event.key === Qt.Key_Delete && (event.modifiers & Qt.ShiftModifier)) {
+                    root.askDelete(root.results[root.current])
+                    event.accepted = true
+                    return
+                }
                 if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab || (ctrl && event.key === Qt.Key_N)) root.move(1)
                 else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab || (ctrl && event.key === Qt.Key_P)) root.move(-1)
                 else if (event.key === Qt.Key_PageDown) root.move(Theme.pickerPageStep)
@@ -317,6 +369,16 @@ PopupPanel {
                         else root.current = card.index
                     }
                 }
+
+                // On the chosen picture only, so a click meant to bring a neighbour to
+                // the middle cannot land on it.
+                IconButton {
+                    anchors { top: parent.top; right: parent.right; margins: Theme.sm }
+                    visible: card.chosen && root.deletable(card.modelData)
+                    icon: Theme.icon.trash
+                    filled: true
+                    onClicked: root.askDelete(card.modelData)
+                }
             }
 
             Row {
@@ -357,6 +419,53 @@ PopupPanel {
             visible: root.results.length === 0
             text: root.entries.length > 0 ? "No matches" : lister.running ? "Loading…" : "Nothing to pick"
             color: Theme.muted
+        }
+
+        // The question asked before anything is deleted. It covers the carousel, so
+        // nothing behind it can be clicked, and a click beside the buttons is a no.
+        Rectangle {
+            anchors.fill: parent
+            visible: root.confirming !== null
+            color: Qt.alpha(Theme.bg, 0.94)
+            radius: Theme.radius
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                onClicked: root.answer(false)
+            }
+
+            Column {
+                anchors.centerIn: parent
+                spacing: Theme.md
+
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: `Delete ${root.confirming?.name ?? ""}?`
+                    font.bold: true
+                }
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "The file is removed from this theme and cannot be brought back."
+                    color: Theme.muted
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: Theme.md
+
+                    TextButton {
+                        text: "Cancel"
+                        filled: !root.confirmDelete
+                        onClicked: root.answer(false)
+                    }
+                    TextButton {
+                        text: "Delete"
+                        filled: root.confirmDelete
+                        onClicked: root.answer(true)
+                    }
+                }
+            }
         }
     }
 
