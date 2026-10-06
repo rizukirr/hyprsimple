@@ -212,6 +212,28 @@ migrate_line=$(grep -n 'hyprsimple-migrate.sh"$' "$UPDATER" | cut -d: -f1)
 check "and after the migrations, so a bar a migration started is not restarted twice in a row for nothing" \
   "$(( restart_line > migrate_line ))" "1"
 
+# The restart comes at the end of the update, and the reload came at the start
+# of it. For the seconds in between, a bar whose reload had failed showed a red
+# "Quickshell: Config reload failed" window, which then went away with nothing
+# to say what it had been. Measured with the shipped shell, run hidden, by
+# pointing Bar.qml at a type and creating that type's file three seconds later:
+#
+#   run from a checkout   Failed to load configuration
+#                           caused by @bar/Bar.qml: ClockFromTheFuture is not a type
+#   run as the install    no reload, and nothing on screen
+#
+# So the installed bar does not watch its files, and one run from anywhere else
+# still does, which is what someone working on it needs.
+shell_code="$(sed 's|^[[:space:]]*//.*||' "$BAR_DIR/shell.qml")"
+check "the installed bar does not reload itself as its files change" \
+  "$(grep -c 'if (Quickshell.shellDir === installedDir) Quickshell.watchFiles = false' <<<"$shell_code")" "1"
+check "and file watching is not turned off anywhere else, so a checkout still reloads" \
+  "$(grep -rh 'watchFiles' "$BAR_DIR" --include='*.qml' | sed 's|^[[:space:]]*//.*||' | grep -c 'watchFiles')" "1"
+# The same default the helper scripts use, or the bar would not recognise itself
+# and would go on reloading.
+check "the install is found the way the scripts find it" \
+  "$(grep -c 'Quickshell.env("HYPRSIMPLE_PATH") || Quickshell.env("HOME") + "/.local/share/hyprsimple") + "/default/quickshell"' <<<"$shell_code")" "1"
+
 # ---- the migration ----------------------------------------------------------
 
 run_migration() {
