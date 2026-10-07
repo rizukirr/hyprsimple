@@ -1,6 +1,6 @@
 # hyprsimple
 
-Minimal Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
+**Minimal** Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 > [!Note]
 > This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package and daemon). Run `muslimtify-add` to re-enable it later. Both commands are idempotent. The bar shows prayer times whenever muslimtify is installed.
