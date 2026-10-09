@@ -33,15 +33,15 @@ Files:
 - Create `.local/bin/hyprsimple-plugin`, `test/plugin-manager-test.sh` and `PLUGINS.md`.
 - Modify `install.sh`, `.local/bin/hyprsimple-update.sh`, `bootstrap.sh`, `.github/workflows/tests.yml` and affected script-delivery suites.
 
-- [ ] Implement direct repository installation, `list`, `validate`, `enable`, `disable`, `update` and `remove`. Use an explicit `--local` install option for local development repositories. Normalize accepted GitHub sources, reject Git options and other transports, and clone with terminal prompts disabled.
-- [ ] Implement the contract validator with jq and realpath containment checks. Reserve the `hyprsimple.` namespace. Validate every candidate before package or lifecycle work.
-- [ ] Use flock for mutations, same-directory temporary files for atomic config replacement and staged repository acquisition. Never overwrite an installed plugin on repeated install. Refuse dirty updates and activate only validated candidates. Retain old code and config on failed update, and report lifecycle rollback failures explicitly.
-- [ ] Install missing declared dependencies with the existing pacman and AUR helper conventions. Enable and verify lifecycle work before recording enablement. Disable UI before stopping background work. Preserve settings and packages on removal, and distinguish an incomplete operation from success.
-- [ ] Generate declarative enabled-plugin bindings without evaluating plugin text. Refresh a running bar once after a completed operation and request a Hyprland reload only within an active session.
-- [ ] Deliver the exact extensionless command through install, update and bootstrap without shipping unrelated files from `.local/bin`. Preserve atomic self-replacement in the updater.
-- [ ] Add fixtures for malformed manifests, traversal, escaping symlinks, unsupported API, invalid URLs, duplicate IDs and aliases, dependency failure, lifecycle failure and retry, dirty updates, failed update rollback, preserved settings, concurrent mutation and command delivery.
-- [ ] Run `bash test/plugin-manager-test.sh` and relevant install/update/bootstrap suites. Run shellcheck on the manager and changed shell files with the CI severity and exclusions.
-- [ ] Commit this task.
+- [x] Implement direct repository installation, `list`, `validate`, `enable`, `disable`, `update` and `remove`. Use an explicit `--local` install option for local development repositories. Normalize accepted GitHub sources, reject Git options and other transports, and clone with terminal prompts disabled.
+- [x] Implement the contract validator with jq and realpath containment checks. Reserve the `hyprsimple.` namespace. Validate every candidate before package or lifecycle work.
+- [x] Use flock for mutations, same-directory temporary files for atomic config replacement and staged repository acquisition. Never overwrite an installed plugin on repeated install. Refuse dirty updates and activate only validated candidates. Retain old code and config on failed update, and report lifecycle rollback failures explicitly.
+- [x] Install missing declared dependencies with the existing pacman and AUR helper conventions. Enable and verify lifecycle work before recording enablement. Disable UI before stopping background work. Preserve settings and packages on removal, and distinguish an incomplete operation from success.
+- [x] Generate declarative enabled-plugin bindings without evaluating plugin text. Refresh a running bar once after a completed operation and request a Hyprland reload only within an active session.
+- [x] Deliver the exact extensionless command through install, update and bootstrap without shipping unrelated files from `.local/bin`. Preserve atomic self-replacement in the updater.
+- [x] Add fixtures for malformed manifests, traversal, escaping symlinks, unsupported API, invalid URLs, duplicate IDs and aliases, dependency failure, lifecycle failure and retry, dirty updates, failed update rollback, preserved settings, concurrent mutation and command delivery.
+- [x] Run `bash test/plugin-manager-test.sh` and relevant install/update/bootstrap suites. Run shellcheck on the manager and changed shell files with the CI severity and exclusions.
+- [x] Commit this task.
 
 ## Task 2: Shell and Hyprland extension points → verify: loader and binding fixture suites exit 0
 
