@@ -155,8 +155,35 @@ mv "$TMP/manifest" "$TMP/bad/manifest.json"
 commit "$TMP/bad"
 reject 'duplicate alias across installed plugins' install --local "$TMP/bad"
 rm -rf "$TMP/bad"
+fixture "$TMP/bad" other
+jq '.dependencies={packages:["duplicate-package"],aur:["duplicate-aur"]}' "$TMP/bad/manifest.json" >"$TMP/manifest"
+mv "$TMP/manifest" "$TMP/bad/manifest.json"
+run validate "$TMP/bad"
+pass 'valid nested manifest containers and arrays accepted'
+manifest=$(jq -c 'del(.dependencies)' "$TMP/bad/manifest.json")
+printf '%s,"dependencies":{"packages":["duplicate-package"]},"dependencies":{"aur":["duplicate-aur"]}}\n' "${manifest%\}}" >"$TMP/bad/manifest.json"
+commit "$TMP/bad"
+: >"$LOG"
+reject 'duplicate dependencies containers rejected before installation' install --local "$TMP/bad"
+grep -q 'duplicate manifest fields' "$TMP/output"
+[[ ! -s $LOG && ! -e $HYPRSIMPLE_PLUGIN_ROOT/other ]]
+rm -rf "$TMP/bad"
 CONFIG="$HOME/.config/hyprsimple/plugins.json"
 cp "$CONFIG" "$TMP/config"
+jq '.plugins.example.settings={first:{value:1},second:{value:2},items:[{value:3},{value:4}],empty:{},list:[]}' "$CONFIG" >"$TMP/nested-config"
+cp "$TMP/nested-config" "$CONFIG"
+run validate
+pass 'valid nested config containers and repeated names in distinct paths accepted'
+cp "$TMP/config" "$CONFIG"
+printf '{"schemaVersion":1,"plugins":{"example":{"enabled":false,"placement":"left","settings":{},"commit":""}},"plugins":{"other":{"enabled":false,"placement":"right","settings":{},"commit":""}}}\n' >"$CONFIG"
+: >"$LOG"
+reject 'duplicate plugins containers rejected before activation' enable example
+grep -q 'duplicate config fields or IDs' "$TMP/output"
+[[ ! -s $LOG ]]
+printf '{"schemaVersion":1,"plugins":{"example":{"enabled":false,"placement":"left","settings":{"first":1},"settings":{"second":2},"commit":""}}}\n' >"$CONFIG"
+reject 'duplicate settings containers rejected before activation' enable example
+grep -q 'duplicate config fields or IDs' "$TMP/output"
+[[ ! -s $LOG ]]
 printf '{"schemaVersion":1,"plugins":{"example":{},"example":{}}}\n' >"$CONFIG"
 reject 'duplicate configured IDs' validate
 printf '{"schemaVersion":1,"plugins":{"example":{"enabled":true,"settings":[],"placement":"left","commit":""}}}\n' >"$CONFIG"
@@ -226,7 +253,7 @@ touch "$HOME/fail-publish"
 reject 'filesystem publication failure rolls back old code and config' update example
 [[ $(git -C "$HYPRSIMPLE_PLUGIN_ROOT/example" rev-parse HEAD) == "$old" ]]
 cmp "$CONFIG" "$TMP/old-config"
-pass 'unexpected update failure retains previous installation' 
+pass 'unexpected update failure retains previous installation'
 run remove example
 [[ ! -e $HYPRSIMPLE_PLUGIN_ROOT/example ]]
 jq -e '.plugins.example.settings.city == "Jakarta" and .plugins.example.enabled == false' "$CONFIG" >/dev/null
@@ -253,5 +280,5 @@ unset HYPRLAND_INSTANCE_SIGNATURE
 run disable concurrent
 [[ $(grep -c '^bar ' "$LOG") == 1 ]]
 if grep -q '^hyprctl ' "$LOG"; then exit 1; fi
-pass 'inactive session does not request Hyprland reload' 
+pass 'inactive session does not request Hyprland reload'
 printf 'all manager checks passed\n'

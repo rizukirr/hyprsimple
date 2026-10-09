@@ -44,7 +44,7 @@ trap cleanup EXIT
 
 unique_json() {
   jq -s -e 'length == 1' "$1" >/dev/null || return 1
-  jq --stream -s -e '[.[] | select(length == 2) | .[0]] | length == (unique | length)' "$1" >/dev/null
+  jq --stream -s -e '[.[] | if length == 2 then .[0] else .[0][:-1] end | select(length > 0)] | length == (unique | length)' "$1" >/dev/null
 }
 valid_id() { [[ $1 =~ ^[a-z][a-z0-9]*([.-][a-z0-9]+)*$ && $1 != hyprsimple.* ]]; }
 read_config() {
