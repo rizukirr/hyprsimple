@@ -92,7 +92,7 @@ hyprsimple-plugin update muslimtify
 
 Core updates deliver the manager and runtime, but leave external plugin commits and settings unchanged. Use `hyprsimple-plugin update <id>` to follow that plugin's own origin. Core API compatibility is checked before activation. Review plugin changes before updating because QML and lifecycle scripts execute trusted code as your user.
 
-If initial activation fails, the plugin remains installed and disabled. Fix the reported cause and retry `hyprsimple-plugin enable <id>`. If the Muslimtify migration reports a stopped daemon, run `muslimtify daemon install && hyprsimple-plugin enable muslimtify`, then retry `hyprsimple-update`. Failed migrations retain their pending intent and get no completion marker. If update activation fails, the manager restores the previous code, settings and bindings and tries to reactivate the previous lifecycle. Resolve any reported rollback failure before retrying. A failed disable or removal leaves code available for another attempt. Dirty installed repositories must be committed, stashed or cleaned before an update.
+If initial activation fails, the plugin remains installed and disabled. Fix the reported cause and retry `hyprsimple-plugin enable <id>`. Failed migrations retain their pending intent and get no completion marker. If update activation fails, the manager restores the previous code, settings and bindings and tries to reactivate the previous lifecycle. Resolve any reported rollback failure before retrying. A failed disable or removal leaves code available for another attempt. Dirty installed repositories must be committed, stashed or cleaned before an update.
 
 ## Author workflow
 

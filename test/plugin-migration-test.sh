@@ -80,12 +80,12 @@ done
 fixture enabled
 env HOME="$HOME" HYPRSIMPLE_PATH="$HYPRSIMPLE_PATH" "$HOME/.local/bin/hyprsimple-plugin" install https://github.com/muslimtify-org/muslimtify-hyprsimple.git >"$TMP/output" 2>&1
 rm "$HOME/running"
-if run_migration; then echo 'not ok - enabled plugin without daemon accepted'; exit 1; fi
-assert test -f "$HOME/.local/state/hyprsimple/plugins/muslimtify-migration.pending"
-assert grep -q 'muslimtify daemon install && .*hyprsimple-plugin enable muslimtify' "$TMP/output"
-assert test ! -f "$HOME/.local/state/hyprsimple/migrations/1791551522.sh"
-env HOME="$HOME" HYPRSIMPLE_PATH="$HYPRSIMPLE_PATH" muslimtify daemon install
+before=$(wc -l <"$LOG")
 assert run_migration
 assert marker
+assert enabled
+assert test ! -e "$HOME/.local/state/hyprsimple/plugins/muslimtify-migration.pending"
+assert test "$(wc -l <"$LOG")" == "$before"
+assert test ! -e "$HOME/running"
 preserved
-echo 'ok - enabled plugin requires explicit daemon recovery before completion'
+echo 'ok - enabled plugin completes without daemon status calls or extra installation'

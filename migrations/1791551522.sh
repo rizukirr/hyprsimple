@@ -43,8 +43,4 @@ else
 fi
 "$manager" validate muslimtify
 jq -e '.plugins.muslimtify.enabled == true' "$config" >/dev/null
-if ! muslimtify daemon status; then
-  echo "Muslimtify daemon is not running. Run: muslimtify daemon install && $manager enable muslimtify, then retry hyprsimple-update" >&2
-  exit 1
-fi
 rm -f "$pending"
