@@ -1,7 +1,7 @@
 ---
 title: external plugins
 date: 2026-10-09
-status: draft
+status: approved
 ---
 
 # External plugins: design
