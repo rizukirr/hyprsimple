@@ -79,8 +79,8 @@ Files:
 - Modify `install.sh`, `aur-packages.txt`, `.local/bin/hyprsimple-muslimtify.sh`, `default/quickshell/shell.qml`, `default/quickshell/bar/Bar.qml`, `default/quickshell/theme/Theme.qml` and `default/hypr/bindings/system.lua`.
 - Remove extracted files under `default/quickshell/muslimtify/`, `default/quickshell/bar/PrayerButton.qml` and `default/quickshell/panels/PrayerPanel.qml`.
 - Create a migration with `.local/bin/hyprsimple-dev-add-migration.sh --no-edit`. Use its returned path without guessing a timestamp.
-- Create `test/plugin-migration-test.sh` and `test/plugin-default-install-test.sh`.
-- Modify `.github/workflows/tests.yml`, `README.md`, `test/bar-test.sh`, `test/notify-bar-test.sh`, `test/aur-helper-test.sh`, `test/muslimtify-and-dns-test.sh`, `test/panel-keybinds-test.sh` and other suites discovered to depend on the removed paths.
+- Create `test/plugin-migration-test.sh`, `test/plugin-default-install-test.sh` and shared fixture helper `test/fixtures/plugin-environment.bash`.
+- Modify `.github/workflows/tests.yml`, `README.md`, `test/bar-test.sh`, `test/notify-bar-test.sh`, `test/aur-helper-test.sh`, `test/muslimtify-and-dns-test.sh`, `test/panel-keybinds-test.sh`, `test/plugin-loader-test.sh` and other suites discovered to depend on the removed paths.
 
 - [ ] Remove core-owned Muslimtify QML and unconditional package/daemon setup. Invoke the external plugin manager after helper delivery and before starting the bar. Report installation failure with a retry command through the installer's failure reporting.
 - [ ] Keep existing add/remove aliases by changing their shipped helper to delegate to the manager. Remove package deletion from this compatibility helper.
