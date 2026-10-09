@@ -907,6 +907,8 @@ follow_latest_release
 
 # A fresh install already ships every fix, so mark all migrations as done and
 # let new users skip the entire history.
+# Remove the obsolete shipped helper before recording completed migrations.
+rm -f -- "$HOME/.local/bin/hyprsimple-muslimtify.sh"
 MIGRATION_STATE_DIR="$HOME/.local/state/hyprsimple/migrations"
 mkdir -p "$MIGRATION_STATE_DIR/skipped"
 for migration in "$HYPRSIMPLE_PATH/migrations"/*.sh; do
@@ -930,8 +932,7 @@ echo -e "${YELLOW}Copying configuration files...${NC}"
 # what was there before hyprsimple ever ran. Anything after it gets a
 # timestamped name, so nothing is ever destroyed.
 #
-# hyprsimple-muslimtify.sh already learned this and says so in its own backup
-# function. install.sh is where it costs the most.
+# Preserve the original configuration across repeated installations.
 backup_if_exists() {
   local target="$1" source="${2-}"
   [ -e "$target" ] || [ -L "$target" ] || return 0
@@ -1104,9 +1105,21 @@ bash "$HOME/.local/bin/terminal.sh" || true
 
 # Install the default external integration before starting the bar.
 FAILED_PLUGINS=()
-if ! bash "$HOME/.local/bin/hyprsimple-muslimtify.sh" add; then
-  echo "Default Muslimtify plugin installation failed. Retry: muslimtify-add" >&2
-  FAILED_PLUGINS+=("Muslimtify: retry muslimtify-add (daemon recovery: muslimtify daemon install)")
+plugin_manager="$HOME/.local/bin/hyprsimple-plugin"
+plugin_dir="${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}/muslimtify"
+if [[ -d $plugin_dir ]]; then
+  plugin_action=(enable muslimtify)
+else
+  plugin_action=(install https://github.com/muslimtify-org/muslimtify-hyprsimple.git)
+fi
+if ! "$plugin_manager" "${plugin_action[@]}" || ! muslimtify daemon status; then
+  if [[ -d ${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}/muslimtify ]]; then
+    retry="$HOME/.local/bin/hyprsimple-plugin enable muslimtify"
+  else
+    retry="$HOME/.local/bin/hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git"
+  fi
+  echo "Default Muslimtify plugin installation failed. Retry: $retry" >&2
+  FAILED_PLUGINS+=("Muslimtify: retry $retry (daemon recovery: muslimtify daemon install)")
 fi
 
 hyprctl reload || true

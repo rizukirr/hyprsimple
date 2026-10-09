@@ -1,8 +1,8 @@
 #!/bin/bash
 # Which AUR helper hyprsimple uses.
 #
-# install.sh, hyprsimple-update.sh and hyprsimple-muslimtify.sh each carried
-# their own copy of the same ladder, and all three read yay first:
+# install.sh and hyprsimple-update.sh each carried
+# their own copy of the same ladder, and both read yay first:
 #
 #   if command -v yay &>/dev/null; then AUR_HELPER="yay"
 #   elif command -v paru &>/dev/null; then AUR_HELPER="paru"
@@ -72,7 +72,7 @@ BASH_BIN="$(command -v bash)"
 # exit status are kept apart, because the whole point of the return codes is
 # that the caller can tell them apart.
 #
-# `set -u` on purpose: hyprsimple-muslimtify.sh runs under it, and a bare
+# `set -u` on purpose: the plugin manager runs under it, and a bare
 # $HYPRSIMPLE_AUR_HELPER would abort there and nowhere else.
 ask() {
   local override="$1"; shift
@@ -359,9 +359,9 @@ check "install.sh delivers .local/bin by glob, so the helper goes with it" \
 check "and hyprsimple-update.sh refreshes it the same way" \
   "$(grep -c '\.local/bin"/\*\.sh' "$REPO/.local/bin/hyprsimple-update.sh")" "1"
 
-# The compatibility helper delegates dependency handling to the manager.
-check "muslimtify delegates dependency management" \
-  "$(grep -c '"$manager" install' "$REPO/.local/bin/hyprsimple-muslimtify.sh")" "1"
+# The installer delegates default plugin dependency handling to the manager.
+check "default plugin delegates dependency management" \
+  "$(grep -c 'plugin_action=(install https://github.com/muslimtify-org/muslimtify-hyprsimple.git)' "$REPO/install.sh")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2

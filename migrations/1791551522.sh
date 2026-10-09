@@ -29,10 +29,22 @@ fi
 
 mkdir -p "$(dirname "$pending")"
 touch "$pending"
-# The helper retries disabled activation, and checks daemon status even when
-# manager enable is a no-op. Its failure message names the recovery command.
-bash "$HOME/.local/bin/hyprsimple-muslimtify.sh" add
+if [[ -d $plugin ]]; then
+  "$manager" enable muslimtify || { echo "Retry: $manager enable muslimtify" >&2; exit 1; }
+else
+  "$manager" install https://github.com/muslimtify-org/muslimtify-hyprsimple.git || {
+    if [[ -d $plugin ]]; then
+      echo "Retry: $manager enable muslimtify" >&2
+    else
+      echo "Retry: $manager install https://github.com/muslimtify-org/muslimtify-hyprsimple.git" >&2
+    fi
+    exit 1
+  }
+fi
 "$manager" validate muslimtify
 jq -e '.plugins.muslimtify.enabled == true' "$config" >/dev/null
-muslimtify daemon status
+if ! muslimtify daemon status; then
+  echo "Muslimtify daemon is not running. Run: muslimtify daemon install && $manager enable muslimtify, then retry hyprsimple-update" >&2
+  exit 1
+fi
 rm -f "$pending"

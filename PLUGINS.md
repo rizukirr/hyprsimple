@@ -83,16 +83,16 @@ Migration `migrations/1791551522.sh` atomically delivers the executable manager 
 
 ```sh
 hyprsimple-plugin muslimtify-org/muslimtify-hyprsimple
-muslimtify-add
-muslimtify-remove
+hyprsimple-plugin enable muslimtify
+hyprsimple-plugin remove muslimtify
 hyprsimple-plugin update muslimtify
 ```
 
-`muslimtify-add` installs or enables the external plugin and verifies daemon status. `muslimtify-remove` removes its code and disables its registration while retaining settings and installed packages. These compatibility commands use the same manager as other plugins.
+`hyprsimple-plugin enable muslimtify` retries an installed but disabled plugin. `hyprsimple-plugin remove muslimtify` removes its code and disables registration while retaining settings and installed packages. Migration `migrations/1791554376.sh` removes only the obsolete compatibility helper. Shipped shell scripts no longer define add/remove aliases.
 
 Core updates deliver the manager and runtime, but leave external plugin commits and settings unchanged. Use `hyprsimple-plugin update <id>` to follow that plugin's own origin. Core API compatibility is checked before activation. Review plugin changes before updating because QML and lifecycle scripts execute trusted code as your user.
 
-If initial activation fails, the plugin remains installed and disabled. Fix the reported cause and retry `hyprsimple-plugin enable <id>`. If the Muslimtify migration reports a stopped daemon, run `muslimtify daemon install && muslimtify-add`, then retry `hyprsimple-update`. Failed migrations retain their pending intent and get no completion marker. If update activation fails, the manager restores the previous code, settings and bindings and tries to reactivate the previous lifecycle. Resolve any reported rollback failure before retrying. A failed disable or removal leaves code available for another attempt. Dirty installed repositories must be committed, stashed or cleaned before an update.
+If initial activation fails, the plugin remains installed and disabled. Fix the reported cause and retry `hyprsimple-plugin enable <id>`. If the Muslimtify migration reports a stopped daemon, run `muslimtify daemon install && hyprsimple-plugin enable muslimtify`, then retry `hyprsimple-update`. Failed migrations retain their pending intent and get no completion marker. If update activation fails, the manager restores the previous code, settings and bindings and tries to reactivate the previous lifecycle. Resolve any reported rollback failure before retrying. A failed disable or removal leaves code available for another attempt. Dirty installed repositories must be committed, stashed or cleaned before an update.
 
 ## Author workflow
 

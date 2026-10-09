@@ -7,6 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/fixtures/plugin-environment.bash"
 trap 'status=$?; if ((status)); then printf "Failed delivery fixture: %s\n" "$TMP" >&2; else rm -rf "$TMP"; fi' EXIT
 
 fixture delivery
+printf obsolete >"$HOME/.local/bin/hyprsimple-muslimtify.sh"
 # Delivery must install the command, rather than inherit the fixture's copy.
 rm "$HOME/.local/bin/hyprsimple-plugin"
 export PATH="$HOME/.local/bin:$PATH"
@@ -30,6 +31,7 @@ CORE_WORK="$TMP/core-work"
 CORE_ORIGIN="$TMP/core-origin.git"
 mkdir -p "$CORE_WORK"
 git -C "$REPO" archive HEAD | tar -x -C "$CORE_WORK"
+rm -f "$CORE_WORK/migrations/1791554376.sh"
 rm "$CORE_WORK/migrations/1791551522.sh" "$CORE_WORK/.local/bin/hyprsimple-plugin"
 git -C "$REPO" show 9c9ba72315360fc1d43868c7e1d1ca730b7186e0:.local/bin/hyprsimple-update.sh >"$CORE_WORK/.local/bin/hyprsimple-update.sh"
 git init -q -b main "$CORE_WORK"
@@ -43,15 +45,19 @@ rm -rf "$HYPRSIMPLE_PATH"
 git clone -q "$CORE_ORIGIN" "$HYPRSIMPLE_PATH"
 [[ -d $HYPRSIMPLE_PATH/.git ]] || { echo "not ok - fixture core checkout did not clone" >&2; exit 1; }
 git -C "$CORE_WORK" remote add origin "$CORE_ORIGIN"
-cp "$REPO/migrations/1791551522.sh" "$CORE_WORK/migrations/"
+cp "$REPO/migrations/1791551522.sh" "$REPO/migrations/1791554376.sh" "$CORE_WORK/migrations/"
 cp "$REPO/.local/bin/hyprsimple-plugin" "$REPO/.local/bin/hyprsimple-update.sh" "$CORE_WORK/.local/bin/"
+for shell in bashrc.sh zsh.sh fish.fish; do
+  cp "$REPO/.local/bin/$shell" "$CORE_WORK/.local/bin/"
+done
+rm -f "$CORE_WORK/.local/bin/hyprsimple-muslimtify.sh"
 printf '\n// Delivery fixture change\n' >>"$CORE_WORK/default/quickshell/shell.qml"
 git -C "$CORE_WORK" add .
 git -C "$CORE_WORK" commit -qm 'Deliver external plugin command and migration'
 git -C "$CORE_WORK" push -q origin main
 mkdir -p "$HOME/.local/state/hyprsimple/migrations" "$HOME/.config/hyprsimple"
 for migration in "$CORE_WORK/migrations/"*.sh; do
-  [[ $(basename "$migration") == 1791551522.sh ]] && continue
+  [[ $(basename "$migration") == 1791551522.sh || $(basename "$migration") == 1791554376.sh ]] && continue
   touch "$HOME/.local/state/hyprsimple/migrations/$(basename "$migration")"
 done
 printf '{"schemaVersion":1,"plugins":{"muslimtify":{"enabled":false,"placement":"right","settings":{"label":"Retained","custom":42},"commit":""}}}\n' >"$HOME/.config/hyprsimple/plugins.json"
@@ -64,6 +70,12 @@ assert run_update
 assert cmp "$CORE_WORK/.local/bin/hyprsimple-plugin" "$HOME/.local/bin/hyprsimple-plugin"
 assert test -x "$HOME/.local/bin/hyprsimple-plugin"
 assert marker
+assert test -f "$HOME/.local/state/hyprsimple/migrations/1791554376.sh"
+assert test ! -e "$HOME/.local/bin/hyprsimple-muslimtify.sh"
+for shell in bashrc.sh zsh.sh fish.fish; do
+  assert cmp "$REPO/.local/bin/$shell" "$HOME/.local/bin/$shell"
+  if grep -qE 'muslimtify-(add|remove)' "$HOME/.local/bin/$shell"; then exit 1; fi
+done
 assert enabled
 preserved
 assert jq -e '.plugins.muslimtify.settings == {label:"Retained",custom:42} and .plugins.muslimtify.placement == "right"' "$HOME/.config/hyprsimple/plugins.json"

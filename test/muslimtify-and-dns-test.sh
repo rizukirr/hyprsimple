@@ -1,7 +1,5 @@
 #!/bin/bash
-# Defects in scripts that had never been run by anything. The muslimtify one is
-# the worst: with the package absent, remove took the uninstall branch, tried
-# to remove a package with no name, and died before finishing.
+# Compatibility removal, DNS error handling and yazi cleanup regressions.
 
 set -uo pipefail
 
@@ -23,10 +21,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # whoever is running the tests.
 printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"; chmod +x "$STUB/qs"
 
-check "compatibility removal delegates to the manager" \
-  "$(grep -c '\"$manager\" remove muslimtify' "$BIN/hyprsimple-muslimtify.sh")" "1"
-check "compatibility helper never removes packages" \
-  "$(grep -cE 'pacman|pick_aur_helper|installed_pkgs' "$BIN/hyprsimple-muslimtify.sh")" "0"
+check "obsolete helper is absent" "$(test -e "$BIN/hyprsimple-muslimtify.sh" && echo present || echo absent)" "absent"
+for shell in bashrc.sh zsh.sh fish.fish; do
+  check "$shell has no compatibility aliases" "$(grep -cE 'muslimtify-(add|remove)' "$BIN/$shell")" "0"
+done
 
 # setup-dns.sh announced success whatever systemctl did, on a machine whose
 # DNS was then broken.
@@ -60,10 +58,6 @@ PATH="$STUB:$PATH" y >/dev/null 2>&1
 check "a failed cd is reported" "$?" "1"
 after=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'yazi-cwd.*' 2>/dev/null | wc -l)
 check "a failed cd still cleans up its temp file" "$after" "$before"
-
-code="$(sed 's/#.*//' "$BIN/hyprsimple-muslimtify.sh")"
-check "no bar config is edited" \
-  "$(grep -ciE 'waybar|sed -i' <<<"$code")" "0"
 
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2

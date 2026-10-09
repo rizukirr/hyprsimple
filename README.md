@@ -3,7 +3,7 @@
 **Minimal** Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 > [!Note]
-> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). Run `muslimtify-remove` to remove its integration and daemon while retaining the package and settings. Run `muslimtify-add` to install or enable it again.
+> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). Run `hyprsimple-plugin remove muslimtify` to remove its integration and daemon while retaining the package and settings. Run `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` to install or enable it again.
 
 > [!Warning]
 > Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
@@ -374,7 +374,7 @@ Run `hyprsimple-plugin install OWNER/REPO` to install a trusted plugin. Use `hyp
 
 Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Core updates leave user Hyprland overrides in place and load them after generated plugin bindings. The default Muslimtify plugin supplies `SUPER + P` and the `prayer` panel alias.
 
-If default installation fails, run `muslimtify-add` to retry. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
+If the plugin is installed but disabled, run `hyprsimple-plugin enable muslimtify`. If download failed, retry `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git`. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
 
 The delivery suites require a checkout of the published plugin at `0a8fa79a7696662c7d2a2e4c68979cb50eda628b`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
 
@@ -382,7 +382,6 @@ The delivery suites require a checkout of the published plugin at `0a8fa79a76966
 
 | Script | Description |
 |--------|-------------|
-| `hyprsimple-muslimtify.sh` | Add or remove the [muslimtify](https://github.com/rizukirr/muslimtify) prayer-times integration |
 
 ### Shell init & internal helpers
 
@@ -393,7 +392,7 @@ These are sourced by other files rather than run directly.
 | `bashrc.sh` / `zsh.sh` / `fish.fish` | Per-shell init (zoxide, fzf, starship, aliases) sourced from your shell's rc file |
 | `terminal.sh` | Detect your login shell and wire the matching init script into its rc file |
 | `hypr-helpers.sh` | Shared hyprpaper helper functions used by the wallpaper scripts |
-| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and muslimtify all use the one you already have |
+| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and plugin manager all use the one you already have |
 | `hyprsimple-require.sh` | Loads the helpers a script needs, and stops it rather than letting it run with them missing |
 | `hyprsimple-theme-deliver.sh` | Puts a theme's generated files where each program reads them, shared by the theme switcher and the updater |
 | `hyprsimple-hw-battery.sh` | Exits 0 when this machine has a battery, which is how hyprsimple decides it is a laptop |

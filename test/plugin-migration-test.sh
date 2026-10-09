@@ -82,7 +82,7 @@ env HOME="$HOME" HYPRSIMPLE_PATH="$HYPRSIMPLE_PATH" "$HOME/.local/bin/hyprsimple
 rm "$HOME/running"
 if run_migration; then echo 'not ok - enabled plugin without daemon accepted'; exit 1; fi
 assert test -f "$HOME/.local/state/hyprsimple/plugins/muslimtify-migration.pending"
-assert grep -q 'muslimtify daemon install && muslimtify-add' "$TMP/output"
+assert grep -q 'muslimtify daemon install && .*hyprsimple-plugin enable muslimtify' "$TMP/output"
 assert test ! -f "$HOME/.local/state/hyprsimple/migrations/1791551522.sh"
 env HOME="$HOME" HYPRSIMPLE_PATH="$HYPRSIMPLE_PATH" muslimtify daemon install
 assert run_migration

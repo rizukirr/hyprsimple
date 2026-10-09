@@ -49,7 +49,7 @@ fixture() {
   unset HYPRSIMPLE_PLUGIN_ROOT
   export HOME="$TMP/$1" HYPRSIMPLE_PATH="$TMP/$1/core"
   mkdir -p "$HOME/.local/bin" "$HYPRSIMPLE_PATH/migrations" "$HYPRSIMPLE_PATH/.local/bin" "$HOME/.config/muslimtify" "$HOME/.config/hypr/bindings"
-  cp "$REPO/.local/bin/hyprsimple-plugin" "$REPO/.local/bin/hyprsimple-muslimtify.sh" "$HOME/.local/bin/"
+  cp "$REPO/.local/bin/hyprsimple-plugin" "$HOME/.local/bin/"
   printf '#!/bin/bash\nexit 0\n' >"$HOME/.local/bin/hyprsimple-restart-bar.sh"
   chmod +x "$HOME/.local/bin/"*
   printf '{"city":"Jakarta","custom":42}\n' >"$HOME/.config/muslimtify/config.json"

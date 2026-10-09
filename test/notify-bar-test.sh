@@ -16,9 +16,7 @@
 # So muting showed one filled block and full volume showed an unfilled one, and
 # the bar changed width at both ends.
 #
-# This is the trap hyprsimple-muslimtify.sh already carries a comment about and
-# that committed-symlinks-test.sh works around with an explicit guard. It was
-# in both notification scripts.
+# committed-symlinks-test.sh guards the same printf trap explicitly.
 #
 # Nothing here calls wpctl, brightnessctl or notify-send: the two functions are
 # lifted out and run directly.

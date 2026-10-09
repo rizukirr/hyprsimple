@@ -73,6 +73,9 @@ jobs:
           git -C "$RUNNER_TEMP/muslimtify-plugin" fetch --depth=1 https://github.com/muslimtify-org/muslimtify-hyprsimple.git 0a8fa79a7696662c7d2a2e4c68979cb50eda628b
           git -C "$RUNNER_TEMP/muslimtify-plugin" checkout --detach FETCH_HEAD
 
+      - name: muslimtify-cleanup-test
+        run: bash test/muslimtify-cleanup-test.sh
+
       - name: plugin-migration-test
         env:
           MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
