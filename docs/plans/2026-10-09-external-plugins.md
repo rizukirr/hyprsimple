@@ -62,15 +62,15 @@ Files:
 
 Repository: `/tmp/muslimtify-hyprsimple`, remote `https://github.com/muslimtify-org/muslimtify-hyprsimple.git`.
 
-Create `manifest.json`, `Widget.qml`, `Panel.qml`, `Service.qml`, `lib/Model.js`, `views/TodayView.qml`, `views/SettingsView.qml`, `components/PanelHeader.qml`, `components/SettingField.qml`, `components/ErrorLine.qml`, `assets/muslimtify.png`, `scripts/enable.sh`, `scripts/disable.sh`, `test/model-test.js`, `test/lifecycle-test.sh`, `test/check.sh`, `.github/workflows/tests.yml`, `README.md` and `LICENSE` in that repository.
+Create `manifest.json`, `Widget.qml`, `Panel.qml`, `Service.qml`, `lib/Model.js`, `views/TodayView.qml`, `views/SettingsView.qml`, `components/PanelHeader.qml`, `components/SettingField.qml`, `components/ErrorLine.qml`, `assets/muslimtify.webp`, `scripts/enable.sh`, `scripts/disable.sh`, `test/model-test.js`, `test/lifecycle-test.sh`, `test/check.sh`, `test/integration-test.sh`, `.github/workflows/tests.yml`, `README.md` and `LICENSE` in that repository.
 
-- [ ] Extract the existing model, service, views, components and assets while preserving license attribution. Adapt shared imports to Hyprsimple's public module and use the documented context. Keep prayer-specific constants in the plugin.
-- [ ] Declare ID `muslimtify`, its AUR dependency, left placement, `SUPER + P` toggle binding and `prayer` panel alias. Preserve current prayer display, settings, schedule error handling and right-click countdown behavior.
-- [ ] Implement repeatable enable and disable scripts using Muslimtify's daemon commands. Check daemon status after enable and propagate failures. Preserve application settings on disable and removal.
-- [ ] Move prayer scheduling checks from core ownership to plugin checks. Test model parsing, tomorrow transition, offsets and lifecycle failure/retry with stubs.
-- [ ] Run `bash test/check.sh` in the plugin checkout. Install from its local Git repository through the real manager into an isolated home, verify load behavior and disable/remove behavior, and confirm application settings remain unchanged.
-- [ ] Run the core image optimizer in check mode on the extracted asset, using its actual supported CLI discovered during execution.
-- [ ] Commit and push the plugin contents to the user-supplied repository. Verify the published commit and manifest before core migration or installer depends on them.
+- [x] Extract the existing model, service, views, components and assets while preserving license attribution. Adapt shared imports to Hyprsimple's public module and use the documented context. Keep prayer-specific constants in the plugin.
+- [x] Declare ID `muslimtify`, its AUR dependency, left placement, `SUPER + P` toggle binding and `prayer` panel alias. Preserve current prayer display, settings, schedule error handling and right-click countdown behavior.
+- [x] Implement repeatable enable and disable scripts using Muslimtify's daemon commands. Check daemon status after enable and propagate failures. Preserve application settings on disable and removal.
+- [x] Move prayer scheduling checks from core ownership to plugin checks. Test model parsing, tomorrow transition, offsets and lifecycle failure/retry with stubs.
+- [x] Run `bash test/check.sh` in the plugin checkout. Install from its local Git repository through the real manager into an isolated home, verify load behavior and disable/remove behavior, and confirm application settings remain unchanged.
+- [x] Run the core image optimizer in check mode on the extracted asset, using its actual supported CLI discovered during execution.
+- [x] Commit and push the plugin contents to the user-supplied repository. Verify the published commit and manifest before core migration or installer depends on them.
 
 ## Task 4: Default installation and migration → verify: migration and fresh-install fixture suites exit 0
 
