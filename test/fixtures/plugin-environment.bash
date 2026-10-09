@@ -48,12 +48,13 @@ unset HYPRLAND_INSTANCE_SIGNATURE
 fixture() {
   unset HYPRSIMPLE_PLUGIN_ROOT
   export HOME="$TMP/$1" HYPRSIMPLE_PATH="$TMP/$1/core"
-  mkdir -p "$HOME/.local/bin" "$HYPRSIMPLE_PATH/migrations" "$HOME/.config/muslimtify" "$HOME/.config/hypr/bindings"
+  mkdir -p "$HOME/.local/bin" "$HYPRSIMPLE_PATH/migrations" "$HYPRSIMPLE_PATH/.local/bin" "$HOME/.config/muslimtify" "$HOME/.config/hypr/bindings"
   cp "$REPO/.local/bin/hyprsimple-plugin" "$REPO/.local/bin/hyprsimple-muslimtify.sh" "$HOME/.local/bin/"
   printf '#!/bin/bash\nexit 0\n' >"$HOME/.local/bin/hyprsimple-restart-bar.sh"
   chmod +x "$HOME/.local/bin/"*
   printf '{"city":"Jakarta","custom":42}\n' >"$HOME/.config/muslimtify/config.json"
   printf 'retained user bindings\n' >"$HOME/.config/hypr/bindings/system.lua"
+  cp "$REPO/.local/bin/hyprsimple-plugin" "$HYPRSIMPLE_PATH/.local/bin/"
   cp "$REPO/migrations/1791551522.sh" "$HYPRSIMPLE_PATH/migrations/"
 }
 run_migration() {

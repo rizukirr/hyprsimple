@@ -19,7 +19,7 @@ jobs:
   suites:
     runs-on: ubuntu-latest
     steps:
-      # The default shallow checkout is enough: no suite reads git history.
+      # Fetch the exact historical updater used by the first-update regression.
       - uses: actions/checkout@v4
 
       - name: Install Lua and ImageMagick
@@ -82,6 +82,14 @@ jobs:
         env:
           MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
         run: bash test/plugin-default-install-test.sh
+
+      - name: Fetch the pre-delivery updater fixture
+        run: git fetch --depth=1 origin 9c9ba72315360fc1d43868c7e1d1ca730b7186e0
+
+      - name: plugin-update-delivery-test
+        env:
+          MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
+        run: bash test/plugin-update-delivery-test.sh
 
       - name: plugin-bindings-test
         run: bash test/plugin-bindings-test.sh

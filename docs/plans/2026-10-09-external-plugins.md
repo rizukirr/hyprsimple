@@ -94,14 +94,121 @@ Files:
 
 Files:
 
-- Create `test/plugin-update-delivery-test.sh`.
+- Create `test/plugin-update-delivery-test.sh` and modify `test/suite-hygiene-test.sh` to permit only the explicitly fetched, pinned historical updater fixture.
 - Modify `.github/workflows/tests.yml` and `PLUGINS.md` with final verification and author instructions.
+- Repair `migrations/1791551522.sh` and extend `test/fixtures/plugin-environment.bash` and `test/plugin-migration-test.sh` for first-update bootstrap delivery.
 
-- [ ] Run the real updater against a throwaway core origin and home, with pacman, sudo, pgrep, hyprctl, Muslimtify and services stubbed. Mark every migration except the new one complete. Verify command delivery, migrated plugin registration, preserved settings and core reload behavior.
-- [ ] Verify a later core update leaves external plugin commits and settings unchanged. Verify explicit plugin update uses its own origin and restores previous code on failed activation.
-- [ ] Run the shellcheck commands and all shell/Lua suites required by `.github/workflows/tests.yml`. Include the extensionless manager in lint explicitly. Run the plugin repository's checks independently.
-- [ ] Document manifest fields, author workflow, trusted-code execution, installation, default Muslimtify behavior, compatibility commands, updates, removal and failure recovery. Record compositor-dependent checks that require a real session.
-- [ ] Commit this task and report tested commands, published plugin commit, core commits and outstanding session verification. Do not tag a release or alter the real install.
+Prerequisite: the pre-delivery updater from `9c9ba72` copies only `.sh` and `.fish` files and does not re-execute after atomic self-replacement. The migration must atomically deliver the executable manager from the checkout before its absent-Muslimtify skip. A missing source must fail without a marker or replacing an existing manager. Verify missing-home-manager cases with and without Muslimtify, repeatability, and missing-source retry. Use the actual historical updater in the delivery regression.
+
+- [x] Run the real updater against a throwaway core origin and home, with pacman, sudo, pgrep, hyprctl, Muslimtify and services stubbed. Mark every migration except the new one complete. Verify command delivery, migrated plugin registration, preserved settings and core reload behavior.
+- [x] Verify a later core update leaves external plugin commits and settings unchanged. Verify explicit plugin update uses its own origin and restores previous code on failed activation.
+- [x] Run the shellcheck commands and all shell/Lua suites required by `.github/workflows/tests.yml`. Include the extensionless manager in lint explicitly. Run the plugin repository's checks independently.
+- [x] Document manifest fields, author workflow, trusted-code execution, installation, default Muslimtify behavior, compatibility commands, updates, removal and failure recovery. Record compositor-dependent checks that require a real session.
+- [x] Commit this task and report tested commands, published plugin commit, core commits and outstanding session verification. Do not tag a release or alter the real install.
+
+### Task 5 verification evidence
+
+All 86 workflow-registered shell/Lua checks have final exit status 0. The initial update-channel socket and screenshot/battery systemd-validation failures passed after approved escalation, using fixture state without live desktop changes. Hygiene initially rejected an unprovided history read and unchecked clone results. The final regression reads only the explicitly fetched, pinned updater and asserts cloned fixture content exists. The hygiene audit preserves its checks for other history reads.
+
+Both CI shellcheck commands exited 0 with `--severity=style --exclude=SC2016`, including the extensionless manager, all shell suites and Bash fixtures, and migrations with `--shell=bash`. `git diff --check` exited 0. `HYPRSIMPLE_SOURCE=/home/rizukirr/Projects/hyprsimple bash test/check.sh` in `/tmp/muslimtify-hyprsimple` exited 0 at published commit `0a8fa79a7696662c7d2a2e4c68979cb50eda628b`, covering the model, lifecycle, manifest, local manager integration, actual QML components and image policy.
+
+The per-suite attempt statuses below retain initial failures and successful reruns. Detailed local logs are under `/tmp/hyprsimple-task5-results`. These are local results, not a remote CI verdict. Real compositor placement, focus and monitor behavior remain session checks documented in `PLUGINS.md`. The parent independently performs final verification. No core push, release or live install change was performed.
+
+```text
+exit command
+0 bash test/plugin-loader-test.sh
+0 bash test/plugin-migration-test.sh
+0 bash test/plugin-default-install-test.sh
+0 bash test/plugin-update-delivery-test.sh
+0 bash test/plugin-bindings-test.sh
+0 bash test/plugin-manager-test.sh
+0 bash test/install-copy-test.sh
+0 lua test/config-split-test.lua
+0 bash test/config-migration-test.sh
+0 bash test/config-realworld-test.sh
+0 bash test/shallow-install-test.sh
+0 bash test/theme-refresh-test.sh
+0 bash test/hypr-conf-split-test.sh
+0 bash test/broken-override-test.sh
+0 bash test/named-paths-test.sh
+0 bash test/keyboard-backlight-test.sh
+0 bash test/notify-bar-test.sh
+0 bash test/icon-themes-test.sh
+0 bash test/hyprsunset-config-test.sh
+0 bash test/live-wallpaper-persistence-test.sh
+0 bash test/logout-test.sh
+0 bash test/bluetooth-toggle-test.sh
+0 bash test/btop-theme-test.sh
+0 bash test/config-ownership-test.sh
+0 bash test/cursor-theme-test.sh
+0 bash test/theme-picker-test.sh
+0 bash test/toggle-scripts-test.sh
+1 bash test/update-channel-test.sh
+0 bash test/update-self-replace-test.sh
+0 bash test/template-delivery-test.sh
+0 bash test/config-drift-report-test.sh
+0 bash test/template-cleanup-test.sh
+0 bash test/template-autorender-test.sh
+0 bash test/package-install-test.sh
+0 bash test/aur-helper-test.sh
+0 bash test/unattended-install-test.sh
+0 bash test/audio-autoswitch-test.sh
+0 bash test/notification-idiom-test.sh
+1 bash test/screenshot-and-battery-test.sh
+0 bash test/screen-record-test.sh
+0 bash test/setup-network-test.sh
+0 bash test/hybrid-gpu-env-test.sh
+0 bash test/nvidia-install-test.sh
+0 bash test/intel-video-test.sh
+0 bash test/hw-predicate-test.sh
+0 bash test/untested-script-bugs-test.sh
+0 bash test/muslimtify-and-dns-test.sh
+0 bash test/launched-programs-test.sh
+0 bash test/vars-key-removal-test.sh
+0 bash test/generated-cleanup-test.sh
+0 bash test/committed-symlinks-test.sh
+0 bash test/confirm-before-delete-test.sh
+0 bash test/bar-test.sh
+0 bash test/picker-panels-test.sh
+0 bash test/shell-init-test.sh
+0 bash test/wifi-test.sh
+0 bash test/update-channel-test.sh (escalated)
+0 bash test/screenshot-and-battery-test.sh (escalated)
+0 bash test/debug-report-test.sh
+0 bash test/migration-naming-test.sh
+0 bash test/readme-keybindings-test.sh
+0 bash test/keybinding-viewer-test.sh
+0 bash test/panel-keybinds-test.sh
+0 bash test/wallpaper-keys-migration-test.sh
+0 bash test/ghostty-theme-test.sh
+0 bash test/default-links-test.sh
+0 bash test/window-rules-test.sh
+0 bash test/install-backup-test.sh
+0 bash test/firewall-test.sh
+0 bash test/removed-files-test.sh
+0 bash test/env-block-test.sh
+0 bash test/theme-delivery-test.sh
+0 bash test/nightlight-test.sh
+0 bash test/hyprsunset-service-test.sh
+0 bash test/required-helpers-test.sh
+0 bash test/gtk-settings-test.sh
+0 bash test/migration-runner-test.sh
+0 bash test/capture-panels-test.sh
+0 bash test/clipboard-panel-test.sh
+0 bash test/rofi-removal-test.sh
+0 bash test/notifications-test.sh
+0 bash test/network-setup-test.sh
+0 bash test/wallpaper-ipc-test.sh
+0 bash test/rosepine-wallpaper-test.sh
+0 bash test/theme-catalogue-test.sh
+0 bash test/gpu-pin-migration-test.sh
+0 bash test/thermald-test.sh
+1 bash test/suite-hygiene-test.sh
+1 bash test/suite-hygiene-test.sh (pinned fixture audit)
+0 bash test/plugin-update-delivery-test.sh (full pinned hash)
+0 bash test/suite-hygiene-test.sh (final)
+0 bash test/plugin-update-delivery-test.sh (clone assertions)
+```
 
 ## Self-review
 

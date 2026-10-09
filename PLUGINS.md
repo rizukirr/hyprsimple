@@ -7,7 +7,7 @@ Plugins live at `~/.local/share/hyprsimple-plugins/<id>`, outside the core Git c
 Use these commands:
 
 ```sh
-hyprsimple-plugin install owner/repo
+hyprsimple-plugin owner/repo
 hyprsimple-plugin install --local /absolute/path/to/repository
 hyprsimple-plugin list
 hyprsimple-plugin validate
@@ -74,3 +74,87 @@ A panel using `PopupPanel` supplies `bar: context.bar`, `anchorItem: context.anc
 Run `bash test/plugin-loader-test.sh` with Quickshell installed and `bash test/plugin-bindings-test.sh` for isolated runtime and binding fixtures. The loader uses real Quickshell with the offscreen Qt platform and isolated HOME, XDG directories and D-Bus address. It verifies external import resolution, service sharing, contexts, live theme changes, panel operations and load failure containment. Offscreen tests model monitor ownership but cannot exercise PopupPanel's layer-shell window, compositor focus or physical monitor placement. CI runs the loader in an Arch container with Quickshell and jq installed.
 
 Run `bash test/plugin-manager-test.sh` for isolated manager fixtures. Tests redirect HOME and plugin storage and stub package and desktop commands.
+
+## Default Muslimtify plugin
+
+Fresh installs enable `muslimtify-org/muslimtify-hyprsimple` by default and install its declared Muslimtify dependency. The published plugin commit used by delivery verification is `0a8fa79a7696662c7d2a2e4c68979cb50eda628b`. Its widget sits on the left by default, `SUPER + P` toggles its panel, and `prayer` is its IPC alias.
+
+Migration `migrations/1791551522.sh` atomically delivers the executable manager before checking whether Muslimtify is present, so the first update also works with an updater that only copies `.sh` and `.fish` files. It registers the external plugin on existing installs where Muslimtify is present. It preserves `~/.config/muslimtify/config.json`, plugin settings and placement, and user Hyprland bindings. An already installed, deliberately disabled plugin stays disabled. When Muslimtify is absent, the migration completes without downloading it.
+
+```sh
+hyprsimple-plugin muslimtify-org/muslimtify-hyprsimple
+muslimtify-add
+muslimtify-remove
+hyprsimple-plugin update muslimtify
+```
+
+`muslimtify-add` installs or enables the external plugin and verifies daemon status. `muslimtify-remove` removes its code and disables its registration while retaining settings and installed packages. These compatibility commands use the same manager as other plugins.
+
+Core updates deliver the manager and runtime, but leave external plugin commits and settings unchanged. Use `hyprsimple-plugin update <id>` to follow that plugin's own origin. Core API compatibility is checked before activation. Review plugin changes before updating because QML and lifecycle scripts execute trusted code as your user.
+
+If initial activation fails, the plugin remains installed and disabled. Fix the reported cause and retry `hyprsimple-plugin enable <id>`. If the Muslimtify migration reports a stopped daemon, run `muslimtify daemon install && muslimtify-add`, then retry `hyprsimple-update`. Failed migrations retain their pending intent and get no completion marker. If update activation fails, the manager restores the previous code, settings and bindings and tries to reactivate the previous lifecycle. Resolve any reported rollback failure before retrying. A failed disable or removal leaves code available for another attempt. Dirty installed repositories must be committed, stashed or cleaned before an update.
+
+## Author workflow
+
+Create a repository with the complete manifest above and these files for its declared entry points and lifecycle scripts. `Panel.qml` can use the shared module directly:
+
+```qml
+import QtQuick
+import Hyprsimple
+
+PopupPanel {
+    required property var context
+    bar: context.bar
+    anchorItem: context.anchorItem
+    name: context.panelId
+    panelWidth: 320
+    StyledText {
+        text: context.settings.label ?? "Example panel"
+    }
+}
+```
+
+For the manifest's `enable.sh` and `disable.sh`, a plugin with no background work can use this content in each file:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+exit 0
+```
+
+Add actual background setup and verified, repeatable cleanup only when your plugin requires it. Commit all declared files before installing locally:
+
+```sh
+git init -b main
+git add manifest.json Panel.qml enable.sh disable.sh
+git -c user.name="Plugin author" -c user.email="author@example.com" commit -m "Add example plugin"
+hyprsimple-plugin validate "$PWD"
+hyprsimple-plugin install --local "$PWD"
+hyprsimple-plugin list
+hyprsimple-plugin disable example
+hyprsimple-plugin enable example
+```
+
+Edit and commit the source repository, then run `hyprsimple-plugin update example` to test acquisition and activation from that local origin. Test invalid manifests and lifecycle failure recovery as well as successful loading. After publishing your repository, users install with `hyprsimple-plugin owner/repo`. Choose a unique ID and panel aliases. Declare only the dependencies and entry points you use, and support API 1 until the core provides another API.
+
+## Delivery verification
+
+CI fetches the published Muslimtify commit once as a pinned fixture and supplies its checkout through `MUSLIMTIFY_PLUGIN_FIXTURE`. Tests never fetch from the network. Run the delivery suites locally with that same checkout:
+
+```sh
+export MUSLIMTIFY_PLUGIN_FIXTURE=/path/to/pinned/muslimtify-hyprsimple
+bash test/plugin-default-install-test.sh
+bash test/plugin-migration-test.sh
+bash test/plugin-update-delivery-test.sh
+```
+
+The updater suite uses a throwaway core origin and HOME, marks all earlier migrations complete, and runs the actual pre-delivery updater from `9c9ba72` and the new migration. Package, service and compositor commands are stubbed. It verifies command delivery, preserved settings, core reload, independent plugin updates and failed activation rollback. The extensionless manager is explicitly included in CI shellcheck alongside scripts, fixtures and migrations.
+
+Run the plugin repository's own checks separately, including its actual service, widget, panel and views through the offscreen integration harness:
+
+```sh
+cd /path/to/muslimtify-hyprsimple
+HYPRSIMPLE_SOURCE=/path/to/hyprsimple bash test/check.sh
+```
+
+A real Hyprland session must still verify physical panel placement on each monitor, cross-monitor panel ownership, keyboard focus, outside-click dismissal, Escape, the `SUPER + P` binding and `prayer` IPC alias. Offscreen integration substitutes the layer-shell window boundary and cannot establish actual compositor positioning or focus. Local checks do not establish that a remote CI run has passed.

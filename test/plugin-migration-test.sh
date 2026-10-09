@@ -4,8 +4,11 @@ set -euo pipefail
 # shellcheck source=test/fixtures/plugin-environment.bash
 source "$(dirname "${BASH_SOURCE[0]}")/fixtures/plugin-environment.bash"
 fixture installed
+rm "$HOME/.local/bin/hyprsimple-plugin"
 assert run_migration
 assert marker
+assert test -x "$HOME/.local/bin/hyprsimple-plugin"
+assert cmp "$HYPRSIMPLE_PATH/.local/bin/hyprsimple-plugin" "$HOME/.local/bin/hyprsimple-plugin"
 assert enabled
 preserved
 before=$(wc -l <"$LOG")
@@ -14,12 +17,28 @@ assert test "$(wc -l <"$LOG")" == "$before"
 echo 'ok - installed integration migrates once and preserves user files'
 
 fixture absent
+rm "$HOME/.local/bin/hyprsimple-plugin"
 # Hide the command even on hosts with a real Muslimtify installed.
 printf 'command() { if [[ $* == "-v muslimtify" ]]; then return 1; fi; builtin command "$@"; }\n' >"$TMP/absent-env"
 BASH_ENV="$TMP/absent-env" assert run_migration
 assert marker
 assert test ! -d "$HOME/.local/share/hyprsimple-plugins/muslimtify"
-echo 'ok - absent integration is skipped'
+assert test -x "$HOME/.local/bin/hyprsimple-plugin"
+assert cmp "$HYPRSIMPLE_PATH/.local/bin/hyprsimple-plugin" "$HOME/.local/bin/hyprsimple-plugin"
+echo 'ok - absent integration receives the manager without installing the plugin'
+
+fixture missing-source
+rm "$HYPRSIMPLE_PATH/.local/bin/hyprsimple-plugin"
+cp "$HOME/.local/bin/hyprsimple-plugin" "$TMP/old-manager"
+if run_migration; then echo 'not ok - missing manager source accepted'; exit 1; fi
+assert test ! -f "$HOME/.local/state/hyprsimple/migrations/1791551522.sh"
+assert cmp "$TMP/old-manager" "$HOME/.local/bin/hyprsimple-plugin"
+assert test -z "$(find "$HOME/.local/bin" -name 'hyprsimple-plugin.*')"
+cp "$REPO/.local/bin/hyprsimple-plugin" "$HYPRSIMPLE_PATH/.local/bin/"
+assert run_migration
+assert marker
+assert enabled
+echo 'ok - missing source preserves the installed manager and retries without a marker'
 
 fixture disabled
 export HYPRSIMPLE_PLUGIN_ROOT="$HOME/custom-plugins"

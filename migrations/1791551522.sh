@@ -7,6 +7,14 @@ plugin="${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}/muslimt
 config="$HOME/.config/hyprsimple/plugins.json"
 manager="$HOME/.local/bin/hyprsimple-plugin"
 
+# The first update can still be running an updater that only delivers scripts.
+mkdir -p "$(dirname "$manager")"
+staged=$(mktemp "$manager.XXXXXX")
+trap 'rm -f "$staged"' EXIT
+cp "${HYPRSIMPLE_PATH:?}/.local/bin/hyprsimple-plugin" "$staged"
+chmod +x "$staged"
+mv -f "$staged" "$manager"
+
 if [[ ! -e $pending ]] && ! command -v muslimtify >/dev/null 2>&1; then
   echo "Muslimtify is absent, skipping external integration"
   exit 0
