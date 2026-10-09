@@ -78,17 +78,17 @@ Files:
 
 - Modify `install.sh`, `aur-packages.txt`, `.local/bin/hyprsimple-muslimtify.sh`, `default/quickshell/shell.qml`, `default/quickshell/bar/Bar.qml`, `default/quickshell/theme/Theme.qml` and `default/hypr/bindings/system.lua`.
 - Remove extracted files under `default/quickshell/muslimtify/`, `default/quickshell/bar/PrayerButton.qml` and `default/quickshell/panels/PrayerPanel.qml`.
-- Create a migration with `.local/bin/hyprsimple-dev-add-migration.sh --no-edit`. Use its returned path without guessing a timestamp.
+- Create a migration with `.local/bin/hyprsimple-dev-add-migration.sh --no-edit`. The returned path is `migrations/1791551522.sh`.
 - Create `test/plugin-migration-test.sh`, `test/plugin-default-install-test.sh` and shared fixture helper `test/fixtures/plugin-environment.bash`.
-- Modify `.github/workflows/tests.yml`, `README.md`, `test/bar-test.sh`, `test/notify-bar-test.sh`, `test/aur-helper-test.sh`, `test/muslimtify-and-dns-test.sh`, `test/panel-keybinds-test.sh`, `test/plugin-loader-test.sh` and other suites discovered to depend on the removed paths.
+- Modify `.github/workflows/tests.yml`, `README.md`, `test/bar-test.sh`, `test/notify-bar-test.sh`, `test/aur-helper-test.sh`, `test/muslimtify-and-dns-test.sh`, `test/panel-keybinds-test.sh`, `test/plugin-loader-test.sh`, `test/readme-keybindings-test.sh` and other suites discovered to depend on the removed paths.
 
-- [ ] Remove core-owned Muslimtify QML and unconditional package/daemon setup. Invoke the external plugin manager after helper delivery and before starting the bar. Report installation failure with a retry command through the installer's failure reporting.
-- [ ] Keep existing add/remove aliases by changing their shipped helper to delegate to the manager. Remove package deletion from this compatibility helper.
-- [ ] Write the generated migration with an explanatory echo as its first line and no shebang. Detect installed Muslimtify before any privileged work. Skip absent installations and respect an already installed plugin's disabled state. Install and enable the external plugin for installations retaining the integration. Verify manifest registration, enablement and daemon success before returning 0.
-- [ ] Test the real migration runner with isolated homes and installed/absent cases, repeated runs, already disabled plugin, preserved settings, network failure, daemon failure and retry. Assert failed migrations receive no completion marker.
-- [ ] Test the default installer path against the local plugin origin with all package/service commands stubbed. Ensure migration markers on a fresh install do not replace direct plugin setup.
-- [ ] Update old assertions to test the new ownership boundary. Keep unrelated DNS and historical migration coverage intact. Run new suites, affected old suites and migration naming/hygiene checks.
-- [ ] Commit this task.
+- [x] Remove core-owned Muslimtify QML and unconditional package/daemon setup. Invoke the external plugin manager after helper delivery and before starting the bar. Report installation failure with a retry command through the installer's failure reporting.
+- [x] Keep existing add/remove aliases by changing their shipped helper to delegate to the manager. Remove package deletion from this compatibility helper.
+- [x] Write the generated migration with an explanatory echo as its first line and no shebang. Detect installed Muslimtify before any privileged work. Skip absent installations and respect an already installed plugin's disabled state. Install and enable the external plugin for installations retaining the integration. Verify manifest registration, enablement and daemon success before returning 0.
+- [x] Test the real migration runner with isolated homes and installed/absent cases, repeated runs, already disabled plugin, preserved settings, network failure, daemon failure and retry. Assert failed migrations receive no completion marker.
+- [x] Test the default installer path against the local plugin origin with all package/service commands stubbed. Ensure migration markers on a fresh install do not replace direct plugin setup.
+- [x] Update old assertions to test the new ownership boundary. Keep unrelated DNS and historical migration coverage intact. Run new suites, affected old suites and migration naming/hygiene checks.
+- [x] Commit this task.
 
 ## Task 5: Complete delivery verification → verify: required CI checks and isolated updater integration exit 0
 
