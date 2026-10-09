@@ -9,7 +9,7 @@ Architecture: A Bash manager validates manifests and manages Git checkouts, depe
 ## Global constraints
 
 - Follow AGENTS.md script prefixes, config ownership, migration creation and fixture isolation rules.
-- Plugin code resides under `~/.local/share/hyprsimple/plugins/<id>`, outside the core checkout. Enablement, placement and settings reside under `~/.config/hyprsimple/plugins.json`.
+- Plugin code resides under `~/.local/share/hyprsimple-plugins/<id>`, outside the core checkout. Enablement, placement and settings reside under `~/.config/hyprsimple/plugins.json`.
 - The installed executable is named `hyprsimple-plugin`. Extend install and update delivery narrowly to ship this extensionless command alongside the existing scripts.
 - Validate IDs, manifest types, API compatibility and relative entry paths. Reject path traversal and escaping symlinks before executing plugin code.
 - Never overwrite user Hyprland overrides. Keep user overrides after core plugin keybindings and configuration.
