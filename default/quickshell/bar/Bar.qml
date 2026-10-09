@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Pipewire
+import qs.plugins
 import qs.theme
 import qs.components
 import qs.panels
@@ -14,6 +15,7 @@ import qs.notifications
 PanelWindow {
     id: bar
 
+    required property var pluginRegistry
     required property var modelData
     // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
@@ -42,6 +44,7 @@ PanelWindow {
     required property Idle idle
 
     Row {
+        id: leftGroup
         anchors { left: parent.left; leftMargin: Theme.barInset; verticalCenter: parent.verticalCenter }
         spacing: Theme.sm
 
@@ -82,8 +85,29 @@ PanelWindow {
         onClicked: bar.toggle("calendar")
     }
 
+    // Slots sit beside the built-in groups, keeping their anchors intact.
+    PluginSlot {
+        registry: bar.pluginRegistry
+        bar: bar
+        placement: "left"
+        anchors { left: leftGroup.right; leftMargin: Theme.sm; verticalCenter: parent.verticalCenter }
+    }
+    PluginSlot {
+        registry: bar.pluginRegistry
+        bar: bar
+        placement: "center"
+        anchors { left: clock.right; leftMargin: Theme.sm; verticalCenter: parent.verticalCenter }
+    }
+    PluginSlot {
+        registry: bar.pluginRegistry
+        bar: bar
+        placement: "right"
+        anchors { right: rightGroup.left; rightMargin: Theme.sm; verticalCenter: parent.verticalCenter }
+    }
+
     // Status items, grouped: audio, connectivity, power.
     Row {
+        id: rightGroup
         anchors { right: parent.right; rightMargin: Theme.barInset; verticalCenter: parent.verticalCenter }
         spacing: Theme.sm
 

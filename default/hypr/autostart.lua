@@ -12,7 +12,9 @@ local vars = require("default.hypr.vars")
 -- hyprsimple drop-in raising Restart to always. install.sh enables it.
 
 hl.on("hyprland.start", function()
-  hl.exec_cmd("uwsm app -- qs -p " .. vars.bar)
+  local function quote(value) return "'" .. value:gsub("'", "'\\''") .. "'" end
+  local imports = vars.bar .. (os.getenv("QML_IMPORT_PATH") and (":" .. os.getenv("QML_IMPORT_PATH")) or "")
+  hl.exec_cmd("env " .. quote("QML_IMPORT_PATH=" .. imports) .. " uwsm app -- qs -p " .. quote(vars.bar))
   hl.exec_cmd("uwsm app -- wl-paste --type text --watch cliphist store")
   hl.exec_cmd("uwsm app -- wl-paste --type image --watch cliphist store")
   hl.exec_cmd("uwsm app -- hypridle")

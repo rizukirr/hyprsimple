@@ -6,6 +6,16 @@ on:
     branches: [main]
 
 jobs:
+  plugin-loader:
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    steps:
+      - name: Install offscreen runtime in the disposable container
+        run: pacman -Syu --noconfirm quickshell jq
+      - uses: actions/checkout@v4
+      - name: plugin-loader-test
+        run: bash test/plugin-loader-test.sh
+
   suites:
     runs-on: ubuntu-latest
     steps:
@@ -56,6 +66,9 @@ jobs:
           # markers, but because a future one runs unattended exactly once on
           # every machine and cannot be re-run.
           shellcheck --severity=style --exclude=SC2016 --shell=bash migrations/*.sh
+
+      - name: plugin-bindings-test
+        run: bash test/plugin-bindings-test.sh
 
       - name: plugin-manager-test
         run: bash test/plugin-manager-test.sh
