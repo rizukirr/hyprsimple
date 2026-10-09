@@ -50,13 +50,13 @@ Files:
 - Create `default/quickshell/plugins/Registry.qml`, `default/quickshell/plugins/PluginSlot.qml`, `default/quickshell/plugins/PluginContext.qml`, `default/quickshell/plugins/Manifest.js`, `default/quickshell/Hyprsimple/qmldir`, `default/hypr/plugins.lua`, `test/plugin-loader-test.sh` and `test/plugin-bindings-test.sh`.
 - Modify `default/quickshell/shell.qml`, `default/quickshell/bar/Bar.qml`, `default/hypr/hyprsimple.lua`, `.local/bin/hyprsimple-restart-bar.sh`, `default/hypr/autostart.lua`, `.github/workflows/tests.yml` and `PLUGINS.md`.
 
-- [ ] Register the shared QML module on the same import path at login, restart and test invocation. Export the existing Theme, StatusButton, Capsule, PopupPanel and generic components through that module. Keep relative dependencies working and prove an external component can import the module.
-- [ ] Implement runtime manifest checks and load each enabled service once at shell scope. Create widget and panel contexts per screen. Load external QML dynamically and identify load failures by plugin ID without failing the core shell.
-- [ ] Add left, center and right slots without moving existing built-in widget groups. Use namespaced panel IDs and connect plugin panel operations to the existing cross-monitor owner behavior. Resolve declared panel aliases for existing IPC callers.
-- [ ] Read declarative binding JSON in the Lua defaults before user overrides, using the available jq command rather than introducing a JSON dependency. Escape paths and arguments without evaluating plugin values. Ignore malformed entries with a diagnostic.
-- [ ] Exercise external import resolution and load failure containment through an isolated offscreen Quickshell harness. Verify service sharing, multiple screen contexts, settings, theme changes and panel operations. Record any compositor-dependent coverage limitation.
-- [ ] Run `bash test/plugin-loader-test.sh`, `bash test/plugin-bindings-test.sh`, `lua test/config-split-test.lua` and affected bar/config suites.
-- [ ] Commit this task.
+- [x] Register the shared QML module on the same import path at login, restart and test invocation. Export the existing Theme, StatusButton, Capsule, PopupPanel and generic components through that module. Keep relative dependencies working and prove an external component can import the module.
+- [x] Implement runtime manifest checks and load each enabled service once at shell scope. Create widget and panel contexts per screen. Load external QML dynamically and identify load failures by plugin ID without failing the core shell.
+- [x] Add left, center and right slots without moving existing built-in widget groups. Use namespaced panel IDs and connect plugin panel operations to the existing cross-monitor owner behavior. Resolve declared panel aliases for existing IPC callers.
+- [x] Read declarative binding JSON in the Lua defaults before user overrides, using the available jq command rather than introducing a JSON dependency. Escape paths and arguments without evaluating plugin values. Ignore malformed entries with a diagnostic.
+- [x] Exercise external import resolution and load failure containment through an isolated offscreen Quickshell harness. Verify service sharing, multiple screen contexts, settings, theme changes and panel operations. Record any compositor-dependent coverage limitation.
+- [x] Run `bash test/plugin-loader-test.sh`, `bash test/plugin-bindings-test.sh`, `lua test/config-split-test.lua` and affected bar/config suites.
+- [x] Commit this task.
 
 ## Task 3: External Muslimtify repository → verify: plugin checks and local installation fixture exit 0
 
