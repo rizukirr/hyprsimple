@@ -3,12 +3,12 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
-cleanup() {
+cleanup() (
+  trap 'rm -rf "$TMP"' EXIT
   if [[ -f $TMP/restart-child ]]; then
     kill "$(cat "$TMP/restart-child")" 2>/dev/null || true
   fi
-  rm -rf "$TMP"
-}
+)
 trap cleanup EXIT
 export HOME="$TMP/home" HYPRSIMPLE_PLUGIN_ROOT="$TMP/plugins"
 export HYPRSIMPLE_PATH="$REPO" LOG="$TMP/log" PACKAGE_DB="$TMP/packages"
