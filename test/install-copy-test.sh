@@ -197,7 +197,7 @@ for delivery in install.sh bootstrap.sh .local/bin/hyprsimple-update.sh; do
     mkdir -p "$DOTFILES_DIR/.local/bin" "$HOME/.local/bin"
     printf 'manager\n' >"$DOTFILES_DIR/.local/bin/hyprsimple-plugin"
     printf 'unrelated\n' >"$DOTFILES_DIR/.local/bin/unrelated"
-    # shellcheck disable=SC2329 # Called by the extracted installer loop.
+    # shellcheck disable=SC2317,SC2329 # Called by the extracted installer loop.
     backup_if_exists() { :; }
     block=$(sed -n '/^for script in /,/^done$/p' "$REPO/$delivery")
     [[ -n $block ]] || exit 1
