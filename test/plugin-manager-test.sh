@@ -3,7 +3,13 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+cleanup() {
+  if [[ -f $TMP/restart-child ]]; then
+    kill "$(cat "$TMP/restart-child")" 2>/dev/null || true
+  fi
+  rm -rf "$TMP"
+}
+trap cleanup EXIT
 export HOME="$TMP/home" HYPRSIMPLE_PLUGIN_ROOT="$TMP/plugins"
 export HYPRSIMPLE_PATH="$REPO" LOG="$TMP/log" PACKAGE_DB="$TMP/packages"
 mkdir -p "$HOME/.local/bin" "$TMP/bin" "$PACKAGE_DB"
@@ -36,6 +42,10 @@ STUB
 cat >"$HOME/.local/bin/hyprsimple-restart-bar.sh" <<'STUB'
 #!/bin/bash
 printf 'bar %s\n' "$*" >>"$LOG"
+if [[ -n ${RESTART_CHILD_FILE:-} ]]; then
+  sleep 300 </dev/null >/dev/null 2>&1 &
+  printf '%s\n' "$!" >"$RESTART_CHILD_FILE"
+fi
 STUB
 cat >"$TMP/bin/git" <<'STUB'
 #!/bin/bash
@@ -88,6 +98,16 @@ commit "$TMP/lock"
 run install --local "$TMP/lock"
 run remove lock
 pass 'lifecycle does not inherit manager lock'
+fixture "$TMP/refresh-lock" refresh-lock
+RESTART_CHILD_FILE="$TMP/restart-child" "$MANAGER" install --local "$TMP/refresh-lock" >"$TMP/output" 2>&1
+restart_child=$(cat "$TMP/restart-child")
+kill -0 "$restart_child"
+timeout 2 "$MANAGER" validate >"$TMP/output" 2>&1 || { cat "$TMP/output" >&2; exit 1; }
+kill -0 "$restart_child"
+kill "$restart_child"
+rm "$TMP/restart-child"
+run remove refresh-lock
+pass 'persistent restart child does not retain manager lock'
 fixture "$TMP/source" example
 run validate "$TMP/source"
 run install --local "$TMP/source"

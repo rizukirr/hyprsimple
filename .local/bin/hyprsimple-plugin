@@ -144,7 +144,7 @@ bindings() {
   TEMP=''
 }
 refresh() {
-  "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running || fail 'operation completed, but bar refresh failed'
+  "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running 9>&- || fail 'operation completed, but bar refresh failed'
   if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
     hyprctl reload >/dev/null || fail 'operation completed, but Hyprland reload failed'
   fi
