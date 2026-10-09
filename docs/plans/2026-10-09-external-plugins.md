@@ -26,7 +26,7 @@ Config uses `schemaVersion` and a `plugins` object keyed by plugin ID. Each entr
 
 The QML context supplies `pluginId`, `settings`, `theme`, `service`, `screen`, `panelOpen`, `togglePanel()` and `closePanel()`. Widget and panel entry points declare a required `context` property. The service receives a context without per-monitor objects. Shared components use a named `Hyprsimple` QML module on an explicitly configured import path. Test that path from a plugin outside the shell directory before relying on it.
 
-## Task 1: Plugin manager and delivery, verify: manager fixture suite exits 0
+## Task 1: Plugin manager and delivery → verify: manager fixture suite exits 0
 
 Files:
 
@@ -43,7 +43,7 @@ Files:
 - [ ] Run `bash test/plugin-manager-test.sh` and relevant install/update/bootstrap suites. Run shellcheck on the manager and changed shell files with the CI severity and exclusions.
 - [ ] Commit this task.
 
-## Task 2: Shell and Hyprland extension points, verify: loader and binding fixture suites exit 0
+## Task 2: Shell and Hyprland extension points → verify: loader and binding fixture suites exit 0
 
 Files:
 
@@ -58,7 +58,7 @@ Files:
 - [ ] Run `bash test/plugin-loader-test.sh`, `bash test/plugin-bindings-test.sh`, `lua test/config-split-test.lua` and affected bar/config suites.
 - [ ] Commit this task.
 
-## Task 3: External Muslimtify repository, verify: plugin checks and local installation fixture exit 0
+## Task 3: External Muslimtify repository → verify: plugin checks and local installation fixture exit 0
 
 Repository: `/tmp/muslimtify-hyprsimple`, remote `https://github.com/muslimtify-org/muslimtify-hyprsimple.git`.
 
@@ -72,7 +72,7 @@ Create `manifest.json`, `Widget.qml`, `Panel.qml`, `Service.qml`, `lib/Model.js`
 - [ ] Run the core image optimizer in check mode on the extracted asset, using its actual supported CLI discovered during execution.
 - [ ] Commit and push the plugin contents to the user-supplied repository. Verify the published commit and manifest before core migration or installer depends on them.
 
-## Task 4: Default installation and migration, verify: migration and fresh-install fixture suites exit 0
+## Task 4: Default installation and migration → verify: migration and fresh-install fixture suites exit 0
 
 Files:
 
@@ -90,7 +90,7 @@ Files:
 - [ ] Update old assertions to test the new ownership boundary. Keep unrelated DNS and historical migration coverage intact. Run new suites, affected old suites and migration naming/hygiene checks.
 - [ ] Commit this task.
 
-## Task 5: Complete delivery verification, verify: required CI checks and isolated updater integration exit 0
+## Task 5: Complete delivery verification → verify: required CI checks and isolated updater integration exit 0
 
 Files:
 
