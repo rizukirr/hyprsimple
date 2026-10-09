@@ -152,7 +152,7 @@ echo -e "${GREEN}Done${NC}"
 echo -e "\n${YELLOW}Refreshing helper scripts in ~/.local/bin...${NC}"
 mkdir -p "$HOME/.local/bin"
 
-for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*.fish; do
+for script in "$HYPRSIMPLE_PATH/.local/bin"/*.sh "$HYPRSIMPLE_PATH/.local/bin"/*.fish "$HYPRSIMPLE_PATH/.local/bin/hyprsimple-plugin"; do
   [[ -f $script ]] || continue
   target="$HOME/.local/bin/$(basename "$script")"
   if ! cmp -s "$script" "$target"; then

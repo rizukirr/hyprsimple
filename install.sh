@@ -973,7 +973,7 @@ echo ""
 echo -e "${YELLOW}Installing scripts to ~/.local/bin...${NC}"
 mkdir -p "$HOME/.local/bin"
 
-for script in "$DOTFILES_DIR/.local/bin"/*.sh "$DOTFILES_DIR/.local/bin"/*.fish; do
+for script in "$DOTFILES_DIR/.local/bin"/*.sh "$DOTFILES_DIR/.local/bin"/*.fish "$DOTFILES_DIR/.local/bin/hyprsimple-plugin"; do
   if [ -f "$script" ]; then
     target="$HOME/.local/bin/$(basename "$script")"
     backup_if_exists "$target" "$script"

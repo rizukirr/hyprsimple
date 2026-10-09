@@ -19,7 +19,7 @@ jobs:
           # files. shellcheck cannot read either dialect, which is how both
           # went unchecked: zsh.sh is excluded from the lint step by name, and
           # fish.fish never matched its *.sh glob at all.
-          sudo apt-get install -y lua5.4 imagemagick shellcheck fish zsh gawk
+          sudo apt-get install -y lua5.4 imagemagick jq shellcheck fish zsh gawk
           # The suites invoke `lua`. Ubuntu installs `lua5.4`, so make the
           # plain name exist rather than relying on the package to register it.
           sudo ln -sf /usr/bin/lua5.4 /usr/bin/lua
@@ -49,13 +49,16 @@ jobs:
           # step would have caught.
           shellcheck --version | grep version:
           shellcheck --severity=style --exclude=SC2016 \
-            install.sh bootstrap.sh "${bins[@]}" test/*.sh
+            install.sh bootstrap.sh .local/bin/hyprsimple-plugin "${bins[@]}" test/*.sh
           # Migrations deliberately carry no shebang, so the shell is stated
           # here. They are held to the same threshold, not because the shipped
           # ones will ever run again, since install.sh pre-creates their
           # markers, but because a future one runs unattended exactly once on
           # every machine and cannot be re-run.
           shellcheck --severity=style --exclude=SC2016 --shell=bash migrations/*.sh
+
+      - name: plugin-manager-test
+        run: bash test/plugin-manager-test.sh
 
       - name: install-copy-test
         run: bash test/install-copy-test.sh
