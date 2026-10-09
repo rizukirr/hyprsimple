@@ -178,7 +178,7 @@ SUDO_KEEPALIVE_PID=$!
 #
 # The ladder this used to hold read yay first and then built yay when it found
 # neither, so a paru machine was moved onto yay by installing hyprsimple. The
-# detection is shared with hyprsimple-update.sh and hyprsimple-muslimtify.sh
+# detection is shared with hyprsimple-update.sh and hyprsimple-plugin
 # now, because all three had their own copy of it and all three were wrong the
 # same way.
 AUR_DETECT="$DOTFILES_DIR/.local/bin/hyprsimple-aur-helper.sh"
@@ -1102,6 +1102,13 @@ mkdir -p ~/Pictures
 echo -e "${YELLOW}Configuring shell integration...${NC}"
 bash "$HOME/.local/bin/terminal.sh" || true
 
+# Install the default external integration before starting the bar.
+FAILED_PLUGINS=()
+if ! bash "$HOME/.local/bin/hyprsimple-muslimtify.sh" add; then
+  echo "Default Muslimtify plugin installation failed. Retry: muslimtify-add" >&2
+  FAILED_PLUGINS+=("Muslimtify: retry muslimtify-add (daemon recovery: muslimtify daemon install)")
+fi
+
 hyprctl reload || true
 bash "$HOME/.local/bin/hyprsimple-restart-bar.sh"
 echo -e "${YELLOW}Starting the bar...${NC}"
@@ -1113,8 +1120,6 @@ pactl set-source-volume @DEFAULT_SOURCE@ 65%
 
 systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
-muslimtify daemon install || true
-muslimtify daemon status || true
 # thermald is Intel-only and pointless on AMD or on a desktop, so gate it.
 # Skipped where intel_lpmd already runs, which is the daemon CachyOS's chwd
 # enables for the same job. Two thermal policies pulling at one CPU is worse
@@ -1132,12 +1137,13 @@ else
 fi
 
 echo ""
-if (( ${#FAILED_PACKAGES[@]} > 0 )); then
+if (( ${#FAILED_PACKAGES[@]} + ${#FAILED_PLUGINS[@]} > 0 )); then
   echo -e "${RED}======================================"
-  echo "  Installed, but ${#FAILED_PACKAGES[@]} package(s) failed"
+  echo "  Installed, but ${#FAILED_PACKAGES[@]} package(s) and ${#FAILED_PLUGINS[@]} plugin(s) failed"
   echo -e "======================================${NC}"
   echo ""
-  printf '  %s\n' "${FAILED_PACKAGES[@]}"
+  (( ${#FAILED_PACKAGES[@]} == 0 )) || printf '  %s\n' "${FAILED_PACKAGES[@]}"
+  (( ${#FAILED_PLUGINS[@]} == 0 )) || printf '  %s\n' "${FAILED_PLUGINS[@]}"
   echo ""
   echo "Features depending on these will not work. Try installing them by hand,"
   echo "then re-run ./install.sh. To report it:"

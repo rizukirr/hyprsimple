@@ -347,7 +347,7 @@ check "no script looks for a helper on its own" "$offenders_str" ""
 
 users=0
 for script in "$REPO/install.sh" "$REPO/.local/bin/hyprsimple-update.sh" \
-  "$REPO/.local/bin/hyprsimple-muslimtify.sh"; do
+  "$REPO/.local/bin/hyprsimple-plugin"; do
   grep -q 'hyprsimple-aur-helper.sh' "$script" && users=$((users + 1))
 done
 check "and all three callers use the shared one" "$users" "3"
@@ -359,9 +359,9 @@ check "install.sh delivers .local/bin by glob, so the helper goes with it" \
 check "and hyprsimple-update.sh refreshes it the same way" \
   "$(grep -c '\.local/bin"/\*\.sh' "$REPO/.local/bin/hyprsimple-update.sh")" "1"
 
-# muslimtify stops rather than carrying on with pick_aur_helper undefined.
-check "muslimtify stops when the shared detection is missing" \
-  "$(grep -c 'missing helper: hyprsimple-aur-helper.sh' "$REPO/.local/bin/hyprsimple-muslimtify.sh")" "1"
+# The compatibility helper delegates dependency handling to the manager.
+check "muslimtify delegates dependency management" \
+  "$(grep -c '"$manager" install' "$REPO/.local/bin/hyprsimple-muslimtify.sh")" "1"
 
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2

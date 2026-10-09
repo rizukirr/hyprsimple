@@ -7,7 +7,7 @@ trap 'rm -rf "${TMP:?}"' EXIT
 command -v qs >/dev/null || { echo 'SKIP: Quickshell is required for the offscreen loader harness'; exit 77; }
 mkdir -p "$TMP/home/.config/hyprsimple" "$TMP/runtime" "$TMP/plugins" "$TMP/shell"
 chmod 700 "$TMP/runtime"
-for dir in plugins theme bar components panels system launcher muslimtify notifications; do ln -s "$REPO/default/quickshell/$dir" "$TMP/shell/$dir"; done
+for dir in plugins theme bar components panels system launcher notifications; do ln -s "$REPO/default/quickshell/$dir" "$TMP/shell/$dir"; done
 cat >"$TMP/plugins/placeholder" <<'DATA'
 invalid directory
 DATA

@@ -59,13 +59,29 @@ jobs:
           # step would have caught.
           shellcheck --version | grep version:
           shellcheck --severity=style --exclude=SC2016 \
-            install.sh bootstrap.sh .local/bin/hyprsimple-plugin "${bins[@]}" test/*.sh
+            install.sh bootstrap.sh .local/bin/hyprsimple-plugin "${bins[@]}" test/*.sh test/fixtures/*.bash
           # Migrations deliberately carry no shebang, so the shell is stated
           # here. They are held to the same threshold, not because the shipped
           # ones will ever run again, since install.sh pre-creates their
           # markers, but because a future one runs unattended exactly once on
           # every machine and cannot be re-run.
           shellcheck --severity=style --exclude=SC2016 --shell=bash migrations/*.sh
+
+      - name: Fetch the pinned published plugin fixture
+        run: |
+          git init "$RUNNER_TEMP/muslimtify-plugin"
+          git -C "$RUNNER_TEMP/muslimtify-plugin" fetch --depth=1 https://github.com/muslimtify-org/muslimtify-hyprsimple.git 0a8fa79a7696662c7d2a2e4c68979cb50eda628b
+          git -C "$RUNNER_TEMP/muslimtify-plugin" checkout --detach FETCH_HEAD
+
+      - name: plugin-migration-test
+        env:
+          MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
+        run: bash test/plugin-migration-test.sh
+
+      - name: plugin-default-install-test
+        env:
+          MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
+        run: bash test/plugin-default-install-test.sh
 
       - name: plugin-bindings-test
         run: bash test/plugin-bindings-test.sh

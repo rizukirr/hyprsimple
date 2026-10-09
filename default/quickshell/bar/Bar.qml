@@ -7,7 +7,6 @@ import qs.plugins
 import qs.theme
 import qs.components
 import qs.panels
-import qs.muslimtify.services
 import qs.system
 import qs.notifications
 
@@ -17,7 +16,7 @@ PanelWindow {
 
     required property var pluginRegistry
     required property var modelData
-    // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "prayer", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
+    // Open panel: "", "notifications", "launcher", "clipboard", "themes", "wallpapers", "record", "keybinds", "calendar", "system", "mic", "volume", "network", "bluetooth" or "power".
     property string openPanel: ""
     // The bar with a panel open, on any monitor, or null. Opening one here closes it there.
     required property var panelOwner
@@ -39,7 +38,6 @@ PanelWindow {
     Behavior on color { CAnim {} }
 
     // One of each for every bar, made in shell.qml.
-    required property Muslimtify muslimtify
     required property Stats stats
     required property Idle idle
 
@@ -65,17 +63,7 @@ PanelWindow {
             }
         }
 
-        // Hidden until muslimtify reports a next prayer.
-        Capsule {
-            visible: !!muslimtify.next
 
-            PrayerButton {
-                id: prayerButton
-                service: muslimtify
-                active: bar.openPanel === "prayer"
-                onClicked: bar.toggle("prayer")
-            }
-        }
     }
 
     Clock {
@@ -258,13 +246,6 @@ PanelWindow {
         name: "keybinds"
         anchorItem: clock
         listCommand: [Quickshell.env("HOME") + "/.local/bin/show-keybindings.sh", "--list"]
-    }
-
-    PrayerPanel {
-        bar: bar
-        name: "prayer"
-        anchorItem: prayerButton
-        service: muslimtify
     }
 
     CalendarPanel {

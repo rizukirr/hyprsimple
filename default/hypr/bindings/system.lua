@@ -19,6 +19,5 @@ hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(vars.barPanel .. "network"),       
 hl.bind("SUPER + SHIFT + B", hl.dsp.exec_cmd(vars.barPanel .. "bluetooth"),                     { description = "Bluetooth (panel)" })
 hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(vars.barPanel .. "notifications"),                 { description = "Notifications (panel)" })
 hl.bind("SUPER + C",         hl.dsp.exec_cmd(vars.barPanel .. "calendar"),                      { description = "Calendar (panel)" })
-hl.bind("SUPER + P",         hl.dsp.exec_cmd(vars.barPanel .. "prayer"),                        { description = "Prayer Times (panel)" })
 hl.bind("SUPER + I",         hl.dsp.exec_cmd(vars.barPanel .. "system"),                        { description = "System (panel)" })
 hl.bind("SUPER + slash",    hl.dsp.exec_cmd(home .. "/.local/bin/show-keybindings.sh"),        { description = "Show Keybindings" })

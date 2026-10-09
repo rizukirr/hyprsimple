@@ -146,11 +146,6 @@ Singleton {
     readonly property int clipboardImageHeight: 56
     readonly property int panelWidthWide: 440
     readonly property int dropdownMaxHeight: 200
-    readonly property int settingsMaxHeight: 520
-    readonly property int logoSize: 32
-    readonly property int prayerNameWidth: 90
-    // The prayer item turns accent when this many minutes or fewer are left.
-    readonly property int prayerSoonMinutes: 15
     readonly property int listMaxHeight: 320
 
     // Volume change per scroll notch, as a fraction.

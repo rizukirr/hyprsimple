@@ -70,6 +70,10 @@ check "every panel of the bar can be opened from the keyboard" "$missing" ""
 unknown=$(comm -13 <(printf '%s\n' "$panels") <(printf '%s\n' "$reachable") | tr '\n' ' ')
 check "and every name a key asks for is a panel the bar has" "$unknown" ""
 
+check "prayer panel is supplied externally" "$(grep -cx prayer <<<"$panels")" "0"
+check "external panel aliases are resolved by the registry" \
+  "$(grep -c 'bar.toggle(externalPlugins.resolvePanel(panel))' "$REPO/default/quickshell/shell.qml")" "1"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

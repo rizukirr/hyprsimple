@@ -4,7 +4,6 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import qs.plugins
 import qs.bar
-import qs.muslimtify.services
 import qs.system
 import qs.theme
 import qs.notifications
@@ -48,11 +47,6 @@ ShellRoot {
         }
     }
 
-    // Read once and shown by every bar.
-    Muslimtify {
-        id: prayers
-    }
-
     Stats {
         id: systemStats
     }
@@ -78,7 +72,6 @@ ShellRoot {
             pluginRegistry: externalPlugins
             visible: !root.barsHidden
             recording: root.recording
-            muslimtify: prayers
             stats: systemStats
             idle: idleWatch
             panelOwner: root.panelOwner

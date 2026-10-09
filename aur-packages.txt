@@ -2,7 +2,6 @@
 yaru-icon-theme
 wl-mirror
 wl-screenrec-git
-muslimtify
 imagemagick
 hyprshutdown
 hyprqt6engine

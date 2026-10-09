@@ -23,28 +23,10 @@ STUB="$TMP/bin"; mkdir -p "$STUB"
 # whoever is running the tests.
 printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"; chmod +x "$STUB/qs"
 
-# installed_pkgs is lifted rather than the script run, because running it
-# invokes an AUR helper and restarts the bar.
-sed -n '/^installed_pkgs()/,/^}/p' "$BIN/hyprsimple-muslimtify.sh" >"$TMP/pkgs.sh"
-check "installed_pkgs was lifted out" "$(grep -c '^installed_pkgs()' "$TMP/pkgs.sh")" "1"
-# shellcheck disable=SC1091
-. "$TMP/pkgs.sh"
-
-printf '#!/bin/bash\nexit 1\n' >"$STUB/pacman"; chmod +x "$STUB/pacman"
-mapfile -t pkgs < <(PATH="$STUB:$PATH" installed_pkgs)
-check "nothing installed yields an empty package list" "${#pkgs[@]}" "0"
-
-printf '#!/bin/bash\n[[ $2 == muslimtify ]] && exit 0\nexit 1\n' >"$STUB/pacman"; chmod +x "$STUB/pacman"
-mapfile -t pkgs < <(PATH="$STUB:$PATH" installed_pkgs)
-check "one installed package yields one entry" "${#pkgs[@]}" "1"
-check "and it is the right one" "${pkgs[0]}" "muslimtify"
-
-# The consequence, stated as the caller sees it. An empty list must not take
-# the uninstall branch, or remove dies before restarting the bar.
-printf '#!/bin/bash\nexit 1\n' >"$STUB/pacman"; chmod +x "$STUB/pacman"
-mapfile -t pkgs < <(PATH="$STUB:$PATH" installed_pkgs)
-if (( ${#pkgs[@]} > 0 )); then branch=uninstall; else branch=skip; fi
-check "with nothing installed, remove skips the uninstall branch" "$branch" "skip"
+check "compatibility removal delegates to the manager" \
+  "$(grep -c '\"$manager\" remove muslimtify' "$BIN/hyprsimple-muslimtify.sh")" "1"
+check "compatibility helper never removes packages" \
+  "$(grep -cE 'pacman|pick_aur_helper|installed_pkgs' "$BIN/hyprsimple-muslimtify.sh")" "0"
 
 # setup-dns.sh announced success whatever systemctl did, on a machine whose
 # DNS was then broken.
@@ -79,17 +61,8 @@ check "a failed cd is reported" "$?" "1"
 after=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'yazi-cwd.*' 2>/dev/null | wc -l)
 check "a failed cd still cleans up its temp file" "$after" "$before"
 
-# --- the bar is restarted, and nothing edits a bar config ------------------
-#
-# The script used to patch a module into waybar's config and stylesheet. The
-# bar now shows prayer times on its own, so add and remove only have to restart
-# it, because it looks for muslimtify once at startup.
 code="$(sed 's/#.*//' "$BIN/hyprsimple-muslimtify.sh")"
-check "add and remove both restart the bar" \
-  "$(grep -c '^  reload_bar$' <<<"$code")" "2"
-check "through the shared restart script" \
-  "$(grep -c 'hyprsimple-restart-bar.sh" --if-running' <<<"$code")" "1"
-check "and no bar config is edited" \
+check "no bar config is edited" \
   "$(grep -ciE 'waybar|sed -i' <<<"$code")" "0"
 
 if (( failures > 0 )); then

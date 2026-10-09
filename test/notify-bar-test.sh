@@ -132,16 +132,16 @@ RECMIGRATION="$REPO/migrations/1788860000.sh"
 line_of() { grep -n -m1 -- "$1" "$BAR" | cut -d: -f1; }
 rec_line=$(line_of 'visible: bar.recording')
 workspaces_line=$(line_of '^        Workspaces {')
-prayer_line=$(line_of 'PrayerButton {')
+plugin_line=$(line_of '^    PluginSlot {')
 
 check "the bar has a recording indicator, shown only while recording" \
   "$(grep -c 'visible: bar.recording' "$BAR")" "1"
 check "all three positions were read, so the order checks are not empty" \
-  "$([[ -n $rec_line && -n $workspaces_line && -n $prayer_line ]] && echo read || echo missing)" "read"
+  "$([[ -n $rec_line && -n $workspaces_line && -n $plugin_line ]] && echo read || echo missing)" "read"
 check "it comes after the workspaces" \
   "$(( rec_line > workspaces_line ))" "1"
-check "and before the prayer times" \
-  "$(( rec_line < prayer_line ))" "1"
+check "and before the external plugin slots" \
+  "$(( rec_line < plugin_line ))" "1"
 check "it says what it is rather than showing a bare glyph" \
   "$(grep -c 'label: "REC"' "$BAR")" "1"
 check "and clicking it stops the recording" \

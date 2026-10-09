@@ -3,7 +3,7 @@
 **Minimal** Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 > [!Note]
-> This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package and daemon). Run `muslimtify-add` to re-enable it later. Both commands are idempotent. The bar shows prayer times whenever muslimtify is installed.
+> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). Run `muslimtify-remove` to remove its integration and daemon while retaining the package and settings. Run `muslimtify-add` to install or enable it again.
 
 > [!Warning]
 > Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
@@ -272,7 +272,6 @@ build fails during install.
 | `SUPER + SHIFT + B` | Open the bluetooth panel |
 | `SUPER + SHIFT + D` | Open the notifications panel |
 | `SUPER + C` | Open the calendar panel |
-| `SUPER + P` | Open the prayer times panel |
 | `SUPER + I` | Open the system panel |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
@@ -360,11 +359,24 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
+| `hyprsimple-plugin` | Install, validate, enable, disable, update, list or remove trusted external plugins |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
+
+### External plugins
+
+See [the plugin author guide](PLUGINS.md) for the manifest and QML contract.
+
+Run `hyprsimple-plugin install OWNER/REPO` to install a trusted plugin. Use `hyprsimple-plugin list`, `disable ID`, `enable ID`, `update ID` or `remove ID` to manage it. Plugins run code from their repository, so review it before installing.
+
+Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Core updates leave user Hyprland overrides in place and load them after generated plugin bindings. The default Muslimtify plugin supplies `SUPER + P` and the `prayer` panel alias.
+
+If default installation fails, run `muslimtify-add` to retry. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
+
+The delivery suites require a checkout of the published plugin at `0a8fa79a7696662c7d2a2e4c68979cb50eda628b`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
 
 ### Integrations
 
