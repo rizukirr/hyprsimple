@@ -359,7 +359,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
-| `hyprsimple-plugin` | Install, validate, enable, disable, update, list or remove trusted external plugins |
+| `hyprsimple-plugin` | Install, enable, disable, update, list or remove trusted external plugins |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
@@ -372,11 +372,15 @@ See [the plugin author guide](PLUGINS.md) for the manifest and QML contract.
 
 Run `hyprsimple-plugin install OWNER/REPO` to install a trusted plugin. Use `hyprsimple-plugin list`, `disable ID`, `enable ID`, `update ID` or `remove ID` to manage it. Plugins run code from their repository, so review it before installing.
 
-Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Core updates leave user Hyprland overrides in place and load them after generated plugin bindings. The default Muslimtify plugin supplies `SUPER + P` and the `prayer` panel alias.
+Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Plugins bind no keys. Each one names a panel alias, and you bind a key to it in `~/.config/hypr/bindings/applications.lua`. The default Muslimtify plugin's alias is `prayer`:
+
+```lua
+hl.bind("SUPER + P", hl.dsp.exec_cmd(vars.barPanel .. "prayer"), { description = "Prayer Times (panel)" })
+```
 
 If the plugin is installed but disabled, run `hyprsimple-plugin enable muslimtify`. If download failed, retry `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git`. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
 
-The delivery suites require a checkout of the published plugin at `0a8fa79a7696662c7d2a2e4c68979cb50eda628b`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
+The delivery suites require a checkout of the published plugin at `2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
 
 ### Integrations
 

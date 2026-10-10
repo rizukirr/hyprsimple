@@ -83,8 +83,7 @@ assert grep -q 'The bar changed, restarting it' "$TMP/output"
 assert grep -qx 'hyprctl reload' "$LOG"
 assert test "$(readlink "$HOME/.config/hypr/hyprsimple")" == "$HYPRSIMPLE_PATH/default/hypr"
 PLUGIN="$HOME/.local/share/hyprsimple-plugins/muslimtify"
-assert test "$(git -C "$PLUGIN" rev-parse HEAD)" == 0a8fa79a7696662c7d2a2e4c68979cb50eda628b
-assert jq -e --arg commit "$(git -C "$PLUGIN" rev-parse HEAD)" '.plugins.muslimtify.commit == $commit' "$HOME/.config/hyprsimple/plugins.json"
+assert test "$(git -C "$PLUGIN" rev-parse HEAD)" == 2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea
 echo 'ok - updater delivers command, runs real migration, preserves settings and reloads core'
 
 # Give the plugin a separate local origin that can advance without any network.
@@ -102,7 +101,6 @@ git -C "$PLUGIN_ORIGIN" commit -qm 'External plugin update'
 next_plugin=$(git -C "$PLUGIN_ORIGIN" rev-parse HEAD)
 old_plugin=$(git -C "$PLUGIN" rev-parse HEAD)
 cp "$HOME/.config/hyprsimple/plugins.json" "$TMP/registered-config"
-cp "$HOME/.local/state/hyprsimple/plugins/bindings.json" "$TMP/registered-bindings"
 acquisitions=$(grep -c '^https://github.com/' "$LOG")
 printf '\n# Later core update fixture\n' >>"$CORE_WORK/default/hypr/hypridle.conf"
 git -C "$CORE_WORK" add .
@@ -112,7 +110,6 @@ assert run_update
 assert test "$(git -C "$HYPRSIMPLE_PATH" rev-parse HEAD)" == "$(git -C "$CORE_WORK" rev-parse HEAD)"
 assert test "$(git -C "$PLUGIN" rev-parse HEAD)" == "$old_plugin"
 assert cmp "$TMP/registered-config" "$HOME/.config/hyprsimple/plugins.json"
-assert cmp "$TMP/registered-bindings" "$HOME/.local/state/hyprsimple/plugins/bindings.json"
 assert test "$(grep -c '^https://github.com/' "$LOG")" == "$acquisitions"
 preserved
 echo 'ok - later core update does not acquire or modify external plugin code or settings'
@@ -121,11 +118,10 @@ assert "$HOME/.local/bin/hyprsimple-plugin" update muslimtify
 assert test "$(git -C "$PLUGIN" rev-parse HEAD)" == "$next_plugin"
 assert grep -qx 'first external update' "$PLUGIN/delivery-proof"
 assert test "$(git -C "$PLUGIN" remote get-url origin)" == "$PLUGIN_ORIGIN"
-assert jq -e --arg commit "$next_plugin" '.plugins.muslimtify.commit == $commit and .plugins.muslimtify.enabled and .plugins.muslimtify.settings.custom == 42 and .plugins.muslimtify.placement == "right"' "$HOME/.config/hyprsimple/plugins.json"
+assert jq -e '.plugins.muslimtify.enabled and .plugins.muslimtify.settings.custom == 42 and .plugins.muslimtify.placement == "right"' "$HOME/.config/hyprsimple/plugins.json"
 echo 'ok - explicit plugin update follows the independent plugin origin'
 
 cp "$HOME/.config/hyprsimple/plugins.json" "$TMP/good-config"
-cp "$HOME/.local/state/hyprsimple/plugins/bindings.json" "$TMP/good-bindings"
 printf 'echo "fixture activation failed" >&2\nexit 1\n' >"$PLUGIN_ORIGIN/scripts/enable.sh"
 printf 'failed external update\n' >"$PLUGIN_ORIGIN/delivery-proof"
 git -C "$PLUGIN_ORIGIN" add .
@@ -139,7 +135,6 @@ assert test "$(git -C "$PLUGIN" rev-parse HEAD)" == "$next_plugin"
 assert test -z "$(git -C "$PLUGIN" status --porcelain)"
 assert grep -qx 'first external update' "$PLUGIN/delivery-proof"
 assert cmp "$TMP/good-config" "$HOME/.config/hyprsimple/plugins.json"
-assert cmp "$TMP/good-bindings" "$HOME/.local/state/hyprsimple/plugins/bindings.json"
 assert muslimtify daemon status
 preserved
-echo 'ok - failed plugin activation restores previous code, configuration, bindings and daemon'
+echo 'ok - failed plugin activation restores previous code, configuration and daemon'

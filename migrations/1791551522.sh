@@ -20,7 +20,6 @@ if [[ ! -e $pending ]] && ! command -v muslimtify >/dev/null 2>&1; then
   exit 0
 fi
 
-"$manager" validate
 if [[ ! -e $pending && -d $plugin ]] &&
    jq -e '.plugins.muslimtify.enabled == false' "$config" >/dev/null; then
   echo "Keeping the existing Muslimtify plugin disabled"
@@ -41,6 +40,5 @@ else
     exit 1
   }
 fi
-"$manager" validate muslimtify
 jq -e '.plugins.muslimtify.enabled == true' "$config" >/dev/null
 rm -f "$pending"

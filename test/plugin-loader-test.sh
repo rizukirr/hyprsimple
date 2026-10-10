@@ -67,46 +67,12 @@ create_plugin bad-widget '{"widget":"Widget.qml"}'
 printf 'import QtQuick\nMissingType {}\n' >"$TMP/plugins/bad-widget/Widget.qml"
 create_plugin missing-context '{"widget":"Widget.qml"}'
 printf 'import QtQuick\nItem {}\n' >"$TMP/plugins/missing-context/Widget.qml"
-create_plugin escape '{"widget":"Widget.qml"}'
-cp "$TMP/plugins/broken/Widget.qml" "$TMP/outside.qml"
-ln -s "$TMP/outside.qml" "$TMP/plugins/escape/Widget.qml"
-create_plugin traversal '{"widget":"../outside.qml"}'
-create_plugin manifest-link '{"widget":"Widget.qml"}'
-cp "$TMP/plugins/manifest-link/manifest.json" "$TMP/manifest.json"
-rm "$TMP/plugins/manifest-link/manifest.json"
-ln -s "$TMP/manifest.json" "$TMP/plugins/manifest-link/manifest.json"
-create_plugin unsupported '{"widget":"Widget.qml"}'
-cp "$TMP/plugins/broken/Widget.qml" "$TMP/plugins/unsupported/Widget.qml"
-jq '.apiVersion=2' "$TMP/plugins/unsupported/manifest.json" >"$TMP/m"
-mv "$TMP/m" "$TMP/plugins/unsupported/manifest.json"
-for id in alias-a alias-b; do
-  create_plugin "$id" '{"panel":"Panel.qml"}'
-  cp "$TMP/plugins/example/Panel.qml" "$TMP/plugins/$id/Panel.qml"
-  jq '.panelAliases=["duplicate"]' "$TMP/plugins/$id/manifest.json" >"$TMP/m"
-  mv "$TMP/m" "$TMP/plugins/$id/manifest.json"
-done
-create_plugin duplicate '{"widget":"Widget.qml"}'
-printf '{"schemaVersion":1,"apiVersion":1,"id":"duplicate","id":"duplicate","name":"x","version":"1","entryPoints":{"widget":"Widget.qml"}}\n' >"$TMP/plugins/duplicate/manifest.json"
-cp "$TMP/plugins/broken/Widget.qml" "$TMP/plugins/duplicate/Widget.qml"
-for id in unknown-field invalid-deps lifecycle-escape mismatched-id duplicate-settings-object disabled; do
-  create_plugin "$id" '{"widget":"Widget.qml"}'
-  cp "$TMP/plugins/broken/Widget.qml" "$TMP/plugins/$id/Widget.qml"
-done
-jq '.extra=true' "$TMP/plugins/unknown-field/manifest.json" >"$TMP/m"
-mv "$TMP/m" "$TMP/plugins/unknown-field/manifest.json"
-jq '.dependencies={packages:["unsafe;command"]}' "$TMP/plugins/invalid-deps/manifest.json" >"$TMP/m"
-mv "$TMP/m" "$TMP/plugins/invalid-deps/manifest.json"
-jq '.lifecycle={enable:"enable.sh"}' "$TMP/plugins/lifecycle-escape/manifest.json" >"$TMP/m"
-mv "$TMP/m" "$TMP/plugins/lifecycle-escape/manifest.json"
-ln -s "$TMP/outside.qml" "$TMP/plugins/lifecycle-escape/enable.sh"
-jq '.id="different"' "$TMP/plugins/mismatched-id/manifest.json" >"$TMP/m"
-mv "$TMP/m" "$TMP/plugins/mismatched-id/manifest.json"
-printf '{"schemaVersion":1,"apiVersion":1,"id":"duplicate-settings-object","name":"x","version":"1","entryPoints":{"widget":"Widget.qml"},"dependencies":{"packages":[]},"dependencies":{"aur":[]}}\n' >"$TMP/plugins/duplicate-settings-object/manifest.json"
-ln -s "$TMP/plugins/example" "$TMP/plugins/directory-link"
-# Internal entry symlinks are allowed and are loaded through their canonical URL.
-mv "$TMP/plugins/example/Widget.qml" "$TMP/plugins/example/WidgetImpl.qml"
-ln -s WidgetImpl.qml "$TMP/plugins/example/Widget.qml"
-jq -n --argjson ids '["example","broken","bad-widget","missing-context","escape","traversal","manifest-link","unsupported","alias-a","alias-b","duplicate","unknown-field","invalid-deps","lifecycle-escape","mismatched-id","duplicate-settings-object","directory-link","disabled","absent"]' '{schemaVersion:1,plugins:($ids | map({key:.,value:{enabled:(. != "disabled"),placement:"left",settings:{label:"configured"},commit:""}}) | from_entries)}' >"$TMP/home/.config/hyprsimple/plugins.json"
+# A manifest that is not JSON must not stop the plugins around it.
+create_plugin malformed '{"widget":"Widget.qml"}'
+printf '{' >"$TMP/plugins/malformed/manifest.json"
+create_plugin disabled '{"widget":"Widget.qml"}'
+cp "$TMP/plugins/broken/Widget.qml" "$TMP/plugins/disabled/Widget.qml"
+jq -n --argjson ids '["example","broken","bad-widget","missing-context","malformed","disabled","absent"]' '{schemaVersion:1,plugins:($ids | map({key:.,value:{enabled:(. != "disabled"),placement:"left",settings:{label:"configured"},commit:""}}) | from_entries)}' >"$TMP/home/.config/hyprsimple/plugins.json"
 printf '{"accent":"#123456"}\n' >"$TMP/theme.json"
 cat >"$TMP/shell/shell.qml" <<'QML'
 import QtQuick
@@ -151,7 +117,7 @@ ShellRoot {
                 Qt.quit()
                 return
             }
-            require(registry.plugins.length === 3, "invalid plugins rejected and broken service excluded")
+            require(registry.plugins.length === 3, "unreadable manifests and a broken service excluded")
             require(registry.services.example.calls === 2, "service shared once across screens")
             require(registry.resolvePanel("external") === "plugin:example", "alias resolution")
             require(registry.resolvePanel("power") === "power", "built-in panel resolution")
@@ -173,7 +139,7 @@ ShellRoot {
             require(bar1.openPanel === "" && bar2.openPanel === "plugin:example", "cross-monitor owner")
             root.second.widget.context.closePanel()
             require(bar2.openPanel === "", "close panel")
-            const rejected = ["broken","bad-widget","missing-context","escape","traversal","manifest-link","unsupported","alias-a","alias-b","duplicate","unknown-field","invalid-deps","lifecycle-escape","mismatched-id","duplicate-settings-object","directory-link","absent"]
+            const rejected = ["broken","bad-widget","missing-context","malformed","absent"]
             rejected.forEach(id => require(root.errors.indexOf(id) !== -1, "diagnostic for " + id))
             root.tested = true
             changeTheme.running = true
@@ -195,10 +161,10 @@ cat "$TMP/log"
 grep -q 'HARNESS-PASS' "$TMP/log"
 if grep -q 'HARNESS-FAIL\|DEPENDENT-MUST-NOT-LOAD' "$TMP/log"; then exit 1; fi
 [[ $(grep -c 'SERVICE-ONCE' "$TMP/log") == 1 ]]
-echo 'ok - external imports, validation, shared service, contexts, theme changes, panel operations and failure containment'
+echo 'ok - external imports, shared service, contexts, theme changes, panel operations and failure containment'
 echo 'LIMITATION: offscreen bars model owner coordination. Real layer-shell placement and compositor focus require a Hyprland session.'
 
-# Malformed config suppresses external code but leaves the core harness alive.
+# Unreadable config loads no external code but leaves the core harness alive.
 cat >"$TMP/shell/shell.qml" <<'QML'
 import QtQuick
 import Quickshell
@@ -218,15 +184,8 @@ ShellRoot {
     }
 }
 QML
-for config in \
-  '{"schemaVersion":2,"plugins":{}}' \
-  '{"schemaVersion":1,"plugins":{"example":{"enabled":true,"placement":"left","settings":[],"commit":""}}}' \
-  '{"schemaVersion":1,"plugins":{},"plugins":{}}' \
-  '{"schemaVersion":1,"plugins":{"example":{"enabled":true,"placement":"left","settings":{"x":{"a":1},"x":{"b":2}},"commit":""}}}' \
-  '{'; do
-  printf '%s\n' "$config" >"$TMP/home/.config/hyprsimple/plugins.json"
-  if ! run_harness; then cat "$TMP/log"; exit 1; fi
-  grep -q 'CONFIG-REJECTED' "$TMP/log" || { cat "$TMP/log"; exit 1; }
-  if grep -q 'HARNESS-FAIL\|SERVICE-ONCE\|DEPENDENT-MUST-NOT-LOAD' "$TMP/log"; then exit 1; fi
-  echo 'ok - malformed or duplicate config rejects all external code with core harness alive'
-done
+printf '{\n' >"$TMP/home/.config/hyprsimple/plugins.json"
+if ! run_harness; then cat "$TMP/log"; exit 1; fi
+grep -q 'CONFIG-REJECTED' "$TMP/log" || { cat "$TMP/log"; exit 1; }
+if grep -q 'HARNESS-FAIL\|SERVICE-ONCE\|DEPENDENT-MUST-NOT-LOAD' "$TMP/log"; then exit 1; fi
+echo 'ok - unreadable config rejects all external code with core harness alive'

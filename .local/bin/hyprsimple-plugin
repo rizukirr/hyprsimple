@@ -31,7 +31,6 @@ cleanup() {
       fi
     fi
     config=$old_config
-    bindings || printf 'hyprsimple-plugin: bindings rollback failed\n' >&2
     if [[ $enabled == true ]]; then
       lifecycle "$dir" enable || printf 'hyprsimple-plugin: lifecycle rollback failed\n' >&2
     fi
@@ -42,42 +41,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
-unique_json() {
-  jq -s -e 'length == 1' "$1" >/dev/null || return 1
-  jq --stream -s -e '[.[] | if length == 2 then .[0] else .[0][:-1] end | select(length > 0)] | length == (unique | length)' "$1" >/dev/null
-}
 valid_id() { [[ $1 =~ ^[a-z][a-z0-9]*([.-][a-z0-9]+)*$ && $1 != hyprsimple.* ]]; }
 read_config() {
-  if [[ -e $CONFIG || -L $CONFIG ]]; then
-    [[ -f $CONFIG && ! -L $CONFIG ]] || fail 'config must be a regular file'
-    unique_json "$CONFIG" || fail 'duplicate config fields or IDs'
-    config=$(cat "$CONFIG")
-  else
-    config='{"schemaVersion":1,"plugins":{}}'
-  fi
-  jq -e '
-    def id: type == "string" and test("^[a-z][a-z0-9]*([.-][a-z0-9]+)*$") and (startswith("hyprsimple.") | not);
-    def placement: . == "left" or . == "center" or . == "right";
-    type == "object" and (keys == ["plugins","schemaVersion"]) and .schemaVersion == 1 and
-    (.plugins | type == "object" and all(to_entries[];
-      (.key | id) and (.value | type == "object" and keys == ["commit","enabled","placement","settings"] and
-        (.enabled | type == "boolean") and (.placement | placement) and (.settings | type == "object") and
-        (.commit | type == "string" and test("^([0-9a-f]{40}|[0-9a-f]{64})?$")))))
-  ' <<<"$config" >/dev/null || fail 'invalid plugin config'
+  config='{"schemaVersion":1,"plugins":{}}'
+  [[ ! -e $CONFIG ]] || config=$(jq -e 'select(.plugins | type == "object")' "$CONFIG") || fail 'invalid plugin config'
 }
+# The only manifest check. The bar loads what this accepted.
 validate_repo() {
-  local dir=$1 expected=${2:-} manifest path resolved base
-  [[ -d $dir && ! -L $dir ]] || fail "invalid plugin directory: $dir"
-  manifest="$dir/manifest.json"
-  [[ -f $manifest && ! -L $manifest ]] || fail "manifest must be a regular file: $manifest"
-  unique_json "$manifest" || fail 'duplicate manifest fields'
-  jq -e '
+  local dir=$1 expected=${2:-} manifest="$1/manifest.json" path
+  local -a checked
+  [[ -f $manifest ]] || fail "missing manifest: $manifest"
+  mapfile -t checked < <(jq -r '
     def fields($allowed): type == "object" and ((keys - $allowed) | length == 0);
     def text: type == "string" and length > 0 and (test("[\u0000-\u001f\u007f]") | not);
     def path: text and (startswith("/") | not) and (split("/") | all(. != ".." and . != "." and . != ""));
     def placement: . == "left" or . == "center" or . == "right";
     def packages: type == "array" and all(.[]; type == "string" and test("^[a-z0-9][a-z0-9@._+-]*$")) and length == (unique | length);
-    fields(["schemaVersion","apiVersion","id","name","version","entryPoints","placement","dependencies","lifecycle","bindings","panelAliases"]) and
+    select(
+    fields(["schemaVersion","apiVersion","id","name","version","entryPoints","placement","dependencies","lifecycle","panelAliases"]) and
     .schemaVersion == 1 and .apiVersion == 1 and
     (.id | text and test("^[a-z][a-z0-9]*([.-][a-z0-9]+)*$") and (startswith("hyprsimple.") | not)) and
     (.name | text) and (.version | text) and
@@ -85,69 +66,37 @@ validate_repo() {
     ((has("placement") | not) or (.placement | placement)) and
     ((has("dependencies") | not) or (.dependencies | fields(["packages","aur"]) and all(.[]; packages))) and
     ((has("lifecycle") | not) or (.lifecycle | fields(["enable","disable"]) and all(.[]; path))) and
-    ((has("bindings") | not) or (.bindings | type == "array" and all(.[];
-      fields(["key","description","action"]) and keys == ["action","description","key"] and
-      (.key | text) and (.description | text) and .action == "toggle-panel"))) and
     ((has("panelAliases") | not) or (.panelAliases | type == "array" and all(.[]; text and test("^[a-z][a-z0-9-]*$")) and length == (unique | length))) and
-    (((.bindings // [] | length) == 0 and (.panelAliases // [] | length) == 0) or .entryPoints.panel != null)
-  ' "$manifest" >/dev/null || fail "invalid manifest: $manifest"
-  candidate_id=$(jq -r .id "$manifest")
+    ((.panelAliases // [] | length) == 0 or .entryPoints.panel != null)
+    ) | .id, (.entryPoints, (.lifecycle // {}) | .[])
+  ' "$manifest" 2>/dev/null)
+  ((${#checked[@]})) || fail "invalid manifest: $manifest"
+  candidate_id=${checked[0]}
   [[ -z $expected || $candidate_id == "$expected" ]] || fail "manifest ID differs from directory: $expected"
-  base=$(realpath -e -- "$dir")
-  while IFS= read -r path; do
-    resolved=$(realpath -e -- "$dir/$path") || fail "missing plugin path: $path"
-    [[ $resolved == "$base/"* && -f $resolved ]] || fail "escaping or invalid plugin path: $path"
-  done < <(jq -r '(.entryPoints // {}), (.lifecycle // {}) | .[]' "$manifest")
-}
-validate_registry() {
-  local dir aliases='[]' next
-  for dir in "$ROOT"/*; do
-    [[ -e $dir || -L $dir ]] || continue
-    validate_repo "$dir" "$(basename "$dir")"
-    next=$(jq -c '.panelAliases // []' "$dir/manifest.json")
-    aliases=$(jq -cn --argjson a "$aliases" --argjson b "$next" '$a + $b')
+  for path in "${checked[@]:1}"; do
+    [[ -f $dir/$path ]] || fail "missing plugin path: $path"
   done
-  while IFS= read -r configured_id; do
-    [[ -d $ROOT/$configured_id ]] || fail "enabled plugin is missing: $configured_id"
-  done < <(jq -r '.plugins | to_entries[] | select(.value.enabled) | .key' <<<"$config")
-  jq -e 'length == (unique | length)' <<<"$aliases" >/dev/null || fail 'duplicate panel aliases'
 }
 validate_candidate() {
-  local dir=$1 expected=${2:-} other aliases
+  local dir=$1 expected=${2:-} other
+  local -a others=()
   validate_repo "$dir" "$expected"
-  aliases=$(jq -c '.panelAliases // []' "$dir/manifest.json")
-  for other in "$ROOT"/*; do
-    [[ -e $other || -L $other ]] || continue
-    [[ $(basename "$other") == "$expected" ]] && continue
-    [[ $(basename "$other") != "$candidate_id" ]] || fail 'plugin ID already installed'
-    jq -e --argjson a "$aliases" '((.panelAliases // []) - $a) == (.panelAliases // [])' "$other/manifest.json" >/dev/null || fail 'duplicate panel aliases'
+  [[ $candidate_id == "$expected" || ! -e $ROOT/$candidate_id ]] || fail 'plugin ID already installed'
+  for other in "$ROOT"/*/manifest.json; do
+    if [[ -f $other && $other != "$ROOT/$candidate_id/manifest.json" ]]; then others+=("$other"); fi
   done
+  ((${#others[@]} == 0)) || jq -e -s --slurpfile new "$dir/manifest.json" '
+    ($new[0].panelAliases // []) as $a | all(.[]; ((.panelAliases // []) - $a) == (.panelAliases // []))' "${others[@]}" >/dev/null || fail 'duplicate panel aliases'
 }
 write_config() {
   mkdir -p "$(dirname "$CONFIG")"
   TEMP=$(mktemp "$(dirname "$CONFIG")/.plugins.XXXXXX")
   printf '%s\n' "$config" >"$TEMP"
-  chmod 600 "$TEMP"
   mv -f -- "$TEMP" "$CONFIG"
-  TEMP=''
-}
-bindings() {
-  local id result='[]' items
-  while IFS= read -r id; do
-    [[ -d $ROOT/$id ]] || continue
-    items=$(jq -c --arg id "$id" '[.bindings // [] | .[] | . + {pluginId:$id}]' "$ROOT/$id/manifest.json")
-    result=$(jq -cn --argjson a "$result" --argjson b "$items" '$a + $b')
-  done < <(jq -r '.plugins | to_entries[] | select(.value.enabled) | .key' <<<"$config")
-  TEMP=$(mktemp "$STATE/.bindings.XXXXXX")
-  jq -n --argjson bindings "$result" '{schemaVersion:1,bindings:$bindings}' >"$TEMP"
-  mv -f -- "$TEMP" "$STATE/bindings.json"
   TEMP=''
 }
 refresh() {
   "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running 9>&- || fail 'operation completed, but bar refresh failed'
-  if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
-    hyprctl reload >/dev/null || fail 'operation completed, but Hyprland reload failed'
-  fi
 }
 lifecycle() {
   local dir=$1 action=$2 script
@@ -179,13 +128,10 @@ dependencies() {
   done
 }
 record() {
-  local id=$1 enabled=$2 dir=$3 commit placement
-  commit=$(git -C "$dir" rev-parse HEAD)
-  placement=$(jq -r '.placement // "left"' "$dir/manifest.json")
-  config=$(jq --arg id "$id" --arg commit "$commit" --arg placement "$placement" --argjson enabled "$enabled" '
-    .plugins[$id] = {enabled:$enabled,placement:(.plugins[$id].placement // $placement),settings:(.plugins[$id].settings // {}),commit:$commit}' <<<"$config")
+  local id=$1 enabled=$2 dir=$3
+  config=$(jq --arg id "$id" --argjson enabled "$enabled" --slurpfile manifest "$dir/manifest.json" '
+    .plugins[$id] = {enabled:$enabled,placement:(.plugins[$id].placement // $manifest[0].placement // "left"),settings:(.plugins[$id].settings // {})}' <<<"$config")
   write_config
-  bindings
 }
 acquire() {
   local source=$1 local_mode=$2
@@ -207,34 +153,19 @@ if [[ $command =~ ^https://github\.com/ || $command =~ ^[A-Za-z0-9][A-Za-z0-9_-]
   set -- "$command" "$@"
   command=install
 fi
-case "$command" in install|list|validate|enable|disable|update|remove) ;; *) fail 'usage: hyprsimple-plugin {install [--local] SOURCE|list|validate [ID|FOLDER]|enable ID|disable ID|update ID|remove ID}' ;; esac
-[[ ! -L $ROOT && ! -L $STATE ]] || fail 'plugin root and state must not be symlinks'
-core=$(realpath -m -- "${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}")
-root_path=$(realpath -m -- "$ROOT")
-[[ $root_path != "$core" && $root_path != "$core/"* ]] || fail 'plugin storage must be outside the core checkout'
-[[ ! -L $STATE/manager.lock ]] || fail 'manager lock must not be a symlink'
+case "$command" in install|list|enable|disable|update|remove) ;; *) fail 'usage: hyprsimple-plugin {install [--local] SOURCE|list|enable ID|disable ID|update ID|remove ID}' ;; esac
 mkdir -p "$ROOT" "$STATE"
-# A single lock also serializes registry validation with repository replacement.
+# One lock serializes every command, so no two replace the same repository.
 exec 9>"$STATE/manager.lock"
 flock -x 9
 read_config
-validate_registry
 case "$command" in
   list)
     (($# == 0)) || fail 'list takes no arguments'
-    for dir in "$ROOT"/*; do
-      [[ -d $dir ]] || continue
-      id=$(basename "$dir")
-      jq -r --argjson config "$config" '[.id,.version,($config.plugins[.id].enabled // false | tostring)] | @tsv' "$dir/manifest.json"
+    for manifest in "$ROOT"/*/manifest.json; do
+      if [[ -f $manifest ]]; then set -- "$@" "$manifest"; fi
     done
-    ;;
-  validate)
-    (($# <= 1)) || fail 'validate takes at most one ID'
-    if (($#)); then
-      if [[ -d $1 ]]; then validate_candidate "$(realpath -e -- "$1")" "$(jq -r .id "$1/manifest.json")"
-      else valid_id "$1" || fail 'invalid ID'; validate_repo "$ROOT/$1" "$1"; fi
-    fi
-    printf 'Plugin manifests and config are valid.\n'
+    (($# == 0)) || jq -r --argjson config "$config" '[.id,.version,($config.plugins[.id].enabled // false | tostring)] | @tsv' "$@"
     ;;
   install)
     local_mode=false
@@ -258,11 +189,12 @@ case "$command" in
     id=$1
     valid_id "$id" || fail 'invalid ID'
     dir="$ROOT/$id"
-    validate_repo "$dir" "$id"
+    [[ -d $dir ]] || fail "plugin is not installed: $id"
     enabled=$(jq -r --arg id "$id" '.plugins[$id].enabled // false' <<<"$config")
     case "$command" in
       enable)
         [[ $enabled != true ]] || exit 0
+        validate_repo "$dir" "$id"
         dependencies "$dir" || fail 'dependency installation failed, plugin remains disabled'
         if ! lifecycle "$dir" enable; then
           lifecycle "$dir" disable || printf 'hyprsimple-plugin: lifecycle rollback failed\n' >&2

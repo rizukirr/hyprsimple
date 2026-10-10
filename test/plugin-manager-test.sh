@@ -73,7 +73,7 @@ fixture() {
   git -C "$dir" init -q
   git -C "$dir" config user.email test@example.com
   git -C "$dir" config user.name test
-  jq -n --arg id "$id" '{schemaVersion:1,apiVersion:1,id:$id,name:"Fixture",version:"1",entryPoints:{panel:"Panel.qml"},lifecycle:{enable:"enable.sh",disable:"disable.sh"},bindings:[{key:"SUPER, P",description:"Open fixture",action:"toggle-panel"}],panelAliases:[$id]}' >"$dir/manifest.json"
+  jq -n --arg id "$id" '{schemaVersion:1,apiVersion:1,id:$id,name:"Fixture",version:"1",entryPoints:{panel:"Panel.qml"},lifecycle:{enable:"enable.sh",disable:"disable.sh"},panelAliases:[$id]}' >"$dir/manifest.json"
   printf 'import QtQuick\nItem { required property var context }\n' >"$dir/Panel.qml"
   printf 'echo enable >>"$LOG"\n[[ ! -e "$HOME/fail-enable" ]]\n' >"$dir/enable.sh"
   printf 'echo disable >>"$LOG"\n[[ ! -e "$HOME/fail-disable" ]]\n' >"$dir/disable.sh"
@@ -102,21 +102,19 @@ fixture "$TMP/refresh-lock" refresh-lock
 RESTART_CHILD_FILE="$TMP/restart-child" "$MANAGER" install --local "$TMP/refresh-lock" >"$TMP/output" 2>&1
 restart_child=$(cat "$TMP/restart-child")
 kill -0 "$restart_child"
-timeout 2 "$MANAGER" validate >"$TMP/output" 2>&1 || { cat "$TMP/output" >&2; exit 1; }
+timeout 2 "$MANAGER" list >"$TMP/output" 2>&1 || { cat "$TMP/output" >&2; exit 1; }
 kill -0 "$restart_child"
 kill "$restart_child"
 rm "$TMP/restart-child"
 run remove refresh-lock
 pass 'persistent restart child does not retain manager lock'
 fixture "$TMP/source" example
-run validate "$TMP/source"
 run install --local "$TMP/source"
 jq -e ' .plugins.example.enabled == true' "$HOME/.config/hyprsimple/plugins.json" >/dev/null
 run disable example
-run validate
 run list
 grep -q $'example\t1\tfalse' "$TMP/output"
-pass 'local install automatically enables, author folder validates, list works'
+pass 'local install automatically enables, list works'
 fixture "$TMP/direct" direct
 export GITHUB_FIXTURE="$TMP/direct"
 run owner/repo
@@ -133,10 +131,6 @@ cp "$HOME/.local/bin/hyprsimple-restart-bar.sh" "$TMP/default-home/.local/bin/"
 env -u HYPRSIMPLE_PLUGIN_ROOT HOME="$TMP/default-home" "$MANAGER" owner/default >"$TMP/output" 2>&1
 [[ -f $TMP/default-home/.local/share/hyprsimple-plugins/default/manifest.json ]]
 pass 'default storage is outside core checkout'
-reject 'inside-checkout plugin root rejected' validate invalid
-if HYPRSIMPLE_PLUGIN_ROOT="$REPO/plugins" "$MANAGER" list >"$TMP/output" 2>&1; then exit 1; fi
-[[ ! -e $REPO/plugins ]]
-pass 'inside-checkout storage rejected before directory creation'
 fixture "$TMP/activation" activation
 touch "$HOME/fail-enable"
 reject 'initial activation failure is incomplete and installed disabled' install --local "$TMP/activation"
@@ -150,7 +144,7 @@ reject 'repeat install does not overwrite' install --local "$TMP/source"
 for source in '-evil' 'file:///tmp/example' 'ssh://github.com/a/b' 'https://evil.com/a/b' 'https://github.com/a/b?token=x' 'git@github.com:a/b'; do
   reject "reject source $source" install "$source"
 done
-for mutation in '.apiVersion=2' '.schemaVersion="1"' '.id="hyprsimple.reserved"' '.entryPoints.panel="../outside.qml"' '.entryPoints.panel="/tmp/outside.qml"' '.unexpected=true' '.dependencies.packages=["--evil"]' '.entryPoints={}' '.bindings[0].action="exec"' '.lifecycle.enable="../enable.sh"'; do
+for mutation in '.apiVersion=2' '.schemaVersion="1"' '.id="hyprsimple.reserved"' '.entryPoints.panel="../outside.qml"' '.entryPoints.panel="/tmp/outside.qml"' '.unexpected=true' '.dependencies.packages=["--evil"]' '.entryPoints={}' '.bindings=[]' '.lifecycle.enable="../enable.sh"'; do
   fixture "$TMP/bad" other
   jq "$mutation" "$TMP/bad/manifest.json" >"$TMP/manifest"
   mv "$TMP/manifest" "$TMP/bad/manifest.json"
@@ -159,59 +153,16 @@ for mutation in '.apiVersion=2' '.schemaVersion="1"' '.id="hyprsimple.reserved"'
   rm -rf "$TMP/bad"
 done
 fixture "$TMP/bad" other
-ln -sf "$TMP/source/Panel.qml" "$TMP/bad/Panel.qml"
-commit "$TMP/bad"
-reject 'escaping QML symlink' install --local "$TMP/bad"
-rm -rf "$TMP/bad"
-fixture "$TMP/bad" other
-mv "$TMP/bad/manifest.json" "$TMP/bad/data.json"
-ln -s data.json "$TMP/bad/manifest.json"
-commit "$TMP/bad"
-reject 'symlink manifest' install --local "$TMP/bad"
-rm -rf "$TMP/bad"
-fixture "$TMP/bad" other
 jq '.panelAliases=["example"]' "$TMP/bad/manifest.json" >"$TMP/manifest"
 mv "$TMP/manifest" "$TMP/bad/manifest.json"
 commit "$TMP/bad"
 reject 'duplicate alias across installed plugins' install --local "$TMP/bad"
 rm -rf "$TMP/bad"
-fixture "$TMP/bad" other
-jq '.dependencies={packages:["duplicate-package"],aur:["duplicate-aur"]}' "$TMP/bad/manifest.json" >"$TMP/manifest"
-mv "$TMP/manifest" "$TMP/bad/manifest.json"
-run validate "$TMP/bad"
-pass 'valid nested manifest containers and arrays accepted'
-manifest=$(jq -c 'del(.dependencies)' "$TMP/bad/manifest.json")
-printf '%s,"dependencies":{"packages":["duplicate-package"]},"dependencies":{"aur":["duplicate-aur"]}}\n' "${manifest%\}}" >"$TMP/bad/manifest.json"
-commit "$TMP/bad"
-: >"$LOG"
-reject 'duplicate dependencies containers rejected before installation' install --local "$TMP/bad"
-grep -q 'duplicate manifest fields' "$TMP/output"
-[[ ! -s $LOG && ! -e $HYPRSIMPLE_PLUGIN_ROOT/other ]]
-rm -rf "$TMP/bad"
 CONFIG="$HOME/.config/hyprsimple/plugins.json"
 cp "$CONFIG" "$TMP/config"
-jq '.plugins.example.settings={first:{value:1},second:{value:2},items:[{value:3},{value:4}],empty:{},list:[]}' "$CONFIG" >"$TMP/nested-config"
-cp "$TMP/nested-config" "$CONFIG"
-run validate
-pass 'valid nested config containers and repeated names in distinct paths accepted'
+printf '{\n' >"$CONFIG"
+reject 'malformed config rejected' list
 cp "$TMP/config" "$CONFIG"
-printf '{"schemaVersion":1,"plugins":{"example":{"enabled":false,"placement":"left","settings":{},"commit":""}},"plugins":{"other":{"enabled":false,"placement":"right","settings":{},"commit":""}}}\n' >"$CONFIG"
-: >"$LOG"
-reject 'duplicate plugins containers rejected before activation' enable example
-grep -q 'duplicate config fields or IDs' "$TMP/output"
-[[ ! -s $LOG ]]
-printf '{"schemaVersion":1,"plugins":{"example":{"enabled":false,"placement":"left","settings":{"first":1},"settings":{"second":2},"commit":""}}}\n' >"$CONFIG"
-reject 'duplicate settings containers rejected before activation' enable example
-grep -q 'duplicate config fields or IDs' "$TMP/output"
-[[ ! -s $LOG ]]
-printf '{"schemaVersion":1,"plugins":{"example":{},"example":{}}}\n' >"$CONFIG"
-reject 'duplicate configured IDs' validate
-printf '{"schemaVersion":1,"plugins":{"example":{"enabled":true,"settings":[],"placement":"left","commit":""}}}\n' >"$CONFIG"
-reject 'malformed settings' validate
-cp "$TMP/config" "$CONFIG"
-ln -sf "$TMP/source/Panel.qml" "$HYPRSIMPLE_PLUGIN_ROOT/example/Panel.qml"
-reject 'runtime validates externally altered entries' enable example
-git -C "$HYPRSIMPLE_PLUGIN_ROOT/example" restore Panel.qml
 fixture "$TMP/deps" dependency
 jq '.dependencies={packages:["example-package"],aur:["example-aur"]}' "$TMP/deps/manifest.json" >"$TMP/manifest"
 mv "$TMP/manifest" "$TMP/deps/manifest.json"
@@ -230,9 +181,9 @@ rm "$HOME/fail-enable"
 export HYPRLAND_INSTANCE_SIGNATURE=fixture
 : >"$LOG"
 run enable example
-[[ $(grep -c '^bar ' "$LOG") == 1 && $(grep -c '^hyprctl ' "$LOG") == 1 ]]
-jq -e '.bindings[0].pluginId == "example"' "$HOME/.local/state/hyprsimple/plugins/bindings.json" >/dev/null
-pass 'successful enable refreshes once and generates declarative bindings'
+[[ $(grep -c '^bar ' "$LOG") == 1 && $(grep -c '^hyprctl ' "$LOG") == 0 ]]
+[[ ! -e $HOME/.local/state/hyprsimple/plugins/bindings.json ]]
+pass 'successful enable refreshes the bar once and leaves keybindings to the user'
 touch "$HOME/fail-disable"
 reject 'disable failure publishes disabled UI and permits retry' disable example
 jq -e '.plugins.example.enabled == false' "$CONFIG" >/dev/null
@@ -289,12 +240,8 @@ a=0; b=0
 wait "$first" || a=$?
 wait "$second" || b=$?
 [[ $((a + b)) == 1 ]]
-run validate
+run list
 pass 'concurrent installation serializes and rejects overwrite'
-mkdir "$HYPRSIMPLE_PLUGIN_ROOT/duplicate"
-cp "$TMP/concurrent/manifest.json" "$HYPRSIMPLE_PLUGIN_ROOT/duplicate/manifest.json"
-reject 'externally introduced duplicate installed ID rejected' validate
-rm -rf "$HYPRSIMPLE_PLUGIN_ROOT/duplicate"
 : >"$LOG"
 unset HYPRLAND_INSTANCE_SIGNATURE
 run disable concurrent

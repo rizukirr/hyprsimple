@@ -70,7 +70,7 @@ jobs:
       - name: Fetch the pinned published plugin fixture
         run: |
           git init "$RUNNER_TEMP/muslimtify-plugin"
-          git -C "$RUNNER_TEMP/muslimtify-plugin" fetch --depth=1 https://github.com/muslimtify-org/muslimtify-hyprsimple.git 0a8fa79a7696662c7d2a2e4c68979cb50eda628b
+          git -C "$RUNNER_TEMP/muslimtify-plugin" fetch --depth=1 https://github.com/muslimtify-org/muslimtify-hyprsimple.git 2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea
           git -C "$RUNNER_TEMP/muslimtify-plugin" checkout --detach FETCH_HEAD
 
       - name: muslimtify-cleanup-test
@@ -93,9 +93,6 @@ jobs:
         env:
           MUSLIMTIFY_PLUGIN_FIXTURE: ${{ runner.temp }}/muslimtify-plugin
         run: bash test/plugin-update-delivery-test.sh
-
-      - name: plugin-bindings-test
-        run: bash test/plugin-bindings-test.sh
 
       - name: plugin-manager-test
         run: bash test/plugin-manager-test.sh

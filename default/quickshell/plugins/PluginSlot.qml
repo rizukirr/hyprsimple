@@ -31,8 +31,8 @@ Row {
             }
             Component.onCompleted: {
                 const entries = modelData.manifest.entryPoints
-                if (entries.widget) widget = root.registry.create(modelData.paths[entries.widget], host, context, modelData.id)
-                if (entries.panel) panel = root.registry.create(modelData.paths[entries.panel], host, context, modelData.id)
+                if (entries.widget) widget = root.registry.create(modelData.dir + "/" + entries.widget, host, context, modelData.id)
+                if (entries.panel) panel = root.registry.create(modelData.dir + "/" + entries.panel, host, context, modelData.id)
             }
             Component.onDestruction: {
                 if (context.panelOpen) context.closePanel()
