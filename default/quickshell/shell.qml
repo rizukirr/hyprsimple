@@ -2,8 +2,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import qs.plugins
 import qs.bar
-import qs.muslimtify.services
 import qs.system
 import qs.theme
 import qs.notifications
@@ -47,11 +47,6 @@ ShellRoot {
         }
     }
 
-    // Read once and shown by every bar.
-    Muslimtify {
-        id: prayers
-    }
-
     Stats {
         id: systemStats
     }
@@ -59,6 +54,8 @@ ShellRoot {
     Idle {
         id: idleWatch
     }
+
+    Registry { id: externalPlugins }
 
     // One panel at a time across every monitor: the bar that has it open, or null.
     readonly property var panelOwner: bars.instances.find(bar => bar.openPanel !== "") ?? null
@@ -72,9 +69,9 @@ ShellRoot {
         model: Quickshell.screens
 
         Bar {
+            pluginRegistry: externalPlugins
             visible: !root.barsHidden
             recording: root.recording
-            muslimtify: prayers
             stats: systemStats
             idle: idleWatch
             panelOwner: root.panelOwner
@@ -92,7 +89,7 @@ ShellRoot {
         function toggle(panel: string): void {
             const focused = Hyprland.focusedMonitor?.name
             const bar = bars.instances.find(b => b.screen?.name === focused) ?? bars.instances[0]
-            if (bar) bar.toggle(panel)
+            if (bar) bar.toggle(externalPlugins.resolvePanel(panel))
         }
 
         // Shows or hides the recording indicator. hyprsimple's screen-record.sh calls it

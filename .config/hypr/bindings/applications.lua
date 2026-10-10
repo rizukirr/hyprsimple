@@ -25,6 +25,11 @@ hl.bind("SUPER + A", hl.dsp.exec_cmd(vars.menu),        { description = "App Lau
 --   hl.bind("SUPER + O", hl.dsp.exec_cmd("obsidian"),       { description = "Notes" })
 --   hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("android-studio"), { description = "Android Studio" })
 --
+-- A plugin binds no keys of its own. It names a panel alias, and the key is
+-- yours to choose. For the prayer times panel of the Muslimtify plugin:
+--
+--   hl.bind("SUPER + P", hl.dsp.exec_cmd(vars.barPanel .. "prayer"), { description = "Prayer Times (panel)" })
+--
 -- Give every bind a description. The key works without one, so this is easy to
 -- skip, and SUPER + / reads its list from Hyprland rather than from this file:
 -- a bind with no description has nothing to show there but the key itself.

@@ -1,0 +1,240 @@
+#!/bin/bash
+# Manage trusted external repositories. Manifest data is never evaluated.
+set -euo pipefail
+
+fail() { printf 'hyprsimple-plugin: %s\n' "$*" >&2; exit 1; }
+ROOT="${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}"
+CONFIG="$HOME/.config/hyprsimple/plugins.json"
+STATE="$HOME/.local/state/hyprsimple/plugins"
+STAGE=''
+TEMP=''
+TRANSACTION=false
+cleanup() {
+  local status=$? retained=false
+  trap - EXIT
+  set +e
+  if [[ $TRANSACTION == true && $status != 0 ]]; then
+    printf 'hyprsimple-plugin: update interrupted, restoring previous installation\n' >&2
+    if [[ -d $STAGE/old ]]; then
+      [[ ! -d $dir ]] || lifecycle "$dir" disable || printf 'hyprsimple-plugin: candidate rollback failed\n' >&2
+      rm -rf -- "$dir"
+      if ! mv -- "$STAGE/old" "$dir"; then
+        printf 'hyprsimple-plugin: code rollback failed, previous code retained at %s/old\n' "$STAGE" >&2
+        retained=true
+      fi
+    fi
+    if [[ -f $STAGE/config ]]; then
+      TEMP=$(mktemp "$(dirname "$CONFIG")/.plugins.XXXXXX")
+      if ! cp -- "$STAGE/config" "$TEMP" || ! mv -f -- "$TEMP" "$CONFIG"; then
+        printf 'hyprsimple-plugin: config rollback failed, backup retained at %s/config\n' "$STAGE" >&2
+        retained=true
+      fi
+    fi
+    config=$old_config
+    if [[ $enabled == true ]]; then
+      lifecycle "$dir" enable || printf 'hyprsimple-plugin: lifecycle rollback failed\n' >&2
+    fi
+  fi
+  [[ -z $STAGE || $retained == true ]] || rm -rf -- "$STAGE"
+  [[ -z $TEMP ]] || rm -f -- "$TEMP"
+  exit "$status"
+}
+trap cleanup EXIT
+
+valid_id() { [[ $1 =~ ^[a-z][a-z0-9]*([.-][a-z0-9]+)*$ && $1 != hyprsimple.* ]]; }
+read_config() {
+  config='{"schemaVersion":1,"plugins":{}}'
+  [[ ! -e $CONFIG ]] || config=$(jq -e 'select(.plugins | type == "object")' "$CONFIG") || fail 'invalid plugin config'
+}
+# The only manifest check. The bar loads what this accepted.
+validate_repo() {
+  local dir=$1 expected=${2:-} manifest="$1/manifest.json" path
+  local -a checked
+  [[ -f $manifest ]] || fail "missing manifest: $manifest"
+  mapfile -t checked < <(jq -r '
+    def fields($allowed): type == "object" and ((keys - $allowed) | length == 0);
+    def text: type == "string" and length > 0 and (test("[\u0000-\u001f\u007f]") | not);
+    def path: text and (startswith("/") | not) and (split("/") | all(. != ".." and . != "." and . != ""));
+    def placement: . == "left" or . == "center" or . == "right";
+    def packages: type == "array" and all(.[]; type == "string" and test("^[a-z0-9][a-z0-9@._+-]*$")) and length == (unique | length);
+    select(
+    fields(["schemaVersion","apiVersion","id","name","version","entryPoints","placement","dependencies","lifecycle","panelAliases"]) and
+    .schemaVersion == 1 and .apiVersion == 1 and
+    (.id | text and test("^[a-z][a-z0-9]*([.-][a-z0-9]+)*$") and (startswith("hyprsimple.") | not)) and
+    (.name | text) and (.version | text) and
+    (.entryPoints | fields(["service","widget","panel"]) and length > 0 and all(.[]; path and endswith(".qml"))) and
+    ((has("placement") | not) or (.placement | placement)) and
+    ((has("dependencies") | not) or (.dependencies | fields(["packages","aur"]) and all(.[]; packages))) and
+    ((has("lifecycle") | not) or (.lifecycle | fields(["enable","disable"]) and all(.[]; path))) and
+    ((has("panelAliases") | not) or (.panelAliases | type == "array" and all(.[]; text and test("^[a-z][a-z0-9-]*$")) and length == (unique | length))) and
+    ((.panelAliases // [] | length) == 0 or .entryPoints.panel != null)
+    ) | .id, (.entryPoints, (.lifecycle // {}) | .[])
+  ' "$manifest" 2>/dev/null)
+  ((${#checked[@]})) || fail "invalid manifest: $manifest"
+  candidate_id=${checked[0]}
+  [[ -z $expected || $candidate_id == "$expected" ]] || fail "manifest ID differs from directory: $expected"
+  for path in "${checked[@]:1}"; do
+    [[ -f $dir/$path ]] || fail "missing plugin path: $path"
+  done
+}
+validate_candidate() {
+  local dir=$1 expected=${2:-} other
+  local -a others=()
+  validate_repo "$dir" "$expected"
+  [[ $candidate_id == "$expected" || ! -e $ROOT/$candidate_id ]] || fail 'plugin ID already installed'
+  for other in "$ROOT"/*/manifest.json; do
+    if [[ -f $other && $other != "$ROOT/$candidate_id/manifest.json" ]]; then others+=("$other"); fi
+  done
+  ((${#others[@]} == 0)) || jq -e -s --slurpfile new "$dir/manifest.json" '
+    ($new[0].panelAliases // []) as $a | all(.[]; ((.panelAliases // []) - $a) == (.panelAliases // []))' "${others[@]}" >/dev/null || fail 'duplicate panel aliases'
+}
+write_config() {
+  mkdir -p "$(dirname "$CONFIG")"
+  TEMP=$(mktemp "$(dirname "$CONFIG")/.plugins.XXXXXX")
+  printf '%s\n' "$config" >"$TEMP"
+  mv -f -- "$TEMP" "$CONFIG"
+  TEMP=''
+}
+refresh() {
+  "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running 9>&- || fail 'operation completed, but bar refresh failed'
+}
+lifecycle() {
+  local dir=$1 action=$2 script
+  script=$(jq -r --arg action "$action" '.lifecycle[$action] // empty' "$dir/manifest.json")
+  [[ -n $script ]] || return 0
+  (cd "$dir" && HYPRSIMPLE_PLUGIN_ID="$(jq -r .id manifest.json)" bash -- "$script" 9>&-)
+}
+dependencies() {
+  local dir=$1 kind pkg helper
+  local -a missing flags
+  for kind in packages aur; do
+    missing=()
+    while IFS= read -r pkg; do
+      pacman -Q "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+    done < <(jq -r --arg kind "$kind" '.dependencies[$kind] // [] | .[]' "$dir/manifest.json")
+    ((${#missing[@]})) || continue
+    if [[ $kind == packages ]]; then
+      sudo pacman -S --needed --noconfirm -- "${missing[@]}" || return 1
+    else
+      # shellcheck source=/dev/null
+      source "$(dirname "${BASH_SOURCE[0]}")/hyprsimple-aur-helper.sh" || return 1
+      helper=$(aur_helper) || return 1
+      mapfile -t flags < <(aur_unattended_flags "$helper")
+      "$helper" -S --needed "${flags[@]}" -- "${missing[@]}" || return 1
+    fi
+    for pkg in "${missing[@]}"; do
+      pacman -Q "$pkg" >/dev/null 2>&1 || return 1
+    done
+  done
+}
+record() {
+  local id=$1 enabled=$2 dir=$3
+  config=$(jq --arg id "$id" --argjson enabled "$enabled" --slurpfile manifest "$dir/manifest.json" '
+    .plugins[$id] = {enabled:$enabled,placement:(.plugins[$id].placement // $manifest[0].placement // "left"),settings:(.plugins[$id].settings // {})}' <<<"$config")
+  write_config
+}
+acquire() {
+  local source=$1 local_mode=$2
+  if [[ $local_mode == true ]]; then
+    [[ $source != -* && -d $source ]] || fail 'invalid local repository'
+    source=$(realpath -e -- "$source")
+    git -C "$source" rev-parse --git-dir >/dev/null || fail 'not a local Git repository'
+  else
+    [[ $source =~ ^(https://github\.com/)?([A-Za-z0-9][A-Za-z0-9_-]*)/([A-Za-z0-9][A-Za-z0-9_.-]*)(\.git)?/?$ ]] || fail 'use OWNER/REPO or an HTTPS GitHub repository URL'
+    source="https://github.com/${BASH_REMATCH[2]}/${BASH_REMATCH[3]%.git}.git"
+  fi
+  STAGE=$(mktemp -d "$(dirname "$ROOT")/.plugin-stage.XXXXXX")
+  GIT_TERMINAL_PROMPT=0 git -c protocol.file.allow=always clone --no-local -- "$source" "$STAGE/repo" || fail 'repository acquisition failed'
+}
+
+command=${1:-}
+shift || true
+if [[ $command =~ ^https://github\.com/ || $command =~ ^[A-Za-z0-9][A-Za-z0-9_-]*/[A-Za-z0-9][A-Za-z0-9_.-]*/?$ ]]; then
+  set -- "$command" "$@"
+  command=install
+fi
+case "$command" in install|list|enable|disable|update|remove) ;; *) fail 'usage: hyprsimple-plugin {install [--local] SOURCE|list|enable ID|disable ID|update ID|remove ID}' ;; esac
+mkdir -p "$ROOT" "$STATE"
+# One lock serializes every command, so no two replace the same repository.
+exec 9>"$STATE/manager.lock"
+flock -x 9
+read_config
+case "$command" in
+  list)
+    (($# == 0)) || fail 'list takes no arguments'
+    for manifest in "$ROOT"/*/manifest.json; do
+      if [[ -f $manifest ]]; then set -- "$@" "$manifest"; fi
+    done
+    (($# == 0)) || jq -r --argjson config "$config" '[.id,.version,($config.plugins[.id].enabled // false | tostring)] | @tsv' "$@"
+    ;;
+  install)
+    local_mode=false
+    if [[ ${1:-} == --local ]]; then local_mode=true; shift; fi
+    (($# == 1)) || fail 'install needs one repository'
+    acquire "$1" "$local_mode"
+    validate_candidate "$STAGE/repo"
+    id=$candidate_id
+    dependencies "$STAGE/repo" || fail 'dependency installation failed, plugin not installed'
+    mv -- "$STAGE/repo" "$ROOT/$id"
+    if ! lifecycle "$ROOT/$id" enable; then
+      lifecycle "$ROOT/$id" disable || printf 'hyprsimple-plugin: lifecycle rollback failed\n' >&2
+      record "$id" false "$ROOT/$id"
+      fail 'install activation incomplete, plugin installed disabled, retry enable'
+    fi
+    record "$id" true "$ROOT/$id"
+    refresh
+    ;;
+  enable|disable|update|remove)
+    (($# == 1)) || fail "$command needs one ID"
+    id=$1
+    valid_id "$id" || fail 'invalid ID'
+    dir="$ROOT/$id"
+    [[ -d $dir ]] || fail "plugin is not installed: $id"
+    enabled=$(jq -r --arg id "$id" '.plugins[$id].enabled // false' <<<"$config")
+    case "$command" in
+      enable)
+        [[ $enabled != true ]] || exit 0
+        validate_repo "$dir" "$id"
+        dependencies "$dir" || fail 'dependency installation failed, plugin remains disabled'
+        if ! lifecycle "$dir" enable; then
+          lifecycle "$dir" disable || printf 'hyprsimple-plugin: lifecycle rollback failed\n' >&2
+          fail 'enable lifecycle failed, enablement not recorded'
+        fi
+        record "$id" true "$dir"
+        ;;
+      disable|remove)
+        record "$id" false "$dir"
+        # Publish disabled UI before stopping background work, including on retries.
+        refresh
+        lifecycle "$dir" disable || fail 'disable incomplete, retry to stop background work'
+        if [[ $command == remove ]]; then rm -rf -- "$dir"; fi
+        ;;
+      update)
+        [[ -z $(git -C "$dir" status --porcelain --untracked-files=all) ]] || fail 'refusing dirty plugin update'
+        source=$(git -C "$dir" remote get-url origin)
+        local_mode=false
+        [[ $source == /* ]] && local_mode=true
+        acquire "$source" "$local_mode"
+        validate_candidate "$STAGE/repo" "$id"
+        dependencies "$STAGE/repo" || fail 'dependency installation failed, old plugin retained'
+        old_config=$config
+        [[ ! -f $CONFIG ]] || cp -- "$CONFIG" "$STAGE/config"
+        TRANSACTION=true
+        if [[ $enabled == true ]]; then
+          record "$id" false "$dir"
+          if ! lifecycle "$dir" disable; then
+            fail 'old disable lifecycle failed, update aborted'
+          fi
+        fi
+        mv -- "$dir" "$STAGE/old"
+        mv -- "$STAGE/repo" "$dir"
+        if [[ $enabled == true ]] && ! lifecycle "$dir" enable; then
+          fail 'update activation failed, old code and config restored'
+        fi
+        record "$id" "$enabled" "$dir"
+        TRANSACTION=false
+        ;;
+    esac
+    [[ $command == disable || $command == remove ]] || refresh
+    ;;
+esac

@@ -203,7 +203,7 @@ check "and the README documents Print as taking the screenshot itself" \
 # stale the same way the README did.
 
 mapfile -t shipped < <(find "$REPO/.local/bin" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)
-mapfile -t named < <(grep -oE '`[a-zA-Z0-9_.-]+\.(sh|fish)`' "$README" | tr -d '`' | LC_ALL=C sort -u)
+mapfile -t named < <(grep -oE '`([a-zA-Z0-9_.-]+\.(sh|fish)|hyprsimple-plugin)`' "$README" | tr -d '`' | LC_ALL=C sort -u)
 
 if (( ${#shipped[@]} < 20 )); then
   fail "found ${#shipped[@]} scripts in .local/bin, which is too few to be right"

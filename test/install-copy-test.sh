@@ -188,6 +188,27 @@ check "shallow install tree is clean" "$(git -C "$HYPRSIMPLE_PATH" status --porc
 git -C "$HYPRSIMPLE_PATH" fetch --unshallow origin >/dev/null 2>&1
 check "unshallow leaves a full clone" "$([[ -f $HYPRSIMPLE_PATH/.git/shallow ]] && echo shallow || echo full)" full
 
+# Exercise the real delivery loops, including the extensionless allowlist.
+for delivery in install.sh bootstrap.sh .local/bin/hyprsimple-update.sh; do
+  (
+    export HOME="$TMP/delivery-${delivery//\//-}"
+    DOTFILES_DIR="$TMP/delivery-source"
+    HYPRSIMPLE_PATH="$DOTFILES_DIR"
+    mkdir -p "$DOTFILES_DIR/.local/bin" "$HOME/.local/bin"
+    printf 'manager\n' >"$DOTFILES_DIR/.local/bin/hyprsimple-plugin"
+    printf 'unrelated\n' >"$DOTFILES_DIR/.local/bin/unrelated"
+    # shellcheck disable=SC2317,SC2329 # Called by the extracted installer loop.
+    backup_if_exists() { :; }
+    block=$(sed -n '/^for script in /,/^done$/p' "$REPO/$delivery")
+    [[ -n $block ]] || exit 1
+    eval "$block" >/dev/null
+    [[ -x $HOME/.local/bin/hyprsimple-plugin ]] || exit 1
+    cmp "$DOTFILES_DIR/.local/bin/hyprsimple-plugin" "$HOME/.local/bin/hyprsimple-plugin" || exit 1
+    [[ ! -e $HOME/.local/bin/unrelated ]]
+  )
+  check "$delivery delivers exact command only" "$?" 0
+done
+
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

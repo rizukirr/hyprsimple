@@ -19,6 +19,8 @@
 
 BAR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell"
 
+export QML_IMPORT_PATH="$BAR${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+
 bar_running() {
   pgrep -f -- "qs -p $BAR" >/dev/null
 }
