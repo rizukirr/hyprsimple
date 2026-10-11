@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Battery notification script - reduce brightness when battery is low
-# Designed to be run by systemd timer every 30 seconds
+# Battery notification script - reduce brightness and switch to the power-saver
+# profile when battery is low, and put both back when the charger goes in.
+# Run by a systemd timer every 30 seconds, and by the bar at the moment the
+# charger is plugged in or pulled out.
 
 BATTERY_THRESHOLD=(20 15 10 5 3)
 # Brightness to drop to once the battery reaches the first threshold. Fixed on
@@ -15,6 +17,15 @@ FLAG_FILE="${HYPRSIMPLE_BATTERY_FLAG:-/tmp/battery-notification-flag}"
 # can put it back. Beside the flag, and overridable so the suite never writes
 # to the real one.
 BRIGHTNESS_FILE="${HYPRSIMPLE_BRIGHTNESS_FILE:-/tmp/battery-brightness-before-dim}"
+# The power profile to switch to with the dimming, and where the one in use
+# before is kept so charging can put it back.
+#
+# Not in /tmp like the two above. power-profiles-daemon keeps its profile
+# across a reboot and /tmp does not, so a machine that ran flat in power-saver
+# would come back still in it, with the record of what to return to gone.
+LOW_BATTERY_PROFILE=power-saver
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hyprsimple"
+PROFILE_FILE="${HYPRSIMPLE_PROFILE_FILE:-$STATE_DIR/battery-profile-before-low}"
 
 get_battery_percentage() {
   upower -i "$(upower -e | grep 'BAT')" |
@@ -96,15 +107,52 @@ if [[ "$BATTERY_STATE" == "discharging" ]]; then
         fi
         brightnessctl set "${LOW_BATTERY_BRIGHTNESS}"%
       fi
-      notify-send -u critical "Battery Low" "Battery at ${BATTERY_LEVEL}%, brightness reduced to ${LOW_BATTERY_BRIGHTNESS}%"
+
+      # The same shape for the power profile: remember the one in use, once,
+      # then switch. A machine already in power-saver has nothing to remember
+      # and is not sent back anywhere later. One without power-profiles-daemon
+      # is only dimmed.
+      saver=""
+      if command -v powerprofilesctl >/dev/null 2>&1; then
+        profile=$(powerprofilesctl get 2>/dev/null)
+        if [[ -n $profile && $profile != "$LOW_BATTERY_PROFILE" ]]; then
+          if [[ ! $(cat "$PROFILE_FILE" 2>/dev/null) =~ ^(balanced|performance)$ ]]; then
+            mkdir -p "$(dirname "$PROFILE_FILE")"
+            printf '%s\n' "$profile" >"$PROFILE_FILE"
+          fi
+          powerprofilesctl set "$LOW_BATTERY_PROFILE"
+        fi
+        # Said only if it is so. The switch can be refused.
+        [[ $(powerprofilesctl get 2>/dev/null) == "$LOW_BATTERY_PROFILE" ]] && saver=", power saver on"
+      fi
+      notify-send -u critical "Battery Low" "Battery at ${BATTERY_LEVEL}%, brightness reduced to ${LOW_BATTERY_BRIGHTNESS}%${saver}"
       echo "$crossed" >"$FLAG_FILE"
     fi
   fi
 else
+  # Whether a low battery was acted on since the charger was last in. Read
+  # before anything is cleared, because it decides whether to say anything.
+  warned=false
+  [[ -f $FLAG_FILE || -f $BRIGHTNESS_FILE || -f $PROFILE_FILE ]] && warned=true
+  restored=()
+
   # Clear flag when charging/charged to allow new notifications on next discharge
   rm -f "$FLAG_FILE"
 
-  # And put the brightness back.
+  # The power profile goes back, if it is still the one a low battery chose.
+  # Anything else was picked since, in the system panel or a terminal, and is
+  # not ours to undo.
+  if [[ -f $PROFILE_FILE ]]; then
+    saved=$(cat "$PROFILE_FILE" 2>/dev/null)
+    if [[ $saved =~ ^(balanced|performance)$ ]] && command -v powerprofilesctl >/dev/null 2>&1 &&
+      [[ $(powerprofilesctl get 2>/dev/null) == "$LOW_BATTERY_PROFILE" ]] &&
+      powerprofilesctl set "$saved"; then
+      restored+=("${saved} mode")
+    fi
+    rm -f "$PROFILE_FILE"
+  fi
+
+  # And the brightness.
   #
   # The dimming had no counterpart, so a low battery took the screen to 5% and
   # left it there. Plugging in cleared the flag and nothing else: the screen
@@ -119,12 +167,30 @@ else
   if [[ -f $BRIGHTNESS_FILE ]]; then
     saved=$(cat "$BRIGHTNESS_FILE" 2>/dev/null)
     now=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%')
-    # Only when the screen is still where the dimming left it. Anything else
-    # was set deliberately since, and is not ours to undo.
-    if [[ $now == "$LOW_BATTERY_BRIGHTNESS" && $saved =~ ^[0-9]+$ && $saved != "$LOW_BATTERY_BRIGHTNESS" ]]; then
+    # Whenever the screen is darker than it was before the dimming.
+    #
+    # This used to restore only a screen still at exactly the dim level, on
+    # the reasoning that any other value was chosen deliberately. But 5% is
+    # too dark to work at, so the usual thing is to nudge it up to read, and
+    # that nudge then cancelled the restore: the charger went in, the screen
+    # stayed dim and nothing was said. A screen set brighter than before is
+    # still left alone.
+    if [[ $saved =~ ^[0-9]+$ && $now =~ ^[0-9]+$ ]] && ((now < saved)); then
       brightnessctl set "${saved}%"
-      notify-send "Battery" "Charging, brightness restored to ${saved}%" -t 2000
+      restored+=("brightness ${saved}%")
     fi
     rm -f "$BRIGHTNESS_FILE"
+  fi
+
+  # Said once, after a low battery, whether or not there was anything left to
+  # put back. Plugging in at a healthy level says nothing: the bar shows that.
+  if [[ $warned == true ]]; then
+    if ((${#restored[@]} == 2)); then
+      notify-send "Charging" "Battery at ${BATTERY_LEVEL}%, ${restored[0]} and ${restored[1]} restored"
+    elif ((${#restored[@]} == 1)); then
+      notify-send "Charging" "Battery at ${BATTERY_LEVEL}%, ${restored[0]} restored"
+    else
+      notify-send "Charging" "Battery at ${BATTERY_LEVEL}%"
+    fi
   fi
 fi

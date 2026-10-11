@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Services.UPower
 import qs.plugins
 import qs.bar
 import qs.system
@@ -56,6 +57,17 @@ ShellRoot {
     }
 
     Registry { id: externalPlugins }
+
+    // battery-monitor.sh puts the power profile and the brightness back when the
+    // charger goes in, but its timer only fires every 30 seconds. Running it at
+    // the moment the charger is plugged in or pulled out makes that immediate.
+    // On a machine with no battery the state never changes and this never runs.
+    Connections {
+        target: UPower.displayDevice
+        function onStateChanged() {
+            Quickshell.execDetached(["systemctl", "--user", "start", "--no-block", "battery-monitor.service"])
+        }
+    }
 
     // One panel at a time across every monitor: the bar that has it open, or null.
     readonly property var panelOwner: bars.instances.find(bar => bar.openPanel !== "") ?? null

@@ -333,7 +333,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 
 | Script | Description |
 |--------|-------------|
-| `battery-monitor.sh` | Low-battery notifications and automatic brightness reduction |
+| `battery-monitor.sh` | At a low battery, warns, dims the screen and switches to power saver. On the charger, puts both back and says so |
 | `bluetooth-toggle.sh` | Toggle Bluetooth adapter power |
 | `toggle_cpu_mode.sh` | Switch CPU governor between performance and powersave |
 | `hyprsimple-hw-intel-laptop.sh` | Exit 0 on an Intel laptop new enough for thermald (used as a condition) |
