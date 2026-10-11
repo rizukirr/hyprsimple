@@ -25,6 +25,7 @@ https://github.com/user-attachments/assets/f43671d7-4cd2-4cef-a13d-b3c28e432ccd
 - **Modular Hyprland config** split into focused files
 - **GTK/QT theming** with auto light/dark mode per theme
 - **Smart battery** with auto brightness and power profiles
+- **Power mode** in the system panel: power saver, balanced or performance, switched through power-profiles-daemon
 - **Screen recording** with mic, system audio, or silent modes
 - **Screenshot** for monitor, window, region, or clipboard
 - **Clipboard history** in a panel of the bar, with search, pictures shown as pictures, and removing one entry or all of them
@@ -272,7 +273,7 @@ build fails during install.
 | `SUPER + SHIFT + B` | Open the bluetooth panel |
 | `SUPER + SHIFT + D` | Open the notifications panel |
 | `SUPER + C` | Open the calendar panel |
-| `SUPER + I` | Open the system panel |
+| `SUPER + I` | Open the system panel: power mode, CPU, memory and GPU |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
 | `SUPER + /` | Show all keybindings, in a searchable panel of the bar |

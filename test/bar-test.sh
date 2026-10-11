@@ -88,6 +88,27 @@ check "a meter animates its width" "$(grep -c 'Behavior on width' <<<"$meter_cod
 check "and only in a window that is on screen" \
   "$(grep -c 'Behavior on width { enabled: root.Window.window?.visible ?? false; Anim {} }' <<<"$meter_code")" "1"
 
+# The system panel switches the power mode through power-profiles-daemon, over
+# the session's own connection to it. Clicked through a copy of this panel in
+# offscreen Quickshell on a machine with the daemon, each mode took effect and
+# `powerprofilesctl get` agreed. CI has no daemon, so what is checked here is
+# the shape: the daemon is the one authority, and a machine without it or
+# without a performance profile is not shown a control that does nothing.
+SYSTEM_PANEL="$BAR_DIR/panels/SystemPanel.qml"
+panel_code="$(sed 's|^[[:space:]]*//.*||' "$SYSTEM_PANEL")"
+check "the system panel has one power mode selector" "$(grep -c '^    Segmented {' <<<"$panel_code")" "1"
+check "which sets the daemon's profile" "$(grep -c 'PowerProfiles.profile = ' <<<"$panel_code")" "1"
+check "and shows the profile the daemon reports" \
+  "$(grep -c 'value: root.powerModes.find(mode => mode.profile === PowerProfiles.profile)' <<<"$panel_code")" "1"
+check "performance is offered only where the machine has it" \
+  "$(grep -c 'mode.profile !== PowerProfile.Performance || PowerProfiles.hasPerformanceProfile' <<<"$panel_code")" "1"
+check "the selector and its label are hidden until a daemon answers" \
+  "$(grep -c '^        visible: root.hasPowerModes$' <<<"$panel_code")" "2"
+check "the daemon is asked when the panel opens, not when the bar starts" \
+  "$(grep -c 'running: true' <<<"$panel_code")" "0"
+check "and nothing sets the governor behind the daemon's back" \
+  "$(grep -c 'powerprofilesctl\|cpupower' <<<"$panel_code")" "0"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which
