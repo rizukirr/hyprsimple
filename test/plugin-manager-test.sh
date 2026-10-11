@@ -248,4 +248,59 @@ run disable concurrent
 [[ $(grep -c '^bar ' "$LOG") == 1 ]]
 if grep -q '^hyprctl ' "$LOG"; then exit 1; fi
 pass 'inactive session does not request Hyprland reload'
+# A plugin follows its releases unless a branch is asked for.
+fixture "$TMP/channel" channel
+git -C "$TMP/channel" tag v0.9.0
+printf 'second\n' >"$TMP/channel/note"
+commit "$TMP/channel"
+git -C "$TMP/channel" tag v0.10.0
+git -C "$TMP/channel" tag 0.9.5
+printf 'unreleased\n' >"$TMP/channel/note"
+commit "$TMP/channel"
+installed="$HYPRSIMPLE_PLUGIN_ROOT/channel"
+at() { [[ $(git -C "$installed" rev-parse HEAD) == "$(git -C "$TMP/channel" rev-parse "$1")" ]]; }
+run install --local "$TMP/channel"
+at v0.10.0
+jq -e '.plugins.channel | has("branch") | not' "$CONFIG" >/dev/null
+run list
+grep -q $'channel\t1\ttrue\treleases' "$TMP/output"
+pass 'install takes the newest release by number, not the tip and not the newest name'
+run update channel
+at v0.10.0
+git -C "$TMP/channel" tag v0.11.0
+run update channel
+at v0.11.0
+pass 'update stays on a release until a newer one is tagged'
+run remove channel
+branch=$(git -C "$TMP/channel" symbolic-ref --short HEAD)
+printf 'tip\n' >"$TMP/channel/note"
+commit "$TMP/channel"
+run install --local "$TMP/channel" --branch "$branch"
+at "$branch"
+jq -e --arg branch "$branch" '.plugins.channel.branch == $branch' "$CONFIG" >/dev/null
+run list
+grep -q "channel"$'\t1\ttrue\t'"$branch" "$TMP/output"
+printf 'tip again\n' >"$TMP/channel/note"
+commit "$TMP/channel"
+git -C "$TMP/channel" tag v0.12.0 HEAD~1
+run update channel
+at "$branch"
+pass '--branch after the source installs that branch, and update keeps following it past newer releases'
+run remove channel
+run install --branch v0.9.0 --local "$TMP/channel"
+at v0.9.0
+run update channel
+at v0.9.0
+pass '--branch with a tag name pins that release'
+run remove channel
+run install --local "$TMP/channel"
+at v0.12.0
+jq -e '.plugins.channel | has("branch") | not' "$CONFIG" >/dev/null
+run remove channel
+pass 'installing again without --branch returns to releases'
+reject 'a branch that does not exist installs nothing' install --local "$TMP/channel" --branch missing
+[[ ! -e $installed ]]
+reject 'an option-like branch name is refused' install --local "$TMP/channel" --branch --upload-pack=evil
+reject '--branch needs a name' install --local "$TMP/channel" --branch
+reject 'two sources are refused' install --local "$TMP/channel" "$TMP/source"
 printf 'all manager checks passed\n'

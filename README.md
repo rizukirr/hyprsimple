@@ -370,7 +370,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 
 See [the plugin author guide](PLUGINS.md) for the manifest and QML contract.
 
-Run `hyprsimple-plugin install OWNER/REPO` to install a trusted plugin. Use `hyprsimple-plugin list`, `disable ID`, `enable ID`, `update ID` or `remove ID` to manage it. Plugins run code from their repository, so review it before installing.
+Run `hyprsimple-plugin install OWNER/REPO` to install the newest release of a trusted plugin, or add `--branch main` to follow a branch. Use `hyprsimple-plugin list`, `disable ID`, `enable ID`, `update ID` or `remove ID` to manage it. Plugins run code from their repository, so review it before installing.
 
 Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Plugins bind no keys. Each one names a panel alias, and you bind a key to it in `~/.config/hypr/bindings/applications.lua`. The default Muslimtify plugin's alias is `prayer`:
 
