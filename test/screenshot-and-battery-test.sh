@@ -118,6 +118,22 @@ cat >"$STUB/notify-send" <<'STUBEOF'
 printf '%s\n' "$*" >>"${NOTIFY_LOG:?}"
 STUBEOF
 chmod +x "$STUB/notify-send"
+# The monitor switches the power profile, so it must never reach the real
+# powerprofilesctl from here: on a machine that has the daemon, this suite
+# would put it into power-saver. The stub keeps a profile of its own in a file,
+# and refuses a switch when REFUSE_PROFILE is set, as the daemon can.
+PROFILE="$TMP/profile"
+PF="$TMP/profile-before-low"
+cat >"$STUB/powerprofilesctl" <<'STUBEOF'
+#!/bin/bash
+case "$1" in
+  get) cat "${PROFILE_STATE:?}" ;;
+  set) [[ -z ${REFUSE_PROFILE:-} ]] || exit 1; printf '%s\n' "$2" >"${PROFILE_STATE:?}" ;;
+esac
+STUBEOF
+chmod +x "$STUB/powerprofilesctl"
+export PROFILE_STATE="$PROFILE"
+printf 'balanced\n' >"$PROFILE"
 
 battery_at() {
   cat >"$STUB/upower" <<STUBEOF
@@ -137,6 +153,7 @@ FLAG="$TMP/battery-flag"
 run_battery() {
   battery_at "$1"
   HYPRSIMPLE_BATTERY_FLAG="$FLAG" HYPRSIMPLE_BRIGHTNESS_FILE="$TMP/record" \
+    HYPRSIMPLE_PROFILE_FILE="$PF" \
     NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
     bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 }
@@ -197,6 +214,7 @@ echo "    state:               charging"
 STUBEOF
 chmod +x "$STUB/upower"
 HYPRSIMPLE_BATTERY_FLAG="$FLAG" HYPRSIMPLE_BRIGHTNESS_FILE="$TMP/record" \
+  HYPRSIMPLE_PROFILE_FILE="$PF" \
   NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
   bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 check "charging clears the flag" \
@@ -253,7 +271,7 @@ run_at() {
   local pct="$1" state="${2:-discharging}"
   if [[ $state == charging ]]; then charging_at "$pct"; else battery_at "$pct"; fi
   LEVEL_FILE="$LEVEL" HYPRSIMPLE_BRIGHTNESS_FILE="$BF" \
-    HYPRSIMPLE_BATTERY_FLAG="$FLAG" \
+    HYPRSIMPLE_BATTERY_FLAG="$FLAG" HYPRSIMPLE_PROFILE_FILE="$PF" \
     NOTIFY_LOG="$NLOG" BRIGHT_LOG="$BLOG" PATH="$STUB:$PATH" \
     bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 }
@@ -271,18 +289,28 @@ check "without overwriting the recorded value with the dim one" \
 
 run_at 20 charging
 check "plugging in puts the brightness back" "$(level)" "80"
-check "and says so" "$(grep -c 'brightness restored to 80%' "$NLOG")" "1"
+check "and says so" "$(grep -c 'brightness 80% restored' "$NLOG")" "1"
 check "and forgets the record, so the next discharge starts clean" \
   "$([[ -f $BF ]] && echo kept || echo cleared)" "cleared"
 
-# A brightness the user chose since the dim is theirs, not ours to undo.
-rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+# 5% is too dark to work at, so the usual thing is to nudge it up to read.
+# That nudge used to cancel the restore: the charger went in, the screen stayed
+# where the nudge left it and nothing was said. Reported from a real machine.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
 run_at 9
 printf '45' >"$LEVEL"
 run_at 20 charging
-check "a brightness changed since the dim is left alone" "$(level)" "45"
+check "a screen raised a little since the dim still goes back to where it was" "$(level)" "80"
+check "and that is announced" "$(grep -c '^Charging .*brightness 80% restored' "$NLOG")" "1"
+
+# Brighter than before is a choice, and is left alone.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"
+run_at 9
+printf '95' >"$LEVEL"
+run_at 20 charging
+check "a screen set brighter than before the dim is left alone" "$(level)" "95"
 check "and nothing is announced about restoring it" \
-  "$(grep -c 'brightness restored' "$NLOG")" "0"
+  "$(grep -c 'brightness .* restored' "$NLOG")" "0"
 check "but the record is still cleared" \
   "$([[ -f $BF ]] && echo kept || echo cleared)" "cleared"
 
@@ -291,6 +319,80 @@ rm -f "$FLAG" "$BF"; : >"$NLOG"; : >"$BLOG"; printf '70' >"$LEVEL"
 run_at 90 charging
 check "charging with nothing to restore leaves the screen alone" "$(level)" "70"
 check "and issues no brightness command" "$(grep -c 'set' "$BLOG")" "0"
+check "and says nothing, because the bar already shows a charger" "$(wc -l <"$NLOG" | tr -d ' ')" "0"
+
+# --- and a low battery switches to the power-saver profile -------------------
+#
+# The same shape as the dimming: the profile in use is remembered once, the
+# switch is made, and the charger puts it back.
+
+profile() { cat "$PROFILE"; }
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; : >"$BLOG"; printf '80' >"$LEVEL"; printf 'balanced\n' >"$PROFILE"
+run_at 19
+check "a low battery switches to power-saver" "$(profile)" "power-saver"
+check "and records the profile it left" "$(cat "$PF" 2>/dev/null)" "balanced"
+check "and the warning says so" "$(grep -c 'Battery Low Battery at 19%, brightness reduced to 5%, power saver on' "$NLOG")" "1"
+
+run_at 9
+check "falling further does not record power-saver as the profile to return to" \
+  "$(cat "$PF" 2>/dev/null)" "balanced"
+
+: >"$NLOG"
+run_at 25 charging
+check "plugging in puts the profile back" "$(profile)" "balanced"
+check "and the brightness with it" "$(level)" "80"
+check "and one notification names both" \
+  "$(grep -c '^Charging Battery at 25%, balanced mode and brightness 80% restored$' "$NLOG")" "1"
+check "and it is not a critical one" "$(grep -c -- '-u critical' "$NLOG")" "0"
+check "and the record is cleared" "$([[ -f $PF ]] && echo kept || echo cleared)" "cleared"
+
+: >"$NLOG"
+run_at 30 charging
+check "the next tick on the charger says nothing more" "$(wc -l <"$NLOG" | tr -d ' ')" "0"
+
+# A profile chosen since the warning, in the system panel or a terminal, is a
+# choice. It is left alone, and the charger is still announced.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; printf '80' >"$LEVEL"; printf 'balanced\n' >"$PROFILE"
+run_at 19
+printf 'performance\n' >"$PROFILE"
+printf '95' >"$LEVEL"
+run_at 25 charging
+check "a profile chosen since the warning is left alone" "$(profile)" "performance"
+check "and the charger is still announced, with nothing claimed as restored" \
+  "$(grep -c '^Charging Battery at 25%$' "$NLOG")" "1"
+
+# Already in power-saver: nothing to remember, and nothing to go back to.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; printf '80' >"$LEVEL"; printf 'power-saver\n' >"$PROFILE"
+run_at 19
+check "a machine already in power-saver records nothing" "$([[ -f $PF ]] && echo kept || echo none)" "none"
+run_at 25 charging
+check "and stays in power-saver on the charger" "$(profile)" "power-saver"
+
+# The daemon can refuse. The warning must not claim a switch that did not happen.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; printf '80' >"$LEVEL"; printf 'balanced\n' >"$PROFILE"
+REFUSE_PROFILE=1 run_at 19
+check "a refused switch leaves the profile where it was" "$(profile)" "balanced"
+check "and the warning does not claim power saver" "$(grep -c 'power saver on' "$NLOG")" "0"
+check "while the low battery is still announced" "$(grep -c 'Battery Low' "$NLOG")" "1"
+
+# The profile record survives a reboot, because the daemon's profile does. A
+# machine that ran flat in power-saver comes back on the charger with no flag
+# and no brightness record, and must still be taken out of power-saver.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; printf '80' >"$LEVEL"; printf 'power-saver\n' >"$PROFILE"
+printf 'performance\n' >"$PF"
+run_at 12 charging
+check "a profile record alone, as after a reboot, is still acted on" "$(profile)" "performance"
+check "and announced" "$(grep -c '^Charging Battery at 12%, performance mode restored$' "$NLOG")" "1"
+
+# A record that is not a profile name is never passed to the daemon.
+rm -f "$FLAG" "$BF" "$PF"; : >"$NLOG"; printf 'power-saver\n' >"$PROFILE"
+printf -- '--evil\n' >"$PF"
+run_at 12 charging
+check "a damaged profile record is discarded, not used" "$(profile)" "power-saver"
+check "and removed" "$([[ -f $PF ]] && echo kept || echo cleared)" "cleared"
+check "the default record is outside /tmp, where a reboot would lose it" \
+  "$(grep -c '^STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hyprsimple"$' "$BIN/battery-monitor.sh")" "1"
+printf 'balanced\n' >"$PROFILE"
 
 
 # A leftover record that is not a number counts as no record. /tmp is shared,
@@ -354,6 +456,14 @@ check "and does not restore with -r either" \
   "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl -r')" "0"
 check "and stripping comments leaves its real calls behind" \
   "$(script_code "$BIN/battery-monitor.sh" | grep -c 'brightnessctl set')" "2"
+
+# The timer fires every 30 seconds, so the bar runs the monitor at the moment
+# the charger goes in or out. Otherwise the restore can take half a minute and
+# looks like it did not happen.
+check "the bar runs the monitor when the charger state changes" \
+  "$(grep -c 'Quickshell.execDetached(\["systemctl", "--user", "start", "--no-block", "battery-monitor.service"\])' "$REPO/default/quickshell/shell.qml")" "1"
+check "from one place, not once per monitor" \
+  "$(grep -rc 'battery-monitor.service' "$REPO/default/quickshell" --include='*.qml' | grep -vc ':0$')" "1"
 check "while hypridle still uses that slot for idle" \
   "$(grep -c 'brightnessctl -s' "$REPO/default/hypr/hypridle/20-brightness.conf")" "1"
 

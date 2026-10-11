@@ -284,6 +284,17 @@ else
   (( ${#unisolated[@]} > 0 )) && unisolated_str="$(printf '%s; ' "${unisolated[@]}")"
   check "and every suite running battery-monitor.sh overrides all of them" \
     "$unisolated_str" ""
+
+  # The monitor also switches the machine's power profile, which no state path
+  # redirects. A suite that ran it without a stand-in for powerprofilesctl put
+  # the maintainer's machine into power-saver and left it there.
+  unstubbed=()
+  while IFS= read -r suite; do
+    grep -qE '>"\$[A-Z_]+/powerprofilesctl"' "$REPO/test/$suite" || unstubbed+=("$suite")
+  done < <(printf '%s\n' "${runners[@]}" | LC_ALL=C sort -u)
+  unstubbed_str=""
+  (( ${#unstubbed[@]} > 0 )) && unstubbed_str="$(printf '%s ' "${unstubbed[@]}")"
+  check "and every one of them stubs powerprofilesctl" "$unstubbed_str" ""
 fi
 
 # A suite must not be able to reach the real qs, which is how a script talks to
