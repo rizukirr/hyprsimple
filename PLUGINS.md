@@ -21,7 +21,7 @@ You get the plugin's newest release, which is its newest Git tag. A plugin that 
 hyprsimple-plugin owner/repo --branch main
 ```
 
-`--branch` also takes a tag name, which pins the plugin to that release.
+`--branch` is a lock. The plugin stays on that branch through every later update, and through a removal and reinstall, until you unlock it with `--stable`. It also takes a tag name, which pins the plugin to that release.
 
 Read a plugin's repository before you install it. A plugin's QML runs inside your bar, its scripts run as your user, and its dependencies can ask for a privileged package install. The manifest check confirms the plugin is well formed. It is not a sandbox.
 
@@ -30,12 +30,14 @@ Read a plugin's repository before you install it. A plugin's QML runs inside you
 | Command | What it does |
 |---|---|
 | `hyprsimple-plugin install SOURCE` | Install and enable the plugin's newest release. `install` can be left out. |
-| `hyprsimple-plugin install SOURCE --branch NAME` | Install a branch, or pin a tag, in place of the newest release. |
+| `hyprsimple-plugin install SOURCE --branch NAME` | Install a branch, or pin a tag, and lock the plugin to it. |
 | `hyprsimple-plugin install --local PATH` | Install from a Git repository on this machine. |
 | `hyprsimple-plugin list` | Print each installed plugin's ID, version, whether it is enabled, and `releases` or the branch it follows. |
 | `hyprsimple-plugin enable ID` | Enable an installed plugin, or retry one whose activation failed. |
 | `hyprsimple-plugin disable ID` | Hide the plugin and stop its background work. The code stays installed. |
-| `hyprsimple-plugin update ID` | Move the plugin to the newest release, or to the tip of the branch it was installed with. |
+| `hyprsimple-plugin update ID` | Move the plugin to the newest release, or to the tip of the branch it is locked to. |
+| `hyprsimple-plugin update ID --branch NAME` | Switch the plugin to a branch and lock it there. |
+| `hyprsimple-plugin update ID --stable` | Unlock the plugin and return it to the newest release. |
 | `hyprsimple-plugin remove ID` | Disable the plugin and delete its code. |
 
 A running bar restarts once after each command that changes something, so the result is visible straight away.
@@ -67,9 +69,9 @@ You can edit this file. Restart the bar afterwards with `hyprsimple-restart-bar.
 
 - `placement` moves the widget. `left` puts it after the workspaces, `center` after the clock and `right` before the status items.
 - `settings` is passed to the plugin as it is. A plugin's README says which keys it reads, if any.
-- `branch` is there only for a plugin installed with `--branch`, and holds that name. It is what `update` follows.
+- `branch` is there only for a plugin locked with `--branch`, and holds that name. It is what `update` follows.
 
-The manager keeps `placement` and `settings` when a plugin is updated, disabled, removed or installed again.
+The manager keeps `placement`, `settings` and `branch` when a plugin is updated, disabled, removed or installed again.
 
 ### Bind a key to a panel
 
@@ -91,7 +93,14 @@ Every panel also answers to `plugin:<id>`, whether or not the plugin declares an
 
 `hyprsimple-update` updates Hyprsimple and leaves every plugin on the commit it has. Run `hyprsimple-plugin update <id>` to update a plugin. Review what changed first, for the same reason you review a plugin before installing it.
 
-An update follows what the install asked for. A plugin installed the plain way moves to the newest release and stays put until another is tagged, so a commit its author has not released does not reach you. A plugin installed with `--branch` moves to the tip of that branch every time. To change which one a plugin follows, remove it and install it again with or without `--branch`. Its placement and settings are kept.
+What a plugin follows is its channel, and it works the way `hyprsimple-update` does for Hyprsimple itself. A plugin on releases moves to the newest release and stays put until another is tagged, so a commit its author has not released does not reach you. A plugin locked to a branch moves to the tip of that branch every time.
+
+```sh
+hyprsimple-plugin update example --branch main   # switch to main and stay there
+hyprsimple-plugin update example --stable        # back to the newest release
+```
+
+The lock is kept until `--stable` clears it. A plain `update` keeps it, and so do `disable`, `enable` and `remove`: a plugin removed while locked comes back on the same branch when it is installed again, unless that install says `--stable`. `hyprsimple-plugin list` shows `releases` or the branch for each plugin.
 
 An update is refused when the installed checkout has local changes. Commit, stash or discard them first.
 
@@ -639,7 +648,7 @@ Users then install with `hyprsimple-plugin owner/repo`. Keep `apiVersion` at `1`
 
 A release is a Git tag. Users on the plain install get the newest tag, ordered by number with a leading `v` ignored, so `v0.10.0` is newer than `v0.9.0`. Until the first tag exists they get the default branch.
 
-To release, set `version` in `manifest.json`, commit, tag that commit and push the tag. A GitHub release on the tag is a good place for notes, and it is the tag that delivers. A commit pushed to the default branch without a tag reaches only the people who installed with `--branch`.
+To release, set `version` in `manifest.json`, commit, tag that commit and push the tag. A GitHub release on the tag is a good place for notes, and it is the tag that delivers. A commit pushed to the default branch without a tag reaches only the people who locked the plugin to that branch.
 
 ## How it works
 
@@ -647,13 +656,13 @@ To release, set `version` in `manifest.json`, commit, tag that commit and push t
 
 Every command takes one lock first, so two commands never touch the same plugin at once.
 
-`install` clones the repository into a staging directory beside the plugin root, checks out the newest tag unless a branch was named, checks the manifest, checks that the ID and aliases are free, installs dependencies, moves the code into place, runs the enable script, records the plugin as enabled and restarts the bar. Nothing is put in place if the manifest or a dependency fails. If the enable script fails, the code stays and the plugin is recorded as disabled.
+`install` clones the repository into a staging directory beside the plugin root, checks out the newest tag or the branch the plugin is locked to, checks the manifest, checks that the ID and aliases are free, installs dependencies, moves the code into place, runs the enable script, records the plugin as enabled and restarts the bar. Nothing is put in place if the manifest or a dependency fails. If the enable script fails, the code stays and the plugin is recorded as disabled.
 
 `enable` does nothing when the plugin is already enabled. Otherwise it checks the manifest, installs dependencies, runs the enable script, records the plugin as enabled and restarts the bar.
 
 `disable` records the plugin as disabled and restarts the bar before it runs the disable script, so the widget is gone even if the script fails. `remove` does the same and then deletes the code. The plugin's entry in `plugins.json` stays, disabled, so its placement and settings survive a reinstall.
 
-`update` refuses a checkout with local changes. It clones the plugin's origin, takes the newest tag or the recorded branch as `install` does, checks the new manifest and installs new dependencies. Then it disables the old version, swaps the code, enables the new version and restarts the bar. If any step after the swap begins fails, it puts the old code and the old `plugins.json` back and enables the old version again.
+`update` refuses a checkout with local changes. It clones the plugin's origin, takes the newest tag or the locked branch as `install` does, checks the new manifest and installs new dependencies. Then it disables the old version, swaps the code, enables the new version and restarts the bar. If any step after the swap begins fails, it puts the old code and the old `plugins.json` back and enables the old version again.
 
 ### How the bar loads plugins
 

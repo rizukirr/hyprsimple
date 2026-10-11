@@ -4,9 +4,14 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 REAL_GIT="$(command -v git)"
 export REAL_GIT
-export PLUGIN_ORIGIN="${MUSLIMTIFY_PLUGIN_FIXTURE:-/tmp/muslimtify-hyprsimple}"
-[[ -f $PLUGIN_ORIGIN/manifest.json ]] || { echo 'Missing published plugin fixture' >&2; exit 1; }
-[[ $("$REAL_GIT" -C "$PLUGIN_ORIGIN" rev-parse HEAD) == 2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea ]] || { echo 'Plugin fixture must use the published commit documented in README.md' >&2; exit 1; }
+FIXTURE="${MUSLIMTIFY_PLUGIN_FIXTURE:-/tmp/muslimtify-hyprsimple}"
+[[ -f $FIXTURE/manifest.json ]] || { echo 'Missing published plugin fixture' >&2; exit 1; }
+[[ $("$REAL_GIT" -C "$FIXTURE" rev-parse HEAD) == 2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea ]] || { echo 'Plugin fixture must use the published commit documented in README.md' >&2; exit 1; }
+# These suites prove delivery of that one commit. The manager installs a
+# plugin's newest release, so a checkout that also carries the plugin's release
+# tags would hand it a later commit. The origin is a copy with no tags.
+"$REAL_GIT" clone -q --no-tags "$FIXTURE" "$TMP/plugin-fixture"
+export PLUGIN_ORIGIN="$TMP/plugin-fixture"
 export LOG="$TMP/log"
 mkdir -p "$TMP/bin"
 cat >"$TMP/bin/git" <<'STUB'

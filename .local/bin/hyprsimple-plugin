@@ -139,16 +139,8 @@ record() {
 latest_tag() {
   git -C "$1" tag | awk '{ key = $0; sub(/^v/, "", key); print key "\t" $0 }' | sort -V | tail -1 | cut -f2
 }
-# A plugin follows its releases unless a branch was asked for. With no branch
-# the newest tag is checked out, and a repository that has no tags yet gives
-# its default branch.
 acquire() {
-  local source=$1 local_mode=$2 branch=${3:-} tag
-  local -a ref=()
-  if [[ -n $branch ]]; then
-    [[ $branch =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || fail 'invalid branch name'
-    ref=(--branch "$branch")
-  fi
+  local source=$1 local_mode=$2
   if [[ $local_mode == true ]]; then
     [[ $source != -* && -d $source ]] || fail 'invalid local repository'
     source=$(realpath -e -- "$source")
@@ -158,10 +150,27 @@ acquire() {
     source="https://github.com/${BASH_REMATCH[2]}/${BASH_REMATCH[3]%.git}.git"
   fi
   STAGE=$(mktemp -d "$(dirname "$ROOT")/.plugin-stage.XXXXXX")
-  GIT_TERMINAL_PROMPT=0 git -c protocol.file.allow=always -c advice.detachedHead=false clone --no-local "${ref[@]}" -- "$source" "$STAGE/repo" || fail 'repository acquisition failed'
-  [[ -z $branch ]] || return 0
-  tag=$(latest_tag "$STAGE/repo")
-  [[ -z $tag ]] || git -C "$STAGE/repo" -c advice.detachedHead=false checkout -q "refs/tags/$tag" || fail "cannot check out release $tag"
+  GIT_TERMINAL_PROMPT=0 git -c protocol.file.allow=always clone --no-local -- "$source" "$STAGE/repo" || fail 'repository acquisition failed'
+}
+# Puts a fresh clone on what the plugin follows: the named branch, or with no
+# name its newest release. A repository that has no tags yet stays on its
+# default branch. A tag name works as a branch name and pins that release.
+checkout() {
+  local repo=$1 branch=$2
+  [[ -n $branch ]] || branch=$(latest_tag "$repo")
+  [[ -n $branch ]] || return 0
+  git -C "$repo" -c advice.detachedHead=false checkout -q "$branch" -- || fail "no such branch or release: $branch"
+}
+# The branch a plugin is locked to, or nothing when it follows releases.
+locked() { jq -r --arg id "$1" '.plugins[$id].branch // empty' <<<"$config"; }
+# What this run should follow: --stable unlocks, --branch locks, and otherwise
+# the lock already recorded holds.
+channel() {
+  if [[ $stable == true ]]; then return 0; fi
+  if [[ -n $branch ]]; then printf '%s\n' "$branch"; else locked "$1"; fi
+}
+lock() {
+  config=$(jq --arg id "$1" --arg branch "$2" 'if $branch == "" then del(.plugins[$id].branch) else .plugins[$id].branch = $branch end' <<<"$config")
 }
 
 command=${1:-}
@@ -170,7 +179,24 @@ if [[ $command =~ ^https://github\.com/ || $command =~ ^[A-Za-z0-9][A-Za-z0-9_-]
   set -- "$command" "$@"
   command=install
 fi
-case "$command" in install|list|enable|disable|update|remove) ;; *) fail 'usage: hyprsimple-plugin {install [--local] SOURCE [--branch NAME]|list|enable ID|disable ID|update ID|remove ID}' ;; esac
+case "$command" in install|list|enable|disable|update|remove) ;; *) fail 'usage: hyprsimple-plugin {install [--local] SOURCE [--branch NAME|--stable]|list|enable ID|disable ID|update ID [--branch NAME|--stable]|remove ID}' ;; esac
+local_mode=false stable=false branch=''
+args=()
+while (($#)); do
+  case "$1" in
+    --local) local_mode=true ;;
+    --stable) stable=true ;;
+    --branch) (($# >= 2)) || fail '--branch needs a name'; branch=$2; shift ;;
+    -*) fail "unknown option: $1" ;;
+    *) args+=("$1") ;;
+  esac
+  shift
+done
+set -- "${args[@]}"
+[[ $command == install || $local_mode == false ]] || fail '--local is for install'
+[[ $command == install || $command == update || ( $stable == false && -z $branch ) ]] || fail '--branch and --stable are for install and update'
+[[ $stable == false || -z $branch ]] || fail 'use --branch or --stable, not both'
+[[ -z $branch || $branch =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || fail 'invalid branch name'
 mkdir -p "$ROOT" "$STATE"
 # One lock serializes every command, so no two replace the same repository.
 exec 9>"$STATE/manager.lock"
@@ -185,22 +211,18 @@ case "$command" in
     (($# == 0)) || jq -r --argjson config "$config" '[.id,.version,($config.plugins[.id].enabled // false | tostring),($config.plugins[.id].branch // "releases")] | @tsv' "$@"
     ;;
   install)
-    local_mode=false branch='' source=''
-    while (($#)); do
-      case "$1" in
-        --local) local_mode=true ;;
-        --branch) (($# >= 2)) || fail '--branch needs a name'; branch=$2; shift ;;
-        -*) fail "unknown option: $1" ;;
-        *) [[ -z $source ]] || fail 'install needs one repository'; source=$1 ;;
-      esac
-      shift
-    done
-    [[ -n $source ]] || fail 'install needs one repository'
-    acquire "$source" "$local_mode" "$branch"
+    (($# == 1)) || fail 'install needs one repository'
+    acquire "$1" "$local_mode"
+    checkout "$STAGE/repo" "$branch"
     validate_candidate "$STAGE/repo"
     id=$candidate_id
-    # Remembered so update follows the same thing install was asked for.
-    config=$(jq --arg id "$id" --arg branch "$branch" 'if $branch == "" then del(.plugins[$id].branch) else .plugins[$id].branch = $branch end' <<<"$config")
+    # A lock outlives removal, so a plain install of a plugin that was locked
+    # goes back to its branch.
+    if [[ -z $branch && $stable == false && -n $(locked "$id") ]]; then
+      checkout "$STAGE/repo" "$(locked "$id")"
+      validate_candidate "$STAGE/repo" "$id"
+    fi
+    lock "$id" "$(channel "$id")"
     dependencies "$STAGE/repo" || fail 'dependency installation failed, plugin not installed'
     mv -- "$STAGE/repo" "$ROOT/$id"
     if ! lifecycle "$ROOT/$id" enable; then
@@ -241,12 +263,14 @@ case "$command" in
         source=$(git -C "$dir" remote get-url origin)
         local_mode=false
         [[ $source == /* ]] && local_mode=true
-        acquire "$source" "$local_mode" "$(jq -r --arg id "$id" '.plugins[$id].branch // empty' <<<"$config")"
+        acquire "$source" "$local_mode"
+        checkout "$STAGE/repo" "$(channel "$id")"
         validate_candidate "$STAGE/repo" "$id"
         dependencies "$STAGE/repo" || fail 'dependency installation failed, old plugin retained'
         old_config=$config
         [[ ! -f $CONFIG ]] || cp -- "$CONFIG" "$STAGE/config"
         TRANSACTION=true
+        lock "$id" "$(channel "$id")"
         if [[ $enabled == true ]]; then
           record "$id" false "$dir"
           if ! lifecycle "$dir" disable; then

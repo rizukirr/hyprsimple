@@ -294,13 +294,47 @@ at v0.9.0
 pass '--branch with a tag name pins that release'
 run remove channel
 run install --local "$TMP/channel"
+at v0.9.0
+jq -e '.plugins.channel.branch == "v0.9.0"' "$CONFIG" >/dev/null
+pass 'the lock outlives removal, so a plain install goes back to it'
+run update channel --stable
+at v0.12.0
+jq -e '.plugins.channel | has("branch") | not' "$CONFIG" >/dev/null
+run update channel
+at v0.12.0
+pass 'update --stable unlocks and returns to the newest release'
+git -C "$TMP/channel" branch dev v0.9.0
+run update --branch dev channel
+at dev
+jq -e '.plugins.channel.branch == "dev"' "$CONFIG" >/dev/null
+printf 'dev work\n' >"$TMP/dev-note"
+git -C "$TMP/channel" checkout -q dev
+cp "$TMP/dev-note" "$TMP/channel/note"
+commit "$TMP/channel"
+git -C "$TMP/channel" checkout -q "$branch"
+run update channel
+at dev
+run disable channel
+run enable channel
+at dev
+pass 'update --branch locks onto a branch that is not the default, and later commands keep it'
+cp "$CONFIG" "$TMP/locked-config"
+reject 'switching to a branch that does not exist changes nothing' update channel --branch missing
+at dev
+cmp "$CONFIG" "$TMP/locked-config"
+reject '--branch and --stable together are refused' update channel --branch dev --stable
+reject 'disable takes no channel option' disable channel --stable
+reject 'remove takes no channel option' remove channel --branch dev
+run remove channel
+run install --local "$TMP/channel" --stable
 at v0.12.0
 jq -e '.plugins.channel | has("branch") | not' "$CONFIG" >/dev/null
 run remove channel
-pass 'installing again without --branch returns to releases'
+pass 'install --stable clears the lock'
 reject 'a branch that does not exist installs nothing' install --local "$TMP/channel" --branch missing
 [[ ! -e $installed ]]
 reject 'an option-like branch name is refused' install --local "$TMP/channel" --branch --upload-pack=evil
 reject '--branch needs a name' install --local "$TMP/channel" --branch
 reject 'two sources are refused' install --local "$TMP/channel" "$TMP/source"
+reject '--local is refused outside install' update example --local
 printf 'all manager checks passed\n'
