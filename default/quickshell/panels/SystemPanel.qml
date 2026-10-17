@@ -1,20 +1,47 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Io
+import Quickshell.Services.UPower
 import qs.theme
 import qs.components
 
-// CPU, memory and GPU usage. The GPU is polled only while this panel is open.
+// The power mode, and CPU, memory and GPU usage. The GPU is polled only while
+// this panel is open.
 PopupPanel {
     id: root
 
     required property var stats
+
+    // power-profiles-daemon does the switching and remembers the choice. The
+    // selector shows what the daemon reports, never what was last clicked, so
+    // it cannot show a mode that did not take effect.
+    readonly property var powerModes: [
+        { value: "saver", label: "Power saver", profile: PowerProfile.PowerSaver },
+        { value: "balanced", label: "Balanced", profile: PowerProfile.Balanced },
+        { value: "performance", label: "Performance", profile: PowerProfile.Performance }
+    ].filter(mode => mode.profile !== PowerProfile.Performance || PowerProfiles.hasPerformanceProfile)
+    // The service reports Balanced when there is no daemon to ask, so whether
+    // one answers is found out separately, the first time the panel opens.
+    property bool hasPowerModes: false
+    readonly property string throttled: PowerProfiles.degradationReason === PerformanceDegradationReason.LapDetected ? "Performance is limited while the laptop is on a lap."
+        : PowerProfiles.degradationReason === PerformanceDegradationReason.HighTemperature ? "Performance is limited while the machine is hot."
+        : ""
 
     function percent(value) {
         return `${Math.round(value * 100)}%`
     }
 
     panelWidth: Theme.panelWidth
-    onOpenChanged: stats.watchGpu = open
+    onOpenChanged: {
+        stats.watchGpu = open
+        if (open && !hasPowerModes) daemon.running = true
+    }
+
+    Process {
+        id: daemon
+        command: ["busctl", "--system", "--timeout=2", "get-property", "org.freedesktop.UPower.PowerProfiles", "/org/freedesktop/UPower/PowerProfiles", "org.freedesktop.UPower.PowerProfiles", "ActiveProfile"]
+        onExited: exitCode => root.hasPowerModes = exitCode === 0
+    }
 
     component Stat: Column {
         id: stat
@@ -63,6 +90,30 @@ PopupPanel {
         leftPadding: Theme.sm
         text: "System"
         font.bold: true
+    }
+
+    SectionLabel {
+        visible: root.hasPowerModes
+        leftPadding: Theme.sm
+        text: "Power mode"
+    }
+
+    Segmented {
+        visible: root.hasPowerModes
+        anchors.horizontalCenter: parent.horizontalCenter
+        options: root.powerModes
+        value: root.powerModes.find(mode => mode.profile === PowerProfiles.profile)?.value ?? ""
+        onChanged: value => PowerProfiles.profile = root.powerModes.find(mode => mode.value === value).profile
+    }
+
+    StyledText {
+        visible: root.hasPowerModes && root.throttled !== ""
+        width: parent.width
+        leftPadding: Theme.sm
+        text: root.throttled
+        color: Theme.muted
+        font.pixelSize: Theme.fontSizeSmall
+        wrapMode: Text.WordWrap
     }
 
     Stat {

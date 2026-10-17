@@ -154,10 +154,21 @@ chmod +x "$STUB/upower"
 # Both state files under this suite's own temp directory. These used to be
 # left at their real paths, so running the suite deleted the live notification
 # flag and left a bogus brightness record for the next charge to restore.
+#
+# And the power profile stubbed. The monitor switches to power-saver at a low
+# battery, and without this the suite did exactly that to the machine running
+# it and left it there.
+cat >"$STUB/powerprofilesctl" <<'STUBEOF'
+#!/bin/bash
+[[ $1 == get ]] && echo balanced
+exit 0
+STUBEOF
+chmod +x "$STUB/powerprofilesctl"
 : >"$LOG"
 NOTIFY_LOG="$LOG" PATH="$STUB:$PATH" \
   HYPRSIMPLE_BATTERY_FLAG="$STUB/battery-flag" \
   HYPRSIMPLE_BRIGHTNESS_FILE="$STUB/battery-record" \
+  HYPRSIMPLE_PROFILE_FILE="$STUB/battery-profile" \
   bash "$BIN/battery-monitor.sh" >/dev/null 2>&1
 check "battery-monitor reaches its low battery notification" \
   "$( (( $(grep -c 'Battery Low' "$LOG") >= 1 )) && echo reached )" "reached"
