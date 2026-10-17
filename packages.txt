@@ -66,6 +66,7 @@ ufw
 # Applications
 ghostty
 neovim
+firefox
 
 # Audio/Video
 pipewire

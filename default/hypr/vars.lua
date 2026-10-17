@@ -10,7 +10,7 @@ M.bar = (os.getenv("HYPRSIMPLE_PATH") or (os.getenv("HOME") .. "/.local/share/hy
 M.barPanel = "qs -p " .. M.bar .. " ipc call bar toggle "
 M.menu = M.barPanel .. "launcher"
 M.powermenu = M.barPanel .. "power"
-M.browser = "brave --enable-features=UseOzonePlatform --ozone-platform=wayland"
+M.browser = "firefox --enable-features=UseOzonePlatform --ozone-platform=wayland"
 M.colorPicker = "hyprpicker"
 
 -- pcall so a syntax error in the user's file degrades to these defaults rather
@@ -18,9 +18,9 @@ M.colorPicker = "hyprpicker"
 -- names, so this is not a cycle.
 local ok, user = pcall(require, "hypr.vars")
 if ok and type(user) == "table" then
-  for k, v in pairs(user) do
-    M[k] = v
-  end
+	for k, v in pairs(user) do
+		M[k] = v
+	end
 end
 
 -- This file is install-owned and reaches every machine on the next update, but
@@ -34,12 +34,16 @@ end
 -- where to set it, so an out-of-date bindings file loses one key rather than
 -- all of them. This also covers a plain typo in a hand-written binding.
 setmetatable(M, {
-  __index = function(_, key)
-    return "notify-send -u critical 'hyprsimple' "
-      .. "'This key runs vars." .. key .. ", which hyprsimple does not set. "
-      .. "Bind a program directly in ~/.config/hypr/bindings/applications.lua, "
-      .. "or set " .. key .. " in ~/.config/hypr/vars.lua.'"
-  end,
+	__index = function(_, key)
+		return "notify-send -u critical 'hyprsimple' "
+			.. "'This key runs vars."
+			.. key
+			.. ", which hyprsimple does not set. "
+			.. "Bind a program directly in ~/.config/hypr/bindings/applications.lua, "
+			.. "or set "
+			.. key
+			.. " in ~/.config/hypr/vars.lua.'"
+	end,
 })
 
 return M

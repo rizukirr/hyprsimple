@@ -185,7 +185,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | Key | Action |
 |-----|--------|
 | `SUPER + T` | Open terminal (Ghostty) |
-| `SUPER + B` | Open browser (Brave) |
+| `SUPER + B` | Open browser (Firefox) |
 | `SUPER + A` | App launcher, a sidebar of the bar |
 | `SUPER + F` | File manager (Nautilus) |
 | `SUPER + V` | Clipboard history, a panel of the bar |
