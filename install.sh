@@ -178,7 +178,7 @@ SUDO_KEEPALIVE_PID=$!
 #
 # The ladder this used to hold read yay first and then built yay when it found
 # neither, so a paru machine was moved onto yay by installing hyprsimple. The
-# detection is shared with hyprsimple-update.sh and hyprsimple-muslimtify.sh
+# detection is shared with hyprsimple-update.sh and hyprsimple-plugin
 # now, because all three had their own copy of it and all three were wrong the
 # same way.
 AUR_DETECT="$DOTFILES_DIR/.local/bin/hyprsimple-aur-helper.sh"
@@ -907,6 +907,8 @@ follow_latest_release
 
 # A fresh install already ships every fix, so mark all migrations as done and
 # let new users skip the entire history.
+# Remove the obsolete shipped helper before recording completed migrations.
+rm -f -- "$HOME/.local/bin/hyprsimple-muslimtify.sh"
 MIGRATION_STATE_DIR="$HOME/.local/state/hyprsimple/migrations"
 mkdir -p "$MIGRATION_STATE_DIR/skipped"
 for migration in "$HYPRSIMPLE_PATH/migrations"/*.sh; do
@@ -930,8 +932,7 @@ echo -e "${YELLOW}Copying configuration files...${NC}"
 # what was there before hyprsimple ever ran. Anything after it gets a
 # timestamped name, so nothing is ever destroyed.
 #
-# hyprsimple-muslimtify.sh already learned this and says so in its own backup
-# function. install.sh is where it costs the most.
+# Preserve the original configuration across repeated installations.
 backup_if_exists() {
   local target="$1" source="${2-}"
   [ -e "$target" ] || [ -L "$target" ] || return 0
@@ -973,7 +974,7 @@ echo ""
 echo -e "${YELLOW}Installing scripts to ~/.local/bin...${NC}"
 mkdir -p "$HOME/.local/bin"
 
-for script in "$DOTFILES_DIR/.local/bin"/*.sh "$DOTFILES_DIR/.local/bin"/*.fish; do
+for script in "$DOTFILES_DIR/.local/bin"/*.sh "$DOTFILES_DIR/.local/bin"/*.fish "$DOTFILES_DIR/.local/bin/hyprsimple-plugin"; do
   if [ -f "$script" ]; then
     target="$HOME/.local/bin/$(basename "$script")"
     backup_if_exists "$target" "$script"
@@ -1102,6 +1103,25 @@ mkdir -p ~/Pictures
 echo -e "${YELLOW}Configuring shell integration...${NC}"
 bash "$HOME/.local/bin/terminal.sh" || true
 
+# Install the default external integration before starting the bar.
+FAILED_PLUGINS=()
+plugin_manager="$HOME/.local/bin/hyprsimple-plugin"
+plugin_dir="${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}/muslimtify"
+if [[ -d $plugin_dir ]]; then
+  plugin_action=(enable muslimtify)
+else
+  plugin_action=(install https://github.com/muslimtify-org/muslimtify-hyprsimple.git)
+fi
+if ! "$plugin_manager" "${plugin_action[@]}" || ! muslimtify daemon status; then
+  if [[ -d ${HYPRSIMPLE_PLUGIN_ROOT:-$HOME/.local/share/hyprsimple-plugins}/muslimtify ]]; then
+    retry="$HOME/.local/bin/hyprsimple-plugin enable muslimtify"
+  else
+    retry="$HOME/.local/bin/hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git"
+  fi
+  echo "Default Muslimtify plugin installation failed. Retry: $retry" >&2
+  FAILED_PLUGINS+=("Muslimtify: retry $retry (daemon recovery: muslimtify daemon install)")
+fi
+
 hyprctl reload || true
 bash "$HOME/.local/bin/hyprsimple-restart-bar.sh"
 echo -e "${YELLOW}Starting the bar...${NC}"
@@ -1113,8 +1133,6 @@ pactl set-source-volume @DEFAULT_SOURCE@ 65%
 
 systemctl --user enable --now hyprpaper.service || true
 systemctl --user enable --now hyprpolkitagent.service || true
-muslimtify daemon install || true
-muslimtify daemon status || true
 # thermald is Intel-only and pointless on AMD or on a desktop, so gate it.
 # Skipped where intel_lpmd already runs, which is the daemon CachyOS's chwd
 # enables for the same job. Two thermal policies pulling at one CPU is worse
@@ -1132,12 +1150,13 @@ else
 fi
 
 echo ""
-if (( ${#FAILED_PACKAGES[@]} > 0 )); then
+if (( ${#FAILED_PACKAGES[@]} + ${#FAILED_PLUGINS[@]} > 0 )); then
   echo -e "${RED}======================================"
-  echo "  Installed, but ${#FAILED_PACKAGES[@]} package(s) failed"
+  echo "  Installed, but ${#FAILED_PACKAGES[@]} package(s) and ${#FAILED_PLUGINS[@]} plugin(s) failed"
   echo -e "======================================${NC}"
   echo ""
-  printf '  %s\n' "${FAILED_PACKAGES[@]}"
+  (( ${#FAILED_PACKAGES[@]} == 0 )) || printf '  %s\n' "${FAILED_PACKAGES[@]}"
+  (( ${#FAILED_PLUGINS[@]} == 0 )) || printf '  %s\n' "${FAILED_PLUGINS[@]}"
   echo ""
   echo "Features depending on these will not work. Try installing them by hand,"
   echo "then re-run ./install.sh. To report it:"

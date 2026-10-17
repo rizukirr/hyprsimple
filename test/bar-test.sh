@@ -88,6 +88,27 @@ check "a meter animates its width" "$(grep -c 'Behavior on width' <<<"$meter_cod
 check "and only in a window that is on screen" \
   "$(grep -c 'Behavior on width { enabled: root.Window.window?.visible ?? false; Anim {} }' <<<"$meter_code")" "1"
 
+# The system panel switches the power mode through power-profiles-daemon, over
+# the session's own connection to it. Clicked through a copy of this panel in
+# offscreen Quickshell on a machine with the daemon, each mode took effect and
+# `powerprofilesctl get` agreed. CI has no daemon, so what is checked here is
+# the shape: the daemon is the one authority, and a machine without it or
+# without a performance profile is not shown a control that does nothing.
+SYSTEM_PANEL="$BAR_DIR/panels/SystemPanel.qml"
+panel_code="$(sed 's|^[[:space:]]*//.*||' "$SYSTEM_PANEL")"
+check "the system panel has one power mode selector" "$(grep -c '^    Segmented {' <<<"$panel_code")" "1"
+check "which sets the daemon's profile" "$(grep -c 'PowerProfiles.profile = ' <<<"$panel_code")" "1"
+check "and shows the profile the daemon reports" \
+  "$(grep -c 'value: root.powerModes.find(mode => mode.profile === PowerProfiles.profile)' <<<"$panel_code")" "1"
+check "performance is offered only where the machine has it" \
+  "$(grep -c 'mode.profile !== PowerProfile.Performance || PowerProfiles.hasPerformanceProfile' <<<"$panel_code")" "1"
+check "the selector and its label are hidden until a daemon answers" \
+  "$(grep -c '^        visible: root.hasPowerModes$' <<<"$panel_code")" "2"
+check "the daemon is asked when the panel opens, not when the bar starts" \
+  "$(grep -c 'running: true' <<<"$panel_code")" "0"
+check "and nothing sets the governor behind the daemon's back" \
+  "$(grep -c 'powerprofilesctl\|cpupower' <<<"$panel_code")" "0"
+
 # ---- stubs ------------------------------------------------------------------
 #
 # Every stub appends what it was called with to one log, in order. Which
@@ -334,22 +355,13 @@ for stale in "${STALE[@]}"; do
 done
 check "and none of the removed ones still ships" "$still_shipped" "0"
 
-# ---- prayer times -----------------------------------------------------------
-#
-# The times change at midnight and when the config does. A bar that ran
-# muslimtify on a timer spawned it thousands of times a day for nothing, and
-# once per monitor, so the timer that is left may only run after a failed read
-# and the service is made once for every bar.
-
-SERVICE="$BAR_DIR/muslimtify/services/Muslimtify.qml"
-check "the only timer that reads prayer times again runs after a failed read" \
-  "$(grep -B4 'onTriggered: root.refresh()' "$SERVICE" | grep -c 'running: .*root.todayFailed')" "1"
-check "and nothing else reads them on a timer" \
-  "$(grep -c 'onTriggered: root.refresh()' "$SERVICE")" "1"
-check "the prayer service is made once, in the shell" \
-  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/shell.qml")" "1"
-check "and not once per bar" \
-  "$(grep -c '^ *Muslimtify {' "$BAR_DIR/bar/Bar.qml")" "0"
+# Muslimtify entry points belong to the external plugin.
+check "the core has no prayer service" \
+  "$(grep -c 'Muslimtify {' "$BAR_DIR/shell.qml")" "0"
+check "the bar has no core prayer UI" \
+  "$(grep -cE 'Prayer(Button|Panel)' "$BAR_DIR/bar/Bar.qml")" "0"
+check "the bar exposes all three external widget slots" \
+  "$(grep -c 'PluginSlot {' "$BAR_DIR/bar/Bar.qml")" "3"
 
 # The same went for the keep-awake button, which ran pgrep every 5 seconds on
 # every monitor, and for the stats and recorder checks. hypridle owns a bus

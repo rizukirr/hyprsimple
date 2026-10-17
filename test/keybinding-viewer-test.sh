@@ -119,7 +119,7 @@ check "and every one of them carries a description" "$shipped_descs" "$shipped_b
 
 # --- and the file people write binds in says so ------------------------------
 #
-# applications.lua showed { description = ... } in both of its examples and
+# applications.lua showed { description = ... } in each of its examples and
 # never said what it is for. The key works without one, so it is the easy part
 # to drop, and the consequence is invisible: the bind simply is not in the
 # list.
@@ -129,8 +129,8 @@ check "the user's keybind file says a bind wants a description" \
   "$(grep -c 'Give every bind a description' "$APPS")" "1"
 check "and says where the missing one would have shown up" \
   "$(grep -c 'SUPER + /' "$APPS")" "1"
-check "while both worked examples still carry one" \
-  "$(grep -c '^--   hl.bind(.*description = ' "$APPS")" "2"
+check "while all three worked examples still carry one" \
+  "$(grep -c '^--   hl.bind(.*description = ' "$APPS")" "3"
 
 # --- delivered to installs that already exist --------------------------------
 #

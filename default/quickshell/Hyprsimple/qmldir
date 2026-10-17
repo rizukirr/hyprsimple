@@ -1,0 +1,23 @@
+module Hyprsimple
+singleton Theme 1.0 ../theme/Theme.qml
+Anim 1.0 ../components/Anim.qml
+CAnim 1.0 ../components/CAnim.qml
+Dropdown 1.0 ../components/Dropdown.qml
+Icon 1.0 ../components/Icon.qml
+IconButton 1.0 ../components/IconButton.qml
+ListRow 1.0 ../components/ListRow.qml
+Meter 1.0 ../components/Meter.qml
+PickerList 1.0 ../components/PickerList.qml
+SectionLabel 1.0 ../components/SectionLabel.qml
+Segmented 1.0 ../components/Segmented.qml
+Slider 1.0 ../components/Slider.qml
+Spinner 1.0 ../components/Spinner.qml
+Spring 1.0 ../components/Spring.qml
+StateLayer 1.0 ../components/StateLayer.qml
+StyledText 1.0 ../components/StyledText.qml
+TextButton 1.0 ../components/TextButton.qml
+TextField 1.0 ../components/TextField.qml
+Toggle 1.0 ../components/Toggle.qml
+Capsule 1.0 ../bar/Capsule.qml
+StatusButton 1.0 ../bar/StatusButton.qml
+PopupPanel 1.0 ../panels/PopupPanel.qml

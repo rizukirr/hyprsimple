@@ -15,9 +15,7 @@
 # the original was gone, zero copies left anywhere, and .backup held
 # hyprsimple v1.
 #
-# The same lesson is already written into hyprsimple-muslimtify.sh's own backup
-# function, which keeps the first rather than the most recent. install.sh is
-# where it costs the most, and is where it had not been applied.
+# Preserve the first backup across repeated installations.
 #
 # Nothing here runs the installer. backup_if_exists is taken out of it and
 # exercised against throwaway directories.

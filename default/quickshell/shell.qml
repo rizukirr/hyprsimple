@@ -2,8 +2,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Services.UPower
+import qs.plugins
 import qs.bar
-import qs.muslimtify.services
 import qs.system
 import qs.theme
 import qs.notifications
@@ -47,17 +48,25 @@ ShellRoot {
         }
     }
 
-    // Read once and shown by every bar.
-    Muslimtify {
-        id: prayers
-    }
-
     Stats {
         id: systemStats
     }
 
     Idle {
         id: idleWatch
+    }
+
+    Registry { id: externalPlugins }
+
+    // battery-monitor.sh puts the power profile and the brightness back when the
+    // charger goes in, but its timer only fires every 30 seconds. Running it at
+    // the moment the charger is plugged in or pulled out makes that immediate.
+    // On a machine with no battery the state never changes and this never runs.
+    Connections {
+        target: UPower.displayDevice
+        function onStateChanged() {
+            Quickshell.execDetached(["systemctl", "--user", "start", "--no-block", "battery-monitor.service"])
+        }
     }
 
     // One panel at a time across every monitor: the bar that has it open, or null.
@@ -72,9 +81,9 @@ ShellRoot {
         model: Quickshell.screens
 
         Bar {
+            pluginRegistry: externalPlugins
             visible: !root.barsHidden
             recording: root.recording
-            muslimtify: prayers
             stats: systemStats
             idle: idleWatch
             panelOwner: root.panelOwner
@@ -92,7 +101,7 @@ ShellRoot {
         function toggle(panel: string): void {
             const focused = Hyprland.focusedMonitor?.name
             const bar = bars.instances.find(b => b.screen?.name === focused) ?? bars.instances[0]
-            if (bar) bar.toggle(panel)
+            if (bar) bar.toggle(externalPlugins.resolvePanel(panel))
         }
 
         // Shows or hides the recording indicator. hyprsimple's screen-record.sh calls it

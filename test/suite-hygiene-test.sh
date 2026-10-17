@@ -67,12 +67,22 @@ pass "found ${#suites[@]} suites to audit"
 # what trips it.
 code_of() { sed 's/#.*//' "$1"; }
 
+# The delivery regression deliberately uses one pinned historical updater.
+# Permit only that exact read, and require CI to fetch its object explicitly.
+pinned_read='git -C "$REPO" show 9c9ba72315360fc1d43868c7e1d1ca730b7186e0:.local/bin/hyprsimple-update.sh >"$CORE_WORK/.local/bin/hyprsimple-update.sh"'
+if grep -qFx "$pinned_read" "$REPO/test/plugin-update-delivery-test.sh" &&
+   grep -qF 'run: git fetch --depth=1 origin 9c9ba72315360fc1d43868c7e1d1ca730b7186e0' "$REPO/.github/workflows/tests.yml"; then
+  pass "historical updater fixture is pinned and fetched by CI"
+else
+  fail "historical updater fixture must be pinned and fetched by CI"
+fi
+
 offenders=()
 for f in "${suites[@]}"; do
-  code_of "$f" | grep -qE 'git .*(log|show|rev-list|ls-tree)' && offenders+=("$(basename "$f")")
+  code_of "$f" | grep -vFx "$pinned_read" | grep -qE 'git .*(log|show|rev-list|ls-tree)' && offenders+=("$(basename "$f")")
 done
 if [[ ${#offenders[@]} -eq 0 ]]; then
-  pass "no suite reconstructs fixtures from git history"
+  pass "no suite reads unprovided git history"
 else
   fail "these read git history, which is empty on CI's shallow checkout: ${offenders[*]}"
 fi
@@ -274,6 +284,17 @@ else
   (( ${#unisolated[@]} > 0 )) && unisolated_str="$(printf '%s; ' "${unisolated[@]}")"
   check "and every suite running battery-monitor.sh overrides all of them" \
     "$unisolated_str" ""
+
+  # The monitor also switches the machine's power profile, which no state path
+  # redirects. A suite that ran it without a stand-in for powerprofilesctl put
+  # the maintainer's machine into power-saver and left it there.
+  unstubbed=()
+  while IFS= read -r suite; do
+    grep -qE '>"\$[A-Z_]+/powerprofilesctl"' "$REPO/test/$suite" || unstubbed+=("$suite")
+  done < <(printf '%s\n' "${runners[@]}" | LC_ALL=C sort -u)
+  unstubbed_str=""
+  (( ${#unstubbed[@]} > 0 )) && unstubbed_str="$(printf '%s ' "${unstubbed[@]}")"
+  check "and every one of them stubs powerprofilesctl" "$unstubbed_str" ""
 fi
 
 # A suite must not be able to reach the real qs, which is how a script talks to

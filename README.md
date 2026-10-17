@@ -3,7 +3,7 @@
 **Minimal** Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
 
 > [!Note]
-> This dotfile have builtin [muslimtify](https://github.com/rizukirr/muslimtify). A prayer time notification daemon for Linux. Run `muslimtify-remove` to uninstall it (package and daemon). Run `muslimtify-add` to re-enable it later. Both commands are idempotent. The bar shows prayer times whenever muslimtify is installed.
+> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). Run `hyprsimple-plugin remove muslimtify` to remove its integration and daemon while retaining the package and settings. Run `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` to install or enable it again.
 
 > [!Warning]
 > Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
@@ -25,6 +25,7 @@ https://github.com/user-attachments/assets/f43671d7-4cd2-4cef-a13d-b3c28e432ccd
 - **Modular Hyprland config** split into focused files
 - **GTK/QT theming** with auto light/dark mode per theme
 - **Smart battery** with auto brightness and power profiles
+- **Power mode** in the system panel: power saver, balanced or performance, switched through power-profiles-daemon
 - **Screen recording** with mic, system audio, or silent modes
 - **Screenshot** for monitor, window, region, or clipboard
 - **Clipboard history** in a panel of the bar, with search, pictures shown as pictures, and removing one entry or all of them
@@ -272,8 +273,7 @@ build fails during install.
 | `SUPER + SHIFT + B` | Open the bluetooth panel |
 | `SUPER + SHIFT + D` | Open the notifications panel |
 | `SUPER + C` | Open the calendar panel |
-| `SUPER + P` | Open the prayer times panel |
-| `SUPER + I` | Open the system panel |
+| `SUPER + I` | Open the system panel: power mode, CPU, memory and GPU |
 | `SUPER + SHIFT + M` | Toggle monitor mirroring |
 | `SUPER + CTRL + V` | Toggle virtual mirror |
 | `SUPER + /` | Show all keybindings, in a searchable panel of the bar |
@@ -333,7 +333,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 
 | Script | Description |
 |--------|-------------|
-| `battery-monitor.sh` | Low-battery notifications and automatic brightness reduction |
+| `battery-monitor.sh` | At a low battery, warns, dims the screen and switches to power saver. On the charger, puts both back and says so |
 | `bluetooth-toggle.sh` | Toggle Bluetooth adapter power |
 | `toggle_cpu_mode.sh` | Switch CPU governor between performance and powersave |
 | `hyprsimple-hw-intel-laptop.sh` | Exit 0 on an Intel laptop new enough for thermald (used as a condition) |
@@ -360,17 +360,33 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | Script | Description |
 |--------|-------------|
 | `hyprsimple-update.sh` | Pull hyprsimple, refresh scripts and packages, run pending migrations. `--stable` or `<branch>` switches channel |
+| `hyprsimple-plugin` | Install, enable, disable, update, list or remove trusted external plugins |
 | `hyprsimple-migrate.sh` | Run any migrations that have not run on this machine yet |
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
+### External plugins
+
+See [the plugin author guide](PLUGINS.md) for the manifest and QML contract.
+
+Run `hyprsimple-plugin install OWNER/REPO` to install the newest release of a trusted plugin, or add `--branch main` to lock it to a branch. `hyprsimple-plugin update ID --stable` returns it to releases. Use `hyprsimple-plugin list`, `disable ID`, `enable ID`, `update ID` or `remove ID` to manage it. Plugins run code from their repository, so review it before installing.
+
+Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core checkout. Enablement, placement and plugin settings live in `~/.config/hyprsimple/plugins.json`. Developers can override the code directory with `HYPRSIMPLE_PLUGIN_ROOT`. Plugins bind no keys. Each one names a panel alias, and you bind a key to it in `~/.config/hypr/bindings/applications.lua`. The default Muslimtify plugin's alias is `prayer`:
+
+```lua
+hl.bind("SUPER + P", hl.dsp.exec_cmd(vars.barPanel .. "prayer"), { description = "Prayer Times (panel)" })
+```
+
+If the plugin is installed but disabled, run `hyprsimple-plugin enable muslimtify`. If download failed, retry `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git`. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
+
+The delivery suites require a checkout of the published plugin at `2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
+
 ### Integrations
 
 | Script | Description |
 |--------|-------------|
-| `hyprsimple-muslimtify.sh` | Add or remove the [muslimtify](https://github.com/rizukirr/muslimtify) prayer-times integration |
 
 ### Shell init & internal helpers
 
@@ -381,7 +397,7 @@ These are sourced by other files rather than run directly.
 | `bashrc.sh` / `zsh.sh` / `fish.fish` | Per-shell init (zoxide, fzf, starship, aliases) sourced from your shell's rc file |
 | `terminal.sh` | Detect your login shell and wire the matching init script into its rc file |
 | `hypr-helpers.sh` | Shared hyprpaper helper functions used by the wallpaper scripts |
-| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and muslimtify all use the one you already have |
+| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and plugin manager all use the one you already have |
 | `hyprsimple-require.sh` | Loads the helpers a script needs, and stops it rather than letting it run with them missing |
 | `hyprsimple-theme-deliver.sh` | Puts a theme's generated files where each program reads them, shared by the theme switcher and the updater |
 | `hyprsimple-hw-battery.sh` | Exits 0 when this machine has a battery, which is how hyprsimple decides it is a laptop |
