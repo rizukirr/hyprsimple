@@ -93,6 +93,29 @@ list)
       i=$((i + 1))
       printf '%s\t%s\tmodule\ts16le\tRUNNING\n' "$i" "$s"
     done
+  elif [[ $2 == short && $3 == cards ]]; then
+    # The watcher lists cards once per event, after the sinks. With a card
+    # timeline given, one line per event. Without one, a device is connected
+    # exactly while its sink is listed, which is what every check written
+    # before cards mattered assumes.
+    if [[ -s $CARD_STEPS_FILE ]]; then
+      step=$(cat "$CARD_STEP_FILE")
+      step=$((step + 1))
+      printf '%s' "$step" >"$CARD_STEP_FILE"
+      line=$(sed -n "${step}p" "$CARD_STEPS_FILE")
+      [[ -z $line ]] && line=$(tail -1 "$CARD_STEPS_FILE")
+      [[ $line == "-" ]] && exit 0
+    else
+      line=$(sed -n "$(cat "$STEP_FILE")p" "$STEPS_FILE")
+      [[ -z $line ]] && line=$(tail -1 "$STEPS_FILE")
+      [[ $line == "-" ]] && exit 0
+      line=$(printf '%s\n' $line | sed -n 's/^bluez_output\.\(.*\)\.[^.]*$/bluez_card.\1/p')
+    fi
+    i=0
+    for c in $line; do
+      i=$((i + 1))
+      printf '%s\t%s\tmodule-bluez5-device.c\n' "$i" "$c"
+    done
   elif [[ $2 == sinks ]]; then
     cat "$DESC_FILE"
   fi
@@ -123,14 +146,18 @@ DESCEOF
 
 # steps: one line per `list short sinks` call, the first being startup.
 # events: one line per line pactl subscribe emits.
+# cards, optional: one line per event, the bluetooth cards listed after it.
 run_watcher() {
-  local steps="$1" events="$2"
+  local steps="$1" events="$2" cards="${3:-}"
   printf '%s\n' "$steps" >"$TMP/steps"
   printf '%s\n' "$events" >"$TMP/events"
+  if [[ -n $cards ]]; then printf '%s\n' "$cards" >"$TMP/cards"; else : >"$TMP/cards"; fi
   printf '0' >"$TMP/step"
+  printf '0' >"$TMP/card-step"
   : >"$TMP/switches"
   : >"$TMP/notifications"
   STEPS_FILE="$TMP/steps" EVENTS_FILE="$TMP/events" STEP_FILE="$TMP/step" \
+    CARD_STEPS_FILE="$TMP/cards" CARD_STEP_FILE="$TMP/card-step" \
     DESC_FILE="$TMP/desc" SWITCH_LOG="$TMP/switches" NOTIFY_LOG="$TMP/notifications" \
     SET_DEFAULT_RC="${SET_DEFAULT_RC:-0}" \
     HYPRSIMPLE_PACTL="$STUB/pactl" PATH="$STUB" \
@@ -187,6 +214,53 @@ $SINK_EVENT
 $SINK_EVENT"
 check "a headset that reconnects takes over again" \
   "$(switches | tr '\n' ' ')" "$HEADSET $HEADSET "
+
+# A profile switch between A2DP and HFP removes the sink and adds it back under
+# the same name while the card stays. Read as a connection, that set the
+# default sink on every switch, and with Firefox recording from the headset the
+# switches looped every few seconds.
+HEADSET_CARD="bluez_card.DC_50_85_59_6F_C0"
+REMOVE_EVENT="Event 'remove' on sink #68"
+CARD_REMOVE_EVENT="Event 'remove' on card #6800"
+CARD_NEW_EVENT="Event 'new' on card #6800"
+
+run_watcher "$BUILTIN $HEADSET
+$BUILTIN
+$BUILTIN $HEADSET" "$REMOVE_EVENT
+$SINK_EVENT" "$HEADSET_CARD
+$HEADSET_CARD"
+check "a profile switch on a connected headset switches nothing" "$(switches)" ""
+check "and announces nothing" "$(notifications)" ""
+
+run_watcher "$BUILTIN
+$BUILTIN $HEADSET
+$BUILTIN
+$BUILTIN $HEADSET" "$SINK_EVENT
+$REMOVE_EVENT
+$SINK_EVENT" "$HEADSET_CARD
+$HEADSET_CARD
+$HEADSET_CARD"
+check "nor does one right after the headset connected" "$(switches)" "$HEADSET"
+
+# Disconnecting can remove the sink while the card is still listed. Only the
+# card event after it says the device is gone.
+run_watcher "$BUILTIN $HEADSET
+$BUILTIN
+$BUILTIN
+$BUILTIN
+$BUILTIN $HEADSET" "$REMOVE_EVENT
+$CARD_REMOVE_EVENT
+$CARD_NEW_EVENT
+$SINK_EVENT" "$HEADSET_CARD
+-
+$HEADSET_CARD
+$HEADSET_CARD"
+check "a headset whose card goes after its sink still takes over on reconnect" \
+  "$(switches)" "$HEADSET"
+
+run_watcher "$BUILTIN
+$BUILTIN $HEADSET" "$CARD_NEW_EVENT"
+check "a card event alone is acted on" "$(switches)" "$HEADSET"
 
 run_watcher "$BUILTIN
 $BUILTIN alsa_output.usb-some-dac" "$SINK_EVENT"
