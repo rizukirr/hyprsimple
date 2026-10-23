@@ -36,6 +36,10 @@ bluez_sinks() {
   "$PACTL" list short sinks 2>/dev/null | cut -f2 | grep '^bluez_output\.' || true
 }
 
+bluez_cards() {
+  "$PACTL" list short cards 2>/dev/null | cut -f2 | grep '^bluez_card\.' || true
+}
+
 describe() {
   local name="$1" description
   description=$("$PACTL" list sinks 2>/dev/null |
@@ -61,8 +65,10 @@ known=" $(bluez_sinks | tr '\n' ' ')"
 # `pactl subscribe` prints a line per event and never exits on its own. The
 # unit restarts it, which is what covers pipewire-pulse itself restarting.
 "$PACTL" subscribe 2>/dev/null | while read -r event; do
+  # Cards as well as sinks: a disconnect can remove the sink before the card,
+  # and only the card event that follows says the device is really gone.
   case "$event" in
-  *"on sink"*) ;;
+  *"on sink"* | *"on card"*) ;;
   *) continue ;;
   esac
 
@@ -72,6 +78,26 @@ known=" $(bluez_sinks | tr '\n' ' ')"
     *" $sink "*) continue ;;
     esac
     switch_to "$sink"
+  done
+
+  # A sink is forgotten when its device disconnects, not when the sink itself
+  # goes. Switching a headset between A2DP and HFP removes its sink and adds it
+  # back under the same name while bluez_card.<addr> stays, and reading that as
+  # a new connection set the default sink on every profile switch. With
+  # Firefox recording from the headset that looped every few seconds: the new
+  # default made Firefox reopen the microphone, which switched the profile
+  # again.
+  cards=" $(bluez_cards | tr '\n' ' ')"
+  for sink in $known; do
+    case "$now" in
+    *" $sink "*) continue ;;
+    esac
+    # bluez_output.<addr>.<n> belongs to bluez_card.<addr>.
+    addr="${sink#bluez_output.}"
+    addr="${addr%.*}"
+    case "$cards" in
+    *" bluez_card.$addr "*) now="$now$sink " ;;
+    esac
   done
   known="$now"
 done
