@@ -155,6 +155,14 @@ for phrase in 'Packages' 'System changes' 'backup.<number>' '.cache' 'NVIDIA set
   check "the report mentions $phrase" "$([[ $(grep -cF "$phrase" "$TMP/out") -ge 1 ]] && echo yes || echo no)" "yes"
 done
 
+# ---- an rc file with no final newline ---------------------------------------
+
+fresh
+printf '# hyprsimple shell init (added by terminal.sh)\nsource ~/.local/bin/bashrc.sh\nalias last=me' >"$H/.bashrc"
+run_uninstall yes
+printf 'alias last=me' | cmp -s - "$H/.bashrc"
+check "an rc file with no final newline does not gain one" "$?" "0"
+
 # ---- no warnings a machine does not need ------------------------------------
 
 fresh

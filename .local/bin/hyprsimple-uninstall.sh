@@ -180,11 +180,16 @@ stop_session_parts() {
 # Only the two lines the installer added. cat rather than mv, so a dotfile
 # manager's symlink and the file's mode survive.
 clean_rc() {
-  local rc=$1 source_line=$2 kept
+  local rc=$1 source_line=$2 kept no_final_newline=0
   [[ -f $rc ]] || return 0
   grep -qxF -e "$RC_COMMENT" -e "$source_line" "$rc" || return 0
   kept=$(mktemp) || { problem "edit $rc."; return 1; }
+  # grep ends its output with a newline whether or not the file did.
+  [[ -z $(tail -c 1 "$rc") ]] || no_final_newline=1
   grep -vxF -e "$RC_COMMENT" -e "$source_line" "$rc" >"$kept"
+  if ((no_final_newline)); then
+    truncate -s -1 "$kept"
+  fi
   if cat "$kept" >"$rc"; then
     printf 'Removed the hyprsimple lines from %s\n' "$rc"
   else
