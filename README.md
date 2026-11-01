@@ -9,9 +9,6 @@ If you encounter any issues or have feedback, feel free to open an [issue](https
 > [!Note]
 > Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). `hyprsimple-plugin remove muslimtify` removes its integration and daemon and keeps the package and your settings. `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` installs or enables it again.
 
-> [!Warning]
-> Install from a tag rather than from `main`. `main` is the development branch, so it can be unstable and can break your Hyprland configuration. If you know Hyprland's configuration well and do not mind the occasional breakage, `main` is yours to use.
-
 <img width="1920" height="1080" alt="2026-10-04-230902_screenshot" src="https://github.com/user-attachments/assets/d7956807-db97-4db4-8b38-58d3a6fc0630" />
 
 ## Demo
