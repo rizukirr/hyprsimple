@@ -209,9 +209,9 @@ PanelWindow {
         listCommand: ["sh", "-c", '"$HOME/.local/bin/hyprsimple-wallpaper-picker.sh" | "$HOME/.local/bin/hyprsimple-thumbnails.sh"']
         currentCommand: ["cat", Quickshell.env("HOME") + "/.cache/current_wallpaper_path"]
         applyCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "apply"]
-        // The last tile asks for an image file and copies it into the theme.
+        // The last tile asks for image files and copies them into the theme.
         addCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "add"]
-        addLabel: "Add a wallpaper"
+        addLabel: "Add wallpapers"
         // Asked about first, in the panel, and never the theme's last one.
         deleteCommand: [Quickshell.env("HOME") + "/.local/bin/wallpaper-switcher.sh", "delete"]
         // Live wallpaper, which the flag file records.

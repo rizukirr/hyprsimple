@@ -120,6 +120,7 @@ check "the picker's add tile runs wallpaper-switcher.sh add" \
 before=$(wallpapers)
 add "$SRC/Holiday Photo.JPG"
 check "adding asks for a file" "$(grep -c -- '--file-selection' "$TMP/zenity-log")" "1"
+check "and lets several be selected" "$(grep -c -- '--multiple' "$TMP/zenity-log")" "1"
 check "and copies it into the theme, name and all" \
   "$(cat "$BG/Holiday Photo.JPG" 2>/dev/null)" "holiday"
 check "leaving the original where it was" "$(cat "$SRC/Holiday Photo.JPG")" "holiday"
@@ -153,6 +154,53 @@ check "with the wallpaper left as it was" "$(cat "$H/.cache/current_wallpaper_pa
 add "$SRC/gone.png"
 check "a file that is not there adds nothing" "$(wallpapers)" "$count"
 
+# Several at once. zenity answers with one path per line. A name with a | in it
+# stays one file, and the bad ones do not cost the good ones.
+printf 'first\n' >"$SRC/many one.jpg"
+printf 'second\n' >"$SRC/many|two.png"
+printf 'third\n' >"$SRC/many-three.webp"
+count=$(wallpapers); before_many=$(cat "$H/.cache/current_wallpaper_path")
+: >"$TMP/many-notify"
+# run sets its own PATH, so the stand-in on it is the one that has to record.
+cat >"$STUB/notify-send" <<'STUBEOF'
+#!/bin/bash
+[[ -z ${MANY_NOTIFY:-} ]] || printf '%s\n' "$*" >>"$MANY_NOTIFY"
+STUBEOF
+add_many() { MANY_NOTIFY="$TMP/many-notify" add "$1"; }
+
+add_many "$SRC/many one.jpg
+$SRC/many|two.png
+$SRC/many-three.webp"
+check "several chosen are all copied in" "$(wallpapers)" "$((count + 3))"
+check "the first of several, spaces and all" "$(cat "$BG/many one.jpg" 2>/dev/null)" "first"
+check "a name holding a | stays one file" "$(cat "$BG/many|two.png" 2>/dev/null)" "second"
+check "the last of several is the wallpaper now" \
+  "$(cat "$H/.cache/current_wallpaper_path")" "$BG/many-three.webp"
+check "several added succeeds" "$(cat "$TMP/add-rc")" "0"
+check "and says how many, once" "$(grep -c '^Wallpaper Added 3 wallpapers, showing many-three.webp' "$TMP/many-notify")" "1"
+check "with no other notification" "$(wc -l <"$TMP/many-notify" | tr -d ' ')" "1"
+rm -f "$BG/many one.jpg" "$BG/many|two.png" "$BG/many-three.webp"
+
+count=$(wallpapers); : >"$TMP/many-notify"
+add_many "$SRC/notes.txt
+$SRC/many one.jpg
+$SRC/gone.png"
+check "good files among bad ones still go in" "$(wallpapers)" "$((count + 1))"
+check "and succeed" "$(cat "$TMP/add-rc")" "0"
+check "the one that went in is shown" "$(cat "$H/.cache/current_wallpaper_path")" "$BG/many one.jpg"
+check "the bad ones are named together" \
+  "$(grep -c 'Not added.*notes.txt gone.png' "$TMP/many-notify")" "1"
+rm -f "$BG/many one.jpg"
+
+count=$(wallpapers); shown="$BG/2-two.jpg"
+printf '%s\n' "$shown" >"$H/.cache/current_wallpaper_path"
+add_many "$SRC/notes.txt
+$SRC/gone.png"
+check "nothing good chosen adds nothing" "$(wallpapers)" "$count"
+check "and is a failure" "$(cat "$TMP/add-rc")" "1"
+check "with the wallpaper left as it was" "$(cat "$H/.cache/current_wallpaper_path")" "$shown"
+printf '%s\n' "$before_many" >"$H/.cache/current_wallpaper_path"
+
 # Without zenity the user is told, rather than nothing happening.
 NOZEN="$TMP/nozen"; mkdir -p "$NOZEN"
 for tool in "$STUB"/*; do
@@ -174,6 +222,23 @@ check "without zenity, adding fails" "$?" "1"
 check "and says what is missing" "$(grep -c 'zenity is missing' "$TMP/notify-log")" "1"
 check "zenity is in the packages an install and an update bring" \
   "$(grep -cx 'zenity' "$REPO/packages.txt")" "1"
+
+# ---- the order of the wallpaper picker -------------------------------------
+#
+# Newest first, whatever the names say, and by name among pictures of the same
+# age. A folder of its own, since the picker lists the folder of the wallpaper
+# on record.
+ORDER="$H/.config/hypr/themes/order/backgrounds"; mkdir -p "$ORDER"
+for name in a-old.jpg b-tie.jpg c-tie.jpg z-new.jpg; do printf 'x\n' >"$ORDER/$name"; done
+touch -d '2020-01-01 00:00:00' "$ORDER/a-old.jpg"
+touch -d '2022-01-01 00:00:00' "$ORDER/b-tie.jpg" "$ORDER/c-tie.jpg"
+touch -d '2024-01-01 00:00:00' "$ORDER/z-new.jpg"
+saved_record=$(cat "$H/.cache/current_wallpaper_path")
+printf '%s\n' "$ORDER/a-old.jpg" >"$H/.cache/current_wallpaper_path"
+check "the wallpaper picker lists newest first, then by name" \
+  "$(HOME="$H" PATH="$STUB:/usr/bin:/bin" bash "$H/.local/bin/hyprsimple-wallpaper-picker.sh" | cut -f2 | paste -sd,)" \
+  "z new,b tie,c tie,a old"
+printf '%s\n' "$saved_record" >"$H/.cache/current_wallpaper_path"
 
 # ---- deleting a wallpaper --------------------------------------------------
 #

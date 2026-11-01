@@ -12,7 +12,7 @@ require_helper hypr-helpers.sh
 # Switch wallpaper within the current theme
 # Usage: wallpaper-switcher.sh [pick|add|next|apply <file>|delete <file>]
 #   pick   - choose from the bar's wallpaper picker (default)
-#   add    - choose an image file, copy it into the theme and show it
+#   add    - choose image files, copy them into the theme and show the last
 #   delete - remove the given wallpaper from the theme, for good
 #   next  - cycle to next wallpaper, for a bind of your own
 #   apply - show the given wallpaper, which is what the picker runs
@@ -65,41 +65,61 @@ elif [[ $MODE == "add" ]]; then
     exit 1
   fi
   # Both cases of each ending, since zenity's patterns tell them apart and a
-  # camera writes IMG_0001.JPG.
-  CHOSEN=$(zenity --file-selection --title="Add a wallpaper" \
+  # camera writes IMG_0001.JPG. One path per line, since the default separator
+  # is a | and a file name can hold one.
+  CHOSEN=$(zenity --file-selection --multiple --separator=$'\n' --title="Add wallpapers" \
     --file-filter="Images | *.jpg *.jpeg *.png *.webp *.JPG *.JPEG *.PNG *.WEBP" 2>/dev/null) || exit 0
   [[ -n $CHOSEN ]] || exit 0
+  mapfile -t FILES <<<"$CHOSEN"
 
-  # The filter is a suggestion: the dialog lets a path be typed. The ending is
-  # what every script that looks for a wallpaper goes by, so one without it
-  # would be copied in and then never listed.
-  case "${CHOSEN,,}" in
-    *.jpg | *.jpeg | *.png | *.webp) ;;
-    *)
-      notify-send "Wallpaper" "Not added: $(basename "$CHOSEN") is not a jpg, jpeg, png or webp"
-      exit 1
-      ;;
-  esac
-  if [[ ! -f $CHOSEN ]]; then
-    notify-send "Wallpaper" "File not found: $CHOSEN"
-    exit 1
-  fi
+  # One file that cannot be added does not cost the others. The last one that
+  # went in is the one shown.
+  SELECTED=""
+  ADDED=0
+  SKIPPED=()
+  UNCOPIED=()
+  for FILE in "${FILES[@]}"; do
+    NAME=$(basename "$FILE")
+    # The filter is a suggestion: the dialog lets a path be typed. The ending is
+    # what every script that looks for a wallpaper goes by, so one without it
+    # would be copied in and then never listed.
+    case "${FILE,,}" in
+      *.jpg | *.jpeg | *.png | *.webp) ;;
+      *)
+        SKIPPED+=("$NAME")
+        continue
+        ;;
+    esac
+    if [[ ! -f $FILE ]]; then
+      SKIPPED+=("$NAME")
+      continue
+    fi
 
-  NAME=$(basename "$CHOSEN")
-  SELECTED="$BG_DIR/$NAME"
-  # A file already there under that name is kept. The same picture chosen twice
-  # is not copied twice, and a different one gets a number.
-  if [[ -e $SELECTED ]] && ! cmp -s "$CHOSEN" "$SELECTED"; then
-    STEM="${NAME%.*}"
-    EXT="${NAME##*.}"
-    N=2
-    while [[ -e "$BG_DIR/$STEM-$N.$EXT" ]]; do N=$((N + 1)); done
-    SELECTED="$BG_DIR/$STEM-$N.$EXT"
+    TARGET="$BG_DIR/$NAME"
+    # A file already there under that name is kept. The same picture chosen twice
+    # is not copied twice, and a different one gets a number.
+    if [[ -e $TARGET ]] && ! cmp -s "$FILE" "$TARGET"; then
+      STEM="${NAME%.*}"
+      EXT="${NAME##*.}"
+      N=2
+      while [[ -e "$BG_DIR/$STEM-$N.$EXT" ]]; do N=$((N + 1)); done
+      TARGET="$BG_DIR/$STEM-$N.$EXT"
+    fi
+    if [[ ! -e $TARGET ]] && ! cp "$FILE" "$TARGET"; then
+      UNCOPIED+=("$NAME")
+      continue
+    fi
+    SELECTED="$TARGET"
+    ADDED=$((ADDED + 1))
+  done
+
+  if (( ${#SKIPPED[@]} > 0 )); then
+    notify-send "Wallpaper" "Not added, not an existing jpg, jpeg, png or webp: ${SKIPPED[*]}"
   fi
-  if [[ ! -e $SELECTED ]] && ! cp "$CHOSEN" "$SELECTED"; then
-    notify-send -u critical "Wallpaper" "Could not copy $NAME into $BG_DIR"
-    exit 1
+  if (( ${#UNCOPIED[@]} > 0 )); then
+    notify-send -u critical "Wallpaper" "Could not copy into $BG_DIR: ${UNCOPIED[*]}"
   fi
+  (( ADDED > 0 )) || exit 1
 elif [[ $MODE == "delete" ]]; then
   TARGET="$2"
   # Only a wallpaper this theme lists, named exactly as it is listed. That is
@@ -176,4 +196,8 @@ write_hyprpaper_conf "$HOME/.cache/current_wallpaper"
 
 show_wallpaper "$SELECTED"
 
-notify-send "Wallpaper" "$(basename "$SELECTED")" -i "$SELECTED"
+if (( ${ADDED:-0} > 1 )); then
+  notify-send "Wallpaper" "Added $ADDED wallpapers, showing $(basename "$SELECTED")" -i "$SELECTED"
+else
+  notify-send "Wallpaper" "$(basename "$SELECTED")" -i "$SELECTED"
+fi
