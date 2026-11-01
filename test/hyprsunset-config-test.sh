@@ -77,6 +77,9 @@ check "nor does the update script" \
 
 # --- hyprsunset's own verdict ------------------------------------------------
 
+check "this suite never stops hyprsunset by name" \
+  "$(sed 's/^[[:space:]]*#.*//' "${BASH_SOURCE[0]}" | grep -c '^[[:space:]]*\(pkill\|killall\) ')" "0"
+
 if ! command -v hyprsunset >/dev/null 2>&1; then
   pass "hyprsunset is not installed here, so its verdict is skipped"
 else
@@ -95,8 +98,9 @@ else
       sleep 0.1
       waited=$((waited + 1))
     done
+    # Only the one started here. timeout passes the signal on, and a kill by name
+    # would also stop the real hyprsunset of whoever runs this suite.
     kill "$pid" 2>/dev/null
-    pkill -x hyprsunset 2>/dev/null
     wait "$pid" 2>/dev/null
     cat "$dir/out"
   }
