@@ -276,3 +276,27 @@ systemctl --user restart pipewire pipewire-pulse wireplumber
 > If your mic is **distorted/clipping** rather than just noisy, the cause is usually a hardware capture gain set too high, and RNNoise can't fix a clipped signal. Use `alsamixer` (F4 → Capture view) to lower **Capture** and any **Mic Boost** controls, then `sudo alsactl store` to persist. Bluetooth headset mics are a separate case: they only provide a mic in the low-quality HSP/HFP profile, so prefer a wired/built-in mic for input and keep the headset on A2DP for output.
 >
 > After any `pipewire` restart, also restart the portals or screen sharing can break until they reconnect: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland`
+
+## Can I run hyprsimple beside another Hyprland setup?
+
+Not as a supported setup, and here is exactly what is and is not separate so you can judge it for your machine.
+
+hyprsimple's own config is already in its own place. `~/.config/hypr/hyprland.lua` is a short entrypoint that loads everything from `~/.local/share/hyprsimple/default/hypr/`, and `hypridle.conf` and `xdph.conf` source the same checkout through the `~/.config/hypr/hyprsimple` link. What lives in `~/.config/hypr` is that entrypoint plus your overrides.
+
+What is shared with any other Hyprland setup on the same user:
+
+- `~/.config/hypr` itself. `install.sh` moves whatever is there to `~/.config/hypr.backup` and puts hyprsimple's files in. `hyprlock`, `hypridle`, `hyprpaper` and `xdph` read fixed paths under it no matter which config Hyprland was started with.
+- The user services `battery-monitor`, `hyprsimple-audio-autoswitch`, `hyprpaper`, `hyprpolkitagent` and `hyprsunset`. They start under `graphical-session.target`, which is every uwsm session, not only hyprsimple's.
+- `~/.config/uwsm/env`, which the installer and `theme-switcher.sh` write to and uwsm reads for every compositor.
+- GTK, icon and cursor settings, which `theme-switcher.sh` sets through `gsettings`.
+
+What you can have is a login entry of your own:
+
+```bash
+hyprsimple-session.sh          # adds "Hyprsimple" to the login screen
+hyprsimple-session.sh remove   # takes it out again
+```
+
+`./install.sh --session-entry` adds it during the install. It writes one file, `/usr/local/share/wayland-sessions/hyprsimple.desktop`, and starts the same `~/.config/hypr/hyprland.lua` the stock "Hyprland (uwsm-managed)" entry starts. It also puts `Hyprsimple` into `XDG_CURRENT_DESKTOP`, so uwsm reads `~/.config/uwsm/env-hyprsimple` for that session as well.
+
+If you keep another setup in `~/.config/hypr`, Hyprland alone can still be pointed at hyprsimple with `Hyprland -c ~/.config/hypr/hyprland.lua` from a copy of that entrypoint kept elsewhere, since it only reads `HOME` and `HYPRSIMPLE_PATH`. The daemons above keep reading the other setup's files, so expect its lock screen, idle rules and wallpaper, not hyprsimple's.

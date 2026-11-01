@@ -117,6 +117,32 @@ for _, name in ipairs(modules) do
 	check("loads: " .. name, loaded, true)
 end
 
+-- ---- the xdg check is off for the Hyprsimple login entry only ------------
+-- The suite runs under whatever XDG_CURRENT_DESKTOP the caller has, so the
+-- two cases are driven through a wrapper that replaces os.getenv for one load.
+local function misc_under(desktop)
+	stub_hl()
+	local captured
+	hl.config = function(t)
+		captured = t
+	end
+	local real_getenv = os.getenv
+	os.getenv = function(name)
+		if name == "XDG_CURRENT_DESKTOP" then
+			return desktop
+		end
+		return real_getenv(name)
+	end
+	package.loaded["default.hypr.looknfeel"] = nil
+	local loaded = pcall(require, "default.hypr.looknfeel")
+	os.getenv = real_getenv
+	check("looknfeel loads under XDG_CURRENT_DESKTOP=" .. tostring(desktop), loaded, true)
+	return captured and captured.misc or {}
+end
+check("xdg check off for the Hyprsimple entry", misc_under("Hyprland:Hyprsimple").disable_xdg_env_checks, true)
+check("xdg check on for the stock entry", misc_under("Hyprland").disable_xdg_env_checks, false)
+check("xdg check on with no desktop set", misc_under(nil).disable_xdg_env_checks, false)
+
 -- A default module must never depend on a user file.
 local f = assert(io.open(repo .. "/default/hypr/bindings.lua"))
 local body = f:read("a")

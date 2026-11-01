@@ -21,19 +21,26 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 UNATTENDED=1
+SESSION_ENTRY=0
 for arg in "$@"; do
   case "$arg" in
   --interactive)
     UNATTENDED=0
     ;;
+  --session-entry)
+    SESSION_ENTRY=1
+    ;;
   -h | --help)
     cat <<'USAGE'
-Usage: ./install.sh [--interactive]
+Usage: ./install.sh [--interactive] [--session-entry]
 
-  (no argument)  Install without stopping to confirm. The sudo password is
-                 asked for once, at the start, and held for the whole run.
-  --interactive  Confirm each package operation, the way pacman does when it
-                 is run by hand.
+  (no argument)    Install without stopping to confirm. The sudo password is
+                   asked for once, at the start, and held for the whole run.
+  --interactive    Confirm each package operation, the way pacman does when it
+                   is run by hand.
+  --session-entry  Add a "Hyprsimple" entry to the login screen. It starts the
+                   same config, so this changes the name you pick, not what
+                   runs. hyprsimple-session.sh adds or removes it later.
 USAGE
     exit 0
     ;;
@@ -1184,6 +1191,15 @@ echo ""
 echo -e "${YELLOW}Setting up the network...${NC}"
 "$HOME/.local/bin/hyprsimple-network-setup.sh" || true
 echo ""
+
+# Opt-in, and a warning rather than a failed install when it does not land:
+# the desktop is installed either way, and the script can be run again later.
+if [[ $SESSION_ENTRY == 1 ]]; then
+  echo -e "${YELLOW}Adding the Hyprsimple login entry...${NC}"
+  "$HOME/.local/bin/hyprsimple-session.sh" ||
+    echo -e "${YELLOW}The login entry was not added. Run hyprsimple-session.sh later to add it.${NC}"
+  echo ""
+fi
 
 echo "Next steps:"
 echo "1. Log out and log back in to Hyprland"

@@ -1,13 +1,12 @@
 # hyprsimple
 
-**Minimal** Hyprland dotfiles for Arch Linux. Clean, functional, no bloat.
+Minimal Hyprland dotfiles for Arch Linux. Everything you need to work, and nothing you have to remove.
 
 > [!Note]
-> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). Run `hyprsimple-plugin remove muslimtify` to remove its integration and daemon while retaining the package and settings. Run `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` to install or enable it again.
+> Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). `hyprsimple-plugin remove muslimtify` removes its integration and daemon and keeps the package and your settings. `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` installs or enables it again.
 
 > [!Warning]
-> Installing from a tag is recommended instead of running directly from the `main` branch. The `main` branch is my active development branch, so it may be unstable and could potentially break your Hyprland configuration.
-> Unless you're familiar with Hyprland configuration and don't mind dealing with potential issues, I recommend using a tagged release. But ultimately, it's up to you.
+> Install from a tag rather than from `main`. `main` is the development branch, so it can be unstable and can break your Hyprland configuration. If you know Hyprland's configuration well and do not mind the occasional breakage, `main` is yours to use.
 
 <img width="1920" height="1080" alt="2026-10-04-230902_screenshot" src="https://github.com/user-attachments/assets/d7956807-db97-4db4-8b38-58d3a6fc0630" />
 
@@ -17,27 +16,27 @@ https://github.com/user-attachments/assets/f43671d7-4cd2-4cef-a13d-b3c28e432ccd
 
 ## Features
 
-- **40 themes** with one-key switching, all apps update at once (the bar with its menus and notifications, ghostty, hyprlock, btop). The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, dark and light
-- **Visual pickers** for themes and wallpapers: a carousel of previews in a panel of the bar, with each theme's colour swatches, filterable by typing
-- **Per-theme wallpapers**, one picked for every theme, with picker and cycle support
-- **Hardware auto-detection** at install (NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi, battery)
-- **Wayland-native** session via uwsm, no X11 dependencies
-- **Modular Hyprland config** split into focused files
-- **GTK/QT theming** with auto light/dark mode per theme
-- **Smart battery** with auto brightness and power profiles
-- **Power mode** in the system panel: power saver, balanced or performance, switched through power-profiles-daemon
-- **Screen recording** with mic, system audio, or silent modes
-- **Screenshot** for monitor, window, region, or clipboard
-- **Clipboard history** in a panel of the bar, with search, pictures shown as pictures, and removing one entry or all of them
-- **Nightlight toggle** for warm screen temperature
-- **Audio output switching** with one key
-- **An app launcher** in a sidebar that grows from the left edge, searching names, keywords and initials, with the apps you start most listed first
-- **A Quickshell bar** with panels for the calendar, system usage, volume, microphone, network, bluetooth and power
-- **Prayer times** on the bar via muslimtify, with every setting in its panel
-- **Firewall** (UFW) configured out of the box
-- **In-place updates** via `hyprsimple-update`, which never overwrites your `~/.config`
-- **Migrations** that deliver fixes to machines already installed, once each and idempotently
-- **One-command diagnostics** with `hyprsimple-debug` for issue reports
+- Switch between **40 themes** with one key, and every app follows at once: the bar with its menus and notifications, ghostty, hyprlock and btop. The well known colorschemes are here, Dracula, Solarized, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord, Everforest, Kanagawa, Ayu, Nightfox, Oxocarbon and more, in dark and light.
+- Pick themes and wallpapers visually, from a carousel of previews in a panel of the bar, with each theme's colour swatches, filterable by typing.
+- Every theme has its own wallpapers, with a picker and a cycle switch.
+- The installer detects your hardware: NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi and battery.
+- The session is Wayland-native through uwsm, with no X11 dependencies.
+- The Hyprland config is split into focused files.
+- GTK and Qt follow the theme, including light or dark mode.
+- On a laptop, a low battery dims the screen and switches to power saver, and the charger puts both back.
+- The system panel switches the power mode between power saver, balanced and performance through power-profiles-daemon.
+- Screen recording with the microphone, system audio, or no sound.
+- Screenshots of a monitor, a window, a region, or straight to the clipboard.
+- Clipboard history in a panel of the bar, with search, pictures shown as pictures, and removal of one entry or all of them.
+- A nightlight toggle for a warm screen temperature.
+- Audio output switching with one key.
+- An app launcher in a sidebar that grows from the left edge. It searches names, keywords and initials, and lists the apps you start most first.
+- A Quickshell bar with panels for the calendar, system usage, volume, microphone, network, bluetooth and power.
+- Prayer times on the bar through muslimtify, with every setting in its panel.
+- A firewall (UFW) configured out of the box.
+- In-place updates through `hyprsimple-update`, which never overwrites your `~/.config`.
+- Migrations deliver fixes to machines already installed, once each and safe to repeat.
+- One-command diagnostics with `hyprsimple-debug` for issue reports.
 
 ## Install
 
@@ -47,57 +46,37 @@ cd hyprsimple
 ./install.sh
 ```
 
-The install asks for your sudo password once, at the start, and then runs to
-the end without stopping. Package operations confirm nothing, so you can start
-it and walk away. It comes back to you once, at the very end, to ask whether to
-log out.
+The install asks for your sudo password once, at the start, and then runs to the end without stopping. Package operations confirm nothing, so you can start it and walk away. It comes back to you once, at the very end, to ask whether to log out.
 
-If you would rather read what pacman is about to do, `./install.sh
---interactive` puts every confirmation back, including the full system upgrade.
-It also asks which AUR helper to install when you have neither paru nor yay,
-instead of taking paru. The helper comes from a repository when your
-distribution ships one, and is built from the AUR otherwise. Whichever helper
-you already have is the one used
-either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that
-has both.
+If you would rather read what pacman is about to do, `./install.sh --interactive` puts every confirmation back, including the full system upgrade. It also asks which AUR helper to install when you have neither paru nor yay, instead of taking paru. The helper comes from a repository when your distribution ships one, and is built from the AUR otherwise. Whichever helper you already have is the one used either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that has both.
+
+`./install.sh --session-entry` also adds a "Hyprsimple" entry to the login screen. It starts the same config as the stock Hyprland entry, so it changes the name you pick and nothing else. `hyprsimple-session.sh` adds or removes it on an existing install, and the FAQ says what it does and does not separate.
 
 > [!WARNING]
-> These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected
-> as the desktop during installation. Coming from another desktop environment or compositor
-> (KDE, GNOME, etc.) is untested and may require manual cleanup.
+> These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected as the desktop during installation. Coming from another desktop environment or compositor (KDE, GNOME and the like) is untested and may need manual cleanup.
 
-If you run into a problem installing hyprsimple, please [open an issue](https://github.com/rizukirr/hyprsimple/issues) — thank you!
-Run `hyprsimple-debug` first and attach the link it gives you: it bundles your
-hardware, journal warnings, migration state, and the install log
-(`~/.local/state/hyprsimple/install.log`) into a single paste that expires in 24
-hours. Review it before uploading — it includes your hostname and package list.
+If you run into a problem installing hyprsimple, please [open an issue](https://github.com/rizukirr/hyprsimple/issues). Run `hyprsimple-debug` first and attach the link it gives you. It bundles your hardware, journal warnings, migration state and the install log (`~/.local/state/hyprsimple/install.log`) into a single paste that expires in 24 hours. Review it before uploading, because it includes your hostname and package list.
 
 ## Update
 
 > [!IMPORTANT]
-> If you installed hyprsimple before it could update itself, run this **once** to
-> get on the update system. Unlike `install.sh`, it does not replace your
-> `~/.config`:
+> If you installed hyprsimple before it could update itself, run this **once** to get on the update system. Unlike `install.sh`, it does not replace your `~/.config`:
 >
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/rizukirr/hyprsimple/main/bootstrap.sh | bash
 > ```
 >
-> It installs hyprsimple to `~/.local/share/hyprsimple`, refreshes the helper
-> scripts, and applies every fix you missed as a migration. After that,
-> `hyprsimple-update` is all you need.
+> It installs hyprsimple to `~/.local/share/hyprsimple`, refreshes the helper scripts, and applies every fix you missed as a migration. After that, `hyprsimple-update` is all you need.
 
 ```bash
 hyprsimple-update
 ```
 
-This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`,
-installs any newly required packages, and runs pending migrations.
+This pulls the latest hyprsimple, refreshes the helper scripts in `~/.local/bin`, installs any newly required packages, and runs pending migrations.
 
-#### Releases or main
+### Releases or main
 
-A fresh install follows release tags, so `hyprsimple-update` on its own moves
-you from one release to the next and never to an untagged commit.
+A fresh install follows release tags, so `hyprsimple-update` on its own moves you from one release to the next and never to an untagged commit.
 
 ```bash
 hyprsimple-update            # stay on the channel you are already on
@@ -106,27 +85,15 @@ hyprsimple-update main       # switch to main, and stay there
 hyprsimple-update <branch>   # switch to any branch of origin, for testing
 ```
 
-The choice sticks. Once you run `hyprsimple-update main`, every later bare
-`hyprsimple-update` pulls main until you run `hyprsimple-update --stable`. There
-is no config file behind this: the channel is whatever the checkout at
-`~/.local/share/hyprsimple` is on, which you can read with `hyprsimple-debug`.
+The choice sticks. Once you run `hyprsimple-update main`, every later bare `hyprsimple-update` pulls main until you run `hyprsimple-update --stable`. There is no config file behind this. The channel is whatever the checkout at `~/.local/share/hyprsimple` is on, which you can read with `hyprsimple-debug`.
 
-Tracking main gets you fixes the day they merge, at the cost of landing on
-commits no release has covered.
+Tracking main gets you fixes the day they merge, at the cost of landing on commits no release has covered.
 
-**An update never edits your `~/.config` files on its own.** Only a migration
-does, and only when a default genuinely has to change. Every migration says what
-it touched.
+**An update never edits your `~/.config` files on its own.** Only a migration does, and only when a default has to change. Every migration says what it touched.
 
-A migration either makes one specific edit, or saves your version aside first.
-`hyprsimple-refresh-config <path>` writes `<file>.bak.<timestamp>` and prints the
-diff before replacing. A larger change may move your file to
-`<file>.pre-split.<timestamp>` and tell you where it went. Nothing is deleted.
+A migration either makes one specific edit, or saves your version aside first. `hyprsimple-refresh-config <path>` writes `<file>.bak.<timestamp>` and prints the diff before replacing. A larger change may move your file to `<file>.pre-split.<timestamp>` and tell you where it went. Nothing is deleted.
 
-Migrations only run once per machine; state lives in
-`~/.local/state/hyprsimple/migrations`. A fresh install already ships every fix,
-so new users skip the history entirely. If one fails you can skip it and carry
-on. To reset a single config to the shipped default at any time:
+Migrations run once per machine, and the state lives in `~/.local/state/hyprsimple/migrations`. A fresh install already ships every fix, so new users skip the history entirely. If one fails you can skip it and carry on. To reset a single config to the shipped default at any time:
 
 ```bash
 hyprsimple-refresh-config hypr/hyprlock.conf
@@ -136,17 +103,17 @@ Writing a migration is documented in [`migrations/README.md`](migrations/README.
 
 Some configs cannot be delivered automatically. `starship.toml` and `yazi/yazi.toml` are TOML, and that format has no include directive to hang a default off.
 
-When an update changes one of those and you have your own version, `hyprsimple-update` says so and prints the command to take the new one. It only mentions a file this update actually changed, so editing something on purpose does not nag you every time.
+When an update changes one of those and you have your own version, `hyprsimple-update` says so and prints the command to take the new one. It only mentions a file this update changed, so editing something on purpose does not nag you every time.
 
-#### Theme templates
+### Theme templates
 
 Writing a theme of your own is covered in [THEMING.md](THEMING.md), from `colors.toml` to the files each program reads.
 
-Themes are rendered from the `.tpl` files in `~/.local/share/hyprsimple/.config/hypr/themes/templates`, and the install owns them, so a template change reaches you through `hyprsimple-update` with no migration.
+Themes are rendered from the `.tpl` files in `~/.local/share/hyprsimple/.config/hypr/themes/templates`. The install owns them, so a template change reaches you through `hyprsimple-update` with no migration.
 
 To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same name and edit it there. That directory wins over the install, and a file in it with no shipped counterpart is rendered too, so you can add templates of your own.
 
-Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is no longer read, and an update removes it once every file in it is one hyprsimple shipped. If you had edited one, the whole directory is left alone and you are told which file it was, so you can move it to `templates.user/`.
+Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is not read, and an update removes it once every file in it is one hyprsimple shipped. If you had edited one, the whole directory is left alone and you are told which file it was, so you can move it to `templates.user/`.
 
 ## Audio
 
@@ -154,9 +121,7 @@ Older installs have a copy of the templates at `~/.config/hypr/themes/templates`
 
 A bluetooth microphone switches the headset into its call profile while it is in use, which lowers playback quality until recording stops. That is how bluetooth headsets work, not something hyprsimple can avoid.
 
-Connecting a bluetooth headset or speaker moves the sound to it. Switching by
-hand with `SUPER + S` still wins while that device stays connected, and the
-next one to connect takes over again. Turn it off with
+Connecting a bluetooth headset or speaker moves the sound to it. Switching by hand with `SUPER + S` still wins while that device stays connected, and the next one to connect takes over again. Turn it off with
 
 ```bash
 systemctl --user disable --now hyprsimple-audio-autoswitch.service
@@ -164,9 +129,7 @@ systemctl --user disable --now hyprsimple-audio-autoswitch.service
 
 ## Network
 
-`wifi` on its own rescans and lists the networks in range. `wifi "MY NETWORK"`
-connects to one: an open network, or one you have joined before, connects
-straight away, and a secured one asks for the password.
+`wifi` on its own rescans and lists the networks in range. `wifi "MY NETWORK"` connects to one. An open network, or one you have joined before, connects straight away, and a secured one asks for the password.
 
 From a keybind or a script there is nobody to ask, so pass it instead:
 
@@ -174,12 +137,11 @@ From a keybind or a script there is nobody to ask, so pass it instead:
 wifi "MY NETWORK" "my password"
 ```
 
-`wifi --help` lists both forms. It uses NetworkManager if it is running, and
-iwd otherwise.
+`wifi --help` lists both forms. It uses NetworkManager if it is running, and iwd otherwise.
 
 ## Keybindings
 
-Press **`SUPER + /`** for interactive viewer with fuzzy search.
+Press **`SUPER + /`** for an interactive viewer with fuzzy search.
 
 ### Applications
 
@@ -192,7 +154,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + V` | Clipboard history, a panel of the bar |
 | `SUPER + M` | Color picker |
 
-### Window Management
+### Window management
 
 | Key | Action |
 |-----|--------|
@@ -213,7 +175,7 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 | `SUPER + CTRL + Arrow` | Move the whole workspace to the monitor in that direction |
 | `SUPER + Scroll` | Cycle through workspaces |
 
-### Theming & Wallpaper
+### Theming and wallpaper
 
 | Key | Action |
 |-----|--------|
@@ -228,23 +190,17 @@ Press **`SUPER + /`** for interactive viewer with fuzzy search.
 
 The screen freezes while you pick, and Escape takes nothing. The picture is saved to `~/Pictures/Screenshots` and copied to the clipboard, both.
 
-### Screen Recording
+### Screen recording
 
 | Key | Action |
 |-----|--------|
 | `SUPER + R` | Open the recording menu, a panel of the bar, which starts a recording or stops the one that is running. Recording a window asks which one, from a list |
 
-The menu offers a region, a window or the whole screen, each with microphone
-audio, system audio, or none. A window is recorded as the area it covered when
-you picked it, so moving it or covering it shows in the recording. While something is recording it offers to stop instead,
-so the same key both starts and stops.
+The menu offers a region, a window or the whole screen, each with microphone audio, system audio, or none. A window is recorded as the area it covered when you picked it, so moving it or covering it shows in the recording. While something is recording it offers to stop instead, so the same key both starts and stops.
 
-Recording uses `wl-screenrec` where it can and `wf-recorder` otherwise, and
-NVIDIA machines prefer `wf-recorder`. Only `wf-recorder` is required: it comes
-from the official repositories, so recording still works if the `wl-screenrec`
-build fails during install.
+Recording uses `wl-screenrec` where it can and `wf-recorder` otherwise, and NVIDIA machines prefer `wf-recorder`. Only `wf-recorder` is required. It comes from the official repositories, so recording still works if the `wl-screenrec` build fails during install.
 
-### Media & Brightness
+### Media and brightness
 
 | Key | Action |
 |-----|--------|
@@ -280,8 +236,7 @@ build fails during install.
 
 ## Scripts
 
-Helper scripts live in [`.local/bin`](.local/bin) (installed to `~/.local/bin`, which is on `PATH`).
-Most are wired to keybindings or the bar; all can also be run directly from a terminal.
+Helper scripts live in [`.local/bin`](.local/bin) and are installed to `~/.local/bin`, which is on `PATH`. Most are wired to keybindings or the bar, and all of them can be run from a terminal.
 
 ### Audio
 
@@ -292,7 +247,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `volume-notify.sh` | Show the current PipeWire volume as a notification |
 | `record-audio.sh` | Record audio from the default input to `~/Music` |
 
-### Display, Theme & Wallpaper
+### Display, theme and wallpaper
 
 | Script | Description |
 |--------|-------------|
@@ -305,18 +260,18 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hyprsimple-theme-picker.sh` | List one row per theme, with its wallpaper and colour swatches, for the bar's theme picker |
 | `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, for the bar's wallpaper picker |
 | `hyprsimple-thumbnails.sh` | Swap the image in each of those rows for a small cached thumbnail, which is what the pickers show |
-| `live-wallpaper-toggle.sh` | Turn live wallpaper on or off (cycle backgrounds vs. static), behind the switch in the wallpaper picker |
-| `monitor-mirror-toggle.sh` | Toggle extend vs. mirror mode for an external monitor |
+| `live-wallpaper-toggle.sh` | Turn live wallpaper on or off (cycling backgrounds or a static one), behind the switch in the wallpaper picker |
+| `monitor-mirror-toggle.sh` | Toggle between extending to and mirroring on an external monitor |
 | `virtual-mirror-toggle.sh` | Mirror a monitor into a window (via wl-mirror) for screen sharing |
 
-### Screenshot & Recording
+### Screenshot and recording
 
 | Script | Description |
 |--------|-------------|
 | `screenshot.sh` | Take a screenshot. `smart`, behind `Print`, picks on a frozen screen and both saves and copies. The other modes capture one thing: `region` / `window` / `monitor`, or `region-clipboard` / `window-clipboard` / `clipboard` |
-| `screen-record.sh` | Start/stop screen recording (region, window or output; mic, internal, or no audio) |
+| `screen-record.sh` | Start or stop screen recording (region, window or output, with mic, internal, or no audio) |
 | `hyprsimple-record-menu.sh` | Opens the bar's record panel, behind `SUPER + R`, which picks what to record and starts or stops it |
-| `screen-record-active.sh` | Report whether a screen recording is currently running |
+| `screen-record-active.sh` | Report whether a screen recording is running |
 
 ### Network
 
@@ -329,7 +284,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hotspot.sh` | Create a WiFi hotspot with internet sharing |
 | `setup-dns.sh` | Configure the DNS provider (Cloudflare / Google / DHCP) |
 
-### System & Power
+### System and power
 
 | Script | Description |
 |--------|-------------|
@@ -337,17 +292,17 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `bluetooth-toggle.sh` | Toggle Bluetooth adapter power |
 | `toggle_cpu_mode.sh` | Switch CPU governor between performance and powersave |
 | `hyprsimple-hw-intel-laptop.sh` | Exit 0 on an Intel laptop new enough for thermald (used as a condition) |
-| `toggle-idle.sh` | Toggle hypridle (lock-on-idle) on/off |
-| `hypr-logout.sh` | Gracefully close all windows and stop the Hyprland session |
+| `toggle-idle.sh` | Toggle hypridle (lock on idle) on or off |
+| `hypr-logout.sh` | Close all windows and stop the Hyprland session |
 
-### Input & Notifications
+### Input and notifications
 
 | Script | Description |
 |--------|-------------|
 | `capslock-notify.sh` | Notify on Caps Lock state changes |
 | `notification-dismiss.sh` | Dismiss every notification on screen |
 
-### Search & Keybindings
+### Search and keybindings
 
 | Script | Description |
 |--------|-------------|
@@ -365,6 +320,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
+| `hyprsimple-session.sh` | Add a "Hyprsimple" entry to the login screen, or `remove` it. It starts the same config as the stock Hyprland entry |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
 ### External plugins
@@ -379,16 +335,11 @@ Plugin code lives in `~/.local/share/hyprsimple-plugins`, outside the core check
 hl.bind("SUPER + P", hl.dsp.exec_cmd(vars.barPanel .. "prayer"), { description = "Prayer Times (panel)" })
 ```
 
-If the plugin is installed but disabled, run `hyprsimple-plugin enable muslimtify`. If download failed, retry `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git`. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin retains application settings and installed packages.
+If the plugin is installed but disabled, run `hyprsimple-plugin enable muslimtify`. If the download failed, retry `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git`. For an enabled plugin whose daemon is stopped, run `muslimtify daemon install` first. Removing the plugin keeps application settings and installed packages.
 
-The delivery suites require a checkout of the published plugin at `2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. Test invocations map the public URL to that local origin and perform no network, package or service operations.
+The delivery suites need a checkout of the published plugin at `2f2b9028b3833e6cb4dc25b5b138fc18ef74bfea`. Set `MUSLIMTIFY_PLUGIN_FIXTURE` to that checkout, then run `bash test/plugin-migration-test.sh` and `bash test/plugin-default-install-test.sh`. The local default is `/tmp/muslimtify-hyprsimple`. CI fetches the pinned fixture into `RUNNER_TEMP` before running either suite. The suites map the public URL to that local origin and perform no network, package or service operations.
 
-### Integrations
-
-| Script | Description |
-|--------|-------------|
-
-### Shell init & internal helpers
+### Shell init and internal helpers
 
 These are sourced by other files rather than run directly.
 
@@ -397,7 +348,7 @@ These are sourced by other files rather than run directly.
 | `bashrc.sh` / `zsh.sh` / `fish.fish` | Per-shell init (zoxide, fzf, starship, aliases) sourced from your shell's rc file |
 | `terminal.sh` | Detect your login shell and wire the matching init script into its rc file |
 | `hypr-helpers.sh` | Shared hyprpaper helper functions used by the wallpaper scripts |
-| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and plugin manager all use the one you already have |
+| `hyprsimple-aur-helper.sh` | Reports which AUR helper is installed, so the installer, the updater and the plugin manager all use the one you already have |
 | `hyprsimple-require.sh` | Loads the helpers a script needs, and stops it rather than letting it run with them missing |
 | `hyprsimple-theme-deliver.sh` | Puts a theme's generated files where each program reads them, shared by the theme switcher and the updater |
 | `hyprsimple-hw-battery.sh` | Exits 0 when this machine has a battery, which is how hyprsimple decides it is a laptop |
@@ -405,8 +356,7 @@ These are sourced by other files rather than run directly.
 
 ## FAQ
 
-Troubleshooting and known issues (NVIDIA boot hang, Plymouth blank-screen splash, and
-more) are documented in [FAQ.md](FAQ.md).
+Troubleshooting and known issues, such as the NVIDIA boot hang and the Plymouth blank-screen splash, are documented in [FAQ.md](FAQ.md).
 
 ## License
 
