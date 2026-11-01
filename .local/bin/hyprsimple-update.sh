@@ -201,6 +201,16 @@ if [[ -d $HYPRSIMPLE_PATH/.git ]]; then
     # install is on and turns the fast-forward below into "refusing to merge
     # unrelated histories". A plain fetch keeps the boundary and stays shallow.
     if ! git_net fetch --quiet origin "$target"; then
+      # Exit 2 means origin answered and has no such branch. Anything else, a
+      # stall included, proves nothing, so only this says the branch is gone. An
+      # install following a branch that was deleted after it merged ends up here.
+      branch_status=0
+      GIT_ATTEMPTS=1 git_net ls-remote --exit-code --heads origin "refs/heads/$target" >/dev/null || branch_status=$?
+      if ((branch_status == 2)); then
+        echo -e "${RED}Branch '$target' does not exist on origin.${NC}"
+        echo "Run hyprsimple-update --stable to go back to releases." >&2
+        exit 1
+      fi
       echo -e "${RED}Could not fetch '$target' from origin.${NC}"
       echo "Either origin has no branch by that name, or the fetch did not complete." >&2
       stalled_hint
