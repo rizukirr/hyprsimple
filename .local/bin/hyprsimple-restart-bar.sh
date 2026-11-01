@@ -13,7 +13,7 @@
 #              Hiding does not stop it: the bar also shows the notifications,
 #              which a stopped one would silently drop.
 #
-# The bar is matched by its config path, not by process name. Quickshell runs
+# The bar is found by its config path, not by process name. Quickshell runs
 # any number of configs under the one name "qs", and killing by name would take
 # down a shell the user runs alongside this one.
 
@@ -21,8 +21,25 @@ BAR="${HYPRSIMPLE_PATH:-$HOME/.local/share/hyprsimple}/default/quickshell"
 
 export QML_IMPORT_PATH="$BAR${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
+# The pid of each running bar, from Quickshell's own list of instances. It lists
+# by config path, which is what lets a shell the user runs alongside this one
+# alone.
+#
+# Not by command line. A bar that crashed is relaunched by Quickshell under the
+# same pid with the bare command line /usr/bin/quickshell, and a match on
+# "qs -p <path>" found nothing until the next login. --if-running then did
+# nothing, and --toggle and a plain run started a second bar.
+#
+# --any-display, here and on the kill, since both otherwise see only the display
+# they run on, and an update run from SSH or a TTY has none.
+#
+# `qs list` exits 0 with nothing running, so the answer is whether a pid came back.
+bar_pids() {
+  qs list -p "$BAR" --json --any-display 2>/dev/null | grep -oE '"pid": *[0-9]+' | grep -oE '[0-9]+'
+}
+
 bar_running() {
-  pgrep -f -- "qs -p $BAR" >/dev/null
+  [[ -n $(bar_pids) ]]
 }
 
 case "${1:-}" in
@@ -46,12 +63,14 @@ esac
 # It gets two seconds, since a signal sent while it is still quitting would
 # cut that short and orphan them after all.
 if bar_running; then
-  qs kill -p "$BAR" >/dev/null 2>&1
+  qs kill -p "$BAR" --any-display >/dev/null 2>&1
   for _ in {1..20}; do
     bar_running || break
     sleep 0.1
   done
-  bar_running && pkill -f -- "qs -p $BAR"
+  for pid in $(bar_pids); do
+    kill "$pid" 2>/dev/null
+  done
 fi
 
 setsid uwsm app -- qs -p "$BAR" >/dev/null 2>&1 &
