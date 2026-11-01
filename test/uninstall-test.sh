@@ -201,6 +201,23 @@ check "as root it fails" "$(rc)" "1"
 check "and changes nothing" "$(snapshot)" "$before"
 rm -f "$STUB/id"
 
+# ---- a plugin list that cannot be read --------------------------------------
+
+fresh
+printf 'not json\n' >"$H/.config/hyprsimple/plugins.json"
+run_uninstall yes
+check "a corrupt plugin config fails the run" "$(rc)" "1"
+check "and the plugin is not deleted without its disable step" \
+  "$(gone "$H/.local/share/hyprsimple-plugins/demo")" "there"
+check "and the settings stay, to be fixed" "$(cat "$H/.config/hyprsimple/plugins.json")" "not json"
+check "and the checkout stays for a second run" "$(gone "$CO/.local/bin")" "there"
+
+printf '{"schemaVersion":1,"plugins":{"demo":{"enabled":true,"placement":"left","settings":{}}}}\n' \
+  >"$H/.config/hyprsimple/plugins.json"
+run_uninstall yes
+check "once it is fixed, a second run exits 0" "$(rc)" "0"
+check "and removes the plugin" "$(gone "$H/.local/share/hyprsimple-plugins")" "gone"
+
 # ---- a checkout with work in it ---------------------------------------------
 
 fresh

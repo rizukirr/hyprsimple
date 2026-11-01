@@ -130,7 +130,12 @@ remove_login_entry() {
 remove_plugins() {
   local manager="$BIN/hyprsimple-plugin" ids id ok=1
   if [[ -d $PLUGIN_ROOT && -x $manager ]]; then
-    ids=$("$manager" list 2>/dev/null | cut -f1)
+    # pipefail makes this fail when the list does. No list is not an empty list:
+    # removing the folder then would skip each plugin's disable step.
+    if ! ids=$("$manager" list 2>/dev/null | cut -f1); then
+      problem "list the installed plugins. Fix ~/.config/hyprsimple/plugins.json and run this again."
+      return 1
+    fi
     for id in $ids; do
       if ! "$manager" remove "$id"; then
         problem "remove the plugin $id."
