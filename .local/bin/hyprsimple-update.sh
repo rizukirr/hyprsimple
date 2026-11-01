@@ -480,6 +480,11 @@ fi
 if [[ -n $PREV_COMMIT ]] &&
   [[ -n $(git -C "$HYPRSIMPLE_PATH" diff --name-only "$PREV_COMMIT" HEAD -- default/quickshell 2>/dev/null) ]]; then
   echo -e "\n${YELLOW}The bar changed, restarting it...${NC}"
+  # Asked before the restart, which returns before the new bar is listed.
+  bar_was_up=0
+  if [[ $(qs list -p "$HYPRSIMPLE_PATH/default/quickshell" --json 2>/dev/null) == *'"pid"'* ]]; then
+    bar_was_up=1
+  fi
   "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running || true
 
   # The bar is also what shows notifications, and the restart above returns
@@ -491,7 +496,7 @@ if [[ -n $PREV_COMMIT ]] &&
   #
   # under "hyprsimple is up to date". So this waits, a few seconds at most, for
   # the new bar to be there to take one. Only when a bar is running at all.
-  if pgrep -f -- "qs -p $HYPRSIMPLE_PATH/default/quickshell" >/dev/null; then
+  if ((bar_was_up)); then
     for _ in {1..50}; do
       busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 && break
       sleep 0.1

@@ -290,6 +290,14 @@ migrate_line=$(grep -n 'hyprsimple-migrate.sh"$' "$UPDATER" | cut -d: -f1)
 check "and after the migrations, so a bar a migration started is not restarted twice in a row for nothing" \
   "$(( restart_line > migrate_line ))" "1"
 
+# Decided before the restart. The restart returns before the new bar is listed,
+# so asking afterwards would skip the wait the update needs most.
+listed_line=$(grep -n 'qs list -p "\$HYPRSIMPLE_PATH/default/quickshell" --json' "$UPDATER" | cut -d: -f1)
+check "the update asks Quickshell whether a bar is up, before restarting it" \
+  "$(( ${listed_line:-0} > 0 && ${listed_line:-0} < restart_line ))" "1"
+check "and does not look for the bar by its command line" \
+  "$(grep -c 'pgrep -f -- "qs -p' <<<"$updater_code")" "0"
+
 # The restart comes at the end of the update, and the reload came at the start
 # of it. For the seconds in between, a bar whose reload had failed showed a red
 # "Quickshell: Config reload failed" window, which then went away with nothing
