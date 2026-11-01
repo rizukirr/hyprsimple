@@ -365,6 +365,7 @@ Most are wired to keybindings or the bar; all can also be run directly from a te
 | `hyprsimple-refresh-config.sh` | Reset one `~/.config` file to the shipped default, with a backup and a diff |
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
+| `hyprsimple-session.sh` | Add a "Hyprsimple" entry to the login screen, or `remove` it. It starts the same config as the stock Hyprland entry |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
 ### External plugins

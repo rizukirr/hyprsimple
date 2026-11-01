@@ -341,6 +341,9 @@ jobs:
       - name: thermald-test
         run: bash test/thermald-test.sh
 
+      - name: session-entry-test
+        run: bash test/session-entry-test.sh
+
       # Last on purpose: it audits the suites above rather than the product, so
       # a real failure should be read before its hygiene report.
       - name: suite-hygiene-test

@@ -1,0 +1,88 @@
+#!/bin/bash
+# Checks hyprsimple-session.sh against a directory of its own.
+#
+# The script writes one file under /usr/local/share/wayland-sessions and uses
+# sudo when it cannot write there itself. Here HYPRSIMPLE_SESSION_DIR points at
+# a temporary directory the user owns, and the sudo on PATH is a stub that
+# records the call and fails, so a run that reached for sudo fails loudly and
+# nothing outside the temporary directory is touched.
+
+set -uo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT="$REPO/.local/bin/hyprsimple-session.sh"
+TMP="$(mktemp -d)"
+trap 'rm -rf "${TMP:?}"' EXIT
+
+failures=0
+pass() { printf 'ok - %s\n' "$1"; }
+fail() { printf 'not ok - %s\n' "$1" >&2; failures=$((failures + 1)); }
+check() {
+  if [[ $2 == "$3" ]]; then pass "$1"
+  else printf 'not ok - %s (want %s, got %s)\n' "$1" "$3" "$2" >&2; failures=$((failures + 1)); fi
+}
+
+STUB="$TMP/bin"; mkdir -p "$STUB"
+CALL_LOG="$TMP/calls"; export CALL_LOG
+cat >"$STUB/sudo" <<'STUBEOF'
+#!/bin/bash
+printf 'sudo %s\n' "$*" >>"$CALL_LOG"
+exit 1
+STUBEOF
+chmod +x "$STUB/sudo"
+export PATH="$STUB:$PATH"
+
+SESSIONS="$TMP/wayland-sessions"
+export HYPRSIMPLE_SESSION_DIR="$SESSIONS"
+ENTRY="$SESSIONS/hyprsimple.desktop"
+EXEC_LINE='Exec=uwsm start -e -D Hyprland:Hyprsimple -N Hyprsimple hyprland.desktop'
+
+sudo_calls() { if [[ -f $CALL_LOG ]]; then grep -c . "$CALL_LOG"; else echo 0; fi; }
+
+# ---- add -----------------------------------------------------------------
+out=$("$SCRIPT" 2>&1); status=$?
+check "adding exits 0" "$status" "0"
+check "the entry file exists" "$([[ -f $ENTRY ]] && echo yes || echo no)" "yes"
+check "it carries the uwsm Exec line" "$(grep -cxF "$EXEC_LINE" "$ENTRY")" "1"
+check "it names uwsm in TryExec" "$(grep -cx 'TryExec=uwsm' "$ENTRY")" "1"
+check "it is named Hyprsimple" "$(grep -cx 'Name=Hyprsimple' "$ENTRY")" "1"
+check "the output names the file" "$(grep -cF "$ENTRY" <<<"$out")" "1"
+
+# ---- add again -----------------------------------------------------------
+before=$(cat "$ENTRY")
+out=$("$SCRIPT" 2>&1); status=$?
+check "adding again exits 0" "$status" "0"
+check "and leaves the file as it was" "$(cat "$ENTRY")" "$before"
+check "and says it is already there" "$(grep -ci 'already' <<<"$out")" "1"
+
+# ---- remove --------------------------------------------------------------
+out=$("$SCRIPT" remove 2>&1); status=$?
+check "removing exits 0" "$status" "0"
+check "the entry file is gone" "$([[ -e $ENTRY ]] && echo yes || echo no)" "no"
+check "the directory is still there" "$([[ -d $SESSIONS ]] && echo yes || echo no)" "yes"
+
+# ---- remove again --------------------------------------------------------
+out=$("$SCRIPT" remove 2>&1); status=$?
+check "removing again exits 0" "$status" "0"
+check "and says there is nothing to remove" "$(grep -ci 'nothing to remove' <<<"$out")" "1"
+
+# ---- bad argument --------------------------------------------------------
+"$SCRIPT" nonsense >/dev/null 2>&1; status=$?
+check "an unknown argument exits 1" "$status" "1"
+check "and writes nothing" "$([[ -e $ENTRY ]] && echo yes || echo no)" "no"
+
+# ---- sudo ----------------------------------------------------------------
+check "sudo was never reached" "$(sudo_calls)" "0"
+
+# ---- the directory does not exist yet -----------------------------------
+rm -rf "${SESSIONS:?}"
+"$SCRIPT" >/dev/null 2>&1; status=$?
+check "adding creates the directory" "$status" "0"
+check "and the file inside it" "$([[ -f $ENTRY ]] && echo yes || echo no)" "yes"
+check "still without sudo" "$(sudo_calls)" "0"
+
+if (( failures > 0 )); then
+  printf '\n%s check(s) failed\n' "$failures" >&2
+  exit 1
+fi
+printf '\nall checks passed\n'
