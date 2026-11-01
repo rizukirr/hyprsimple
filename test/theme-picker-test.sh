@@ -158,6 +158,9 @@ must_be_fixture "$wp_theme"
 mkdir -p "$wp_theme/backgrounds"
 make_wallpaper "$wp_theme/backgrounds/0-morning-breeze.jpg"
 make_wallpaper "$wp_theme/backgrounds/1-evening-glow.jpg"
+# The same age, so the picker's order falls back to the name and the first row
+# is the one the label check below reads.
+touch -d '2024-01-01 00:00:00' "$wp_theme/backgrounds/0-morning-breeze.jpg" "$wp_theme/backgrounds/1-evening-glow.jpg"
 
 # Fed through HOME, not XDG_CACHE_HOME. This suite used to set XDG_CACHE_HOME,
 # and passed, because the picker was the one script in the set that read it.

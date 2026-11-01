@@ -259,7 +259,7 @@ Helper scripts live in [`.local/bin`](.local/bin) and are installed to `~/.local
 | `theme-apply-templates.sh` | Generate themed app configs from a theme's `colors.toml` |
 | `wallpaper-switcher.sh` | Pick, add, delete or cycle a wallpaper within the current theme. `next` cycles, for a bind of your own |
 | `hyprsimple-theme-picker.sh` | List one row per theme, with its wallpaper and colour swatches, for the bar's theme picker |
-| `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, for the bar's wallpaper picker |
+| `hyprsimple-wallpaper-picker.sh` | List one row per wallpaper in the current theme, newest first, for the bar's wallpaper picker |
 | `hyprsimple-thumbnails.sh` | Swap the image in each of those rows for a small cached thumbnail, which is what the pickers show |
 | `live-wallpaper-toggle.sh` | Turn live wallpaper on or off (cycling backgrounds or a static one), behind the switch in the wallpaper picker |
 | `monitor-mirror-toggle.sh` | Toggle between extending to and mirroring on an external monitor |

@@ -223,6 +223,23 @@ check "and says what is missing" "$(grep -c 'zenity is missing' "$TMP/notify-log
 check "zenity is in the packages an install and an update bring" \
   "$(grep -cx 'zenity' "$REPO/packages.txt")" "1"
 
+# ---- the order of the wallpaper picker -------------------------------------
+#
+# Newest first, whatever the names say, and by name among pictures of the same
+# age. A folder of its own, since the picker lists the folder of the wallpaper
+# on record.
+ORDER="$H/.config/hypr/themes/order/backgrounds"; mkdir -p "$ORDER"
+for name in a-old.jpg b-tie.jpg c-tie.jpg z-new.jpg; do printf 'x\n' >"$ORDER/$name"; done
+touch -d '2020-01-01 00:00:00' "$ORDER/a-old.jpg"
+touch -d '2022-01-01 00:00:00' "$ORDER/b-tie.jpg" "$ORDER/c-tie.jpg"
+touch -d '2024-01-01 00:00:00' "$ORDER/z-new.jpg"
+saved_record=$(cat "$H/.cache/current_wallpaper_path")
+printf '%s\n' "$ORDER/a-old.jpg" >"$H/.cache/current_wallpaper_path"
+check "the wallpaper picker lists newest first, then by name" \
+  "$(HOME="$H" PATH="$STUB:/usr/bin:/bin" bash "$H/.local/bin/hyprsimple-wallpaper-picker.sh" | cut -f2 | paste -sd,)" \
+  "z new,b tie,c tie,a old"
+printf '%s\n' "$saved_record" >"$H/.cache/current_wallpaper_path"
+
 # ---- deleting a wallpaper --------------------------------------------------
 #
 # The picker asks first, in a dialog of its own, and only then runs

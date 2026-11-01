@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Emit one row per wallpaper in the current theme for the bar's wallpaper picker:
+# Emit one row per wallpaper in the current theme for the bar's wallpaper picker,
+# newest first:
 #
 #   image path <TAB> display name <TAB> image path
 #
@@ -34,9 +35,13 @@ BG_DIR=$(dirname "$CURRENT" 2>/dev/null)
 # backgrounds hold a link had no wallpaper at all: find -type f does not match
 # a symlink, and the themes added with the colorscheme catalogue share one
 # image that way until they have their own.
+#
+# Newest first, then by name, so pictures added together sit together, beside
+# the one just set as the wallpaper.
 find -L "$BG_DIR" -maxdepth 1 -type f \
-  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null |
-  sort |
+  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -printf '%T@\t%p\n' 2>/dev/null |
+  sort -t $'\t' -k1,1nr -k2,2 |
+  cut -f2- |
   while read -r image; do
     base=$(basename "$image")
     # Strip the extension, then a leading sort prefix like "0-", then turn the
