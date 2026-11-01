@@ -93,6 +93,23 @@ check "install.sh calls the script with a fallthrough, not a hard failure" \
 check "and only when the flag was given" \
   "$(grep -cE '^if \[\[ \$SESSION_ENTRY == 1 \]\]; then$' "$REPO/install.sh")" "1"
 
+# ---- a write that does not land ------------------------------------------
+# A sudo that says yes and writes nothing, the shape of a sudo that was
+# refused or a tee that failed. The script has to notice and say so itself,
+# without cat's own complaint landing first.
+LOCKED="$TMP/locked"; mkdir -p "$LOCKED"; chmod 555 "$LOCKED"
+cat >"$STUB/sudo" <<'STUBEOF'
+#!/bin/bash
+printf 'sudo %s\n' "$*" >>"$CALL_LOG"
+exit 0
+STUBEOF
+err=$(HYPRSIMPLE_SESSION_DIR="$LOCKED/wayland-sessions" "$SCRIPT" 2>&1 >/dev/null); status=$?
+check "a write that does not land exits 1" "$status" "1"
+check "and reports it in one line of its own" "$(printf '%s\n' "$err" | grep -c .)" "1"
+check "that names the file" "$(grep -cF 'wayland-sessions/hyprsimple.desktop' <<<"$err")" "1"
+check "after going through sudo" "$(grep -c '^sudo tee ' "$CALL_LOG")" "1"
+chmod 755 "$LOCKED"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

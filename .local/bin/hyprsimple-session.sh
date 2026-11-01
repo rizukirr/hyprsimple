@@ -54,7 +54,7 @@ install_entry() {
   fi
   run mkdir -p "$DIR"
   printf '%s\n' "$ENTRY" | run tee "$FILE" >/dev/null
-  if [[ "$(cat "$FILE")" != "$ENTRY" ]]; then
+  if [[ "$(cat "$FILE" 2>/dev/null)" != "$ENTRY" ]]; then
     echo "Could not write $FILE." >&2
     exit 1
   fi
