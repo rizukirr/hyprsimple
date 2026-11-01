@@ -61,6 +61,11 @@ you already have is the one used
 either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that
 has both.
 
+`./install.sh --session-entry` also adds a "Hyprsimple" entry to the login
+screen. It starts the same config as the stock Hyprland entry, so it changes
+the name you pick, not what runs. `hyprsimple-session.sh` adds or removes it
+on an existing install, and the FAQ says what it does and does not separate.
+
 > [!WARNING]
 > These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected
 > as the desktop during installation. Coming from another desktop environment or compositor

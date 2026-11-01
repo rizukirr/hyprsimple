@@ -81,6 +81,18 @@ check "adding creates the directory" "$status" "0"
 check "and the file inside it" "$([[ -f $ENTRY ]] && echo yes || echo no)" "yes"
 check "still without sudo" "$(sudo_calls)" "0"
 
+# ---- install.sh ----------------------------------------------------------
+# --help exits inside the argument loop, before the log, the sudo prompt and
+# the Arch check, so it is safe to run on any machine.
+help_out=$(bash "$REPO/install.sh" --help 2>&1); status=$?
+check "install.sh --help exits 0" "$status" "0"
+check "and documents --session-entry" \
+  "$(grep -q -- '--session-entry' <<<"$help_out" && echo yes || echo no)" "yes"
+check "install.sh calls the script with a fallthrough, not a hard failure" \
+  "$(grep -cF '"$HOME/.local/bin/hyprsimple-session.sh" ||' "$REPO/install.sh")" "1"
+check "and only when the flag was given" \
+  "$(grep -cE '^if \[\[ \$SESSION_ENTRY == 1 \]\]; then$' "$REPO/install.sh")" "1"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
