@@ -300,3 +300,12 @@ hyprsimple-session.sh remove   # takes it out again
 `./install.sh --session-entry` adds it during the install. It writes one file, `/usr/local/share/wayland-sessions/hyprsimple.desktop`, and starts the same `~/.config/hypr/hyprland.lua` the stock "Hyprland (uwsm-managed)" entry starts. It also puts `Hyprsimple` into `XDG_CURRENT_DESKTOP`, so uwsm reads `~/.config/uwsm/env-hyprsimple` for that session as well.
 
 If you keep another setup in `~/.config/hypr`, Hyprland alone can still be pointed at hyprsimple with `Hyprland -c ~/.config/hypr/hyprland.lua` from a copy of that entrypoint kept elsewhere, since it only reads `HOME` and `HYPRSIMPLE_PATH`. The daemons above keep reading the other setup's files, so expect its lock screen, idle rules and wallpaper, not hyprsimple's.
+
+## My microphone still doesn't sound clear
+
+Hyprsimple already sets up an audio denoiser for you. However, if your microphone still doesn't sound clear, try the following:
+
+1. Click the microphone icon on the bar.
+2. Select `Noise Canceling Source`.
+3. Reduce the microphone volume to around 50%.
+4. Test your microphone again to see if the audio quality improves.
