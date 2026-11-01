@@ -163,16 +163,30 @@ before=$(git -C "$INSTALL" rev-parse HEAD)
 run_update no-such-branch
 check "an unknown branch fails" "$(rc)" 1
 check "an unknown branch leaves the install alone" "$(git -C "$INSTALL" rev-parse HEAD)" "$before"
-# The branch has to be named, whatever the wording around it. The message used
-# to assert the cause outright, "origin has no branch called X", and a fetch
-# that stalled produced that same line about a branch that exists. It says which
-# fetch failed and offers both causes now.
+# The branch has to be named. Saying it does not exist needs origin's own answer:
+# the message used to assert that on any failed fetch, and a fetch that stalled
+# produced the same line about a branch that exists.
 if grep -q "no-such-branch" "$TMP/out"; then
   pass "an unknown branch is named in the error"
 else fail "an unknown branch is named in the error"; fi
-if grep -q "no branch by that name" "$TMP/out"; then
-  pass "and a missing branch is still offered as the cause"
-else fail "and a missing branch is still offered as the cause"; fi
+check "and is said not to exist" "$(grep -c "Branch 'no-such-branch' does not exist on origin" "$TMP/out")" "1"
+check "with the way back to releases" "$(grep -c 'hyprsimple-update --stable' "$TMP/out")" "1"
+
+# An install following a branch that was deleted after it merged: a plain run.
+git -C "$WORK" checkout -q -b short-lived
+git -C "$WORK" commit -q --allow-empty -m "short lived"
+git -C "$WORK" push -q origin short-lived
+run_update short-lived
+check "an install can follow a branch" "$(head_state)" short-lived
+git -C "$WORK" checkout -q main
+git -C "$WORK" push -q origin --delete short-lived
+run_update
+check "once that branch is deleted, a plain run fails" "$(rc)" 1
+check "and says so" "$(grep -c "Branch 'short-lived' does not exist on origin" "$TMP/out")" "1"
+check "with the way back to releases" "$(grep -c 'hyprsimple-update --stable' "$TMP/out")" "1"
+run_update --stable
+check "and --stable gets it back" "$(rc)" 0
+run_update feature-x
 
 run_update --nonsense
 check "an unknown option fails" "$(rc)" 1
@@ -269,6 +283,8 @@ else
   # updated. That is worse than the hang it replaced.
   check "a fetch that never got through is not reported as up to date" \
     "$(grep -c 'up to date' "$TMP/stall-out")" "0"
+  check "and a branch that may exist is not said to be missing" \
+    "$(grep -c 'does not exist on origin' "$TMP/stall-out")" "0"
   check "and the run does not claim a version it did not fetch" \
     "$(grep -c 'Now on hyprsimple' "$TMP/stall-out")" "0"
 
@@ -294,8 +310,8 @@ fi
 update_code() { sed 's/^[[:space:]]*#.*//' "$UPDATE"; }
 check "no call to origin bypasses the guard" \
   "$(update_code | grep -cE 'git -C "\$HYPRSIMPLE_PATH" (fetch|ls-remote)')" "0"
-check "and the guard is used by all three of them" \
-  "$(update_code | grep -cE 'git_net (fetch|ls-remote)')" "3"
+check "and the guard is used by all four of them" \
+  "$(update_code | grep -cE 'git_net (fetch|ls-remote)')" "4"
 check "the number of attempts is bounded and overridable" \
   "$(update_code | grep -c 'HYPRSIMPLE_GIT_ATTEMPTS')" "1"
 check "and it sets both halves of git's low speed check" \
