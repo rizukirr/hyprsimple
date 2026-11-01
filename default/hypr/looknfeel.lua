@@ -34,6 +34,10 @@ hl.config({
 		-- Open new windows (e.g. portal file pickers) on the active workspace
 		-- instead of the workspace their parent process was launched on.
 		initial_workspace_tracking = 0,
+		-- The Hyprsimple login entry sets XDG_CURRENT_DESKTOP to
+		-- Hyprland:Hyprsimple on purpose. Hyprland warns on anything but
+		-- a bare Hyprland, so the check is off for that session only.
+		disable_xdg_env_checks = (os.getenv("XDG_CURRENT_DESKTOP") or ""):find("Hyprsimple", 1, true) ~= nil,
 	},
 })
 
