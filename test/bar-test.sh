@@ -122,6 +122,8 @@ cat >"$STUB/pgrep" <<'STUBEOF'
 #!/bin/bash
 # -x waybar asks about waybar, -f asks about the bar by its command line.
 if [[ $* == *waybar* ]]; then [[ -e $STATE/waybar ]]; exit; fi
+# A bar Quickshell relaunched after a crash no longer has its command line.
+[[ ! -e $STATE/name-lost ]] || exit 1
 [[ -e $STATE/bar ]]
 STUBEOF
 cat >"$STUB/pkill" <<'STUBEOF'
@@ -140,6 +142,15 @@ cat >"$STUB/setsid" <<'STUBEOF'
 STUBEOF
 cat >"$STUB/qs" <<'STUBEOF'
 #!/bin/bash
+# Quickshell's own list. It exits 0 either way, and only a listed bar has a pid.
+if [[ $1 == list ]]; then
+  if [[ -e $STATE/bar ]]; then
+    printf '[\n    {\n        "id": "stubbed",\n        "pid": %s\n    }\n]\n' "$(cat "$STATE/bar-pid" 2>/dev/null || echo 4194305)"
+  else
+    printf 'No running instances for "%s"\n' "$3"
+  fi
+  exit 0
+fi
 printf 'qs %s\n' "$*" >>"$LOG"
 # kill asks the bar to quit. It does, unless the case says this one is stuck.
 if [[ $1 == kill && ! -e $STATE/quit-ignored ]]; then rm -f "$STATE/bar"; fi
@@ -205,10 +216,16 @@ check "and the new bar starts after the old one was told to go" \
 
 # A bar that does not answer still has to go, or two of them run at once.
 reset; : >"$STATE/bar"; : >"$STATE/quit-ignored"
+sleep 300 &
+stuck=$!
+printf '%s' "$stuck" >"$STATE/bar-pid"
 run_restart --if-running
-check "a bar that ignores the request is signalled" "$(grep -c '^pkill -f ' "$LOG")" "1"
-check "only after it was asked" \
-  "$(( $(grep -n '^pkill ' "$LOG" | head -1 | cut -d: -f1) > $(grep -n '^qs kill ' "$LOG" | head -1 | cut -d: -f1) ))" "1"
+stuck_state=$(ps -o stat= -p "$stuck" 2>/dev/null)
+check "a bar that ignores the request is signalled by its pid" \
+  "$([[ -z $stuck_state || $stuck_state == Z* ]] && echo gone || echo alive)" "gone"
+kill "$stuck" 2>/dev/null
+wait "$stuck" 2>/dev/null
+check "after it was asked" "$(grep -c '^qs kill ' "$LOG")" "1"
 check "and the new bar is still started" "$(started)" "1"
 
 reset
@@ -227,6 +244,28 @@ check "and does not start another" "$(started)" "0"
 reset
 run_restart --toggle
 check "--toggle starts a stopped bar" "$(started)" "1"
+
+# A bar that crashed is relaunched by Quickshell under the same pid, with the
+# bare command line /usr/bin/quickshell. Quickshell still lists it. Measured on
+# Quickshell 0.3.2 with a config that took a SIGSEGV after the first ten seconds.
+reset; : >"$STATE/bar"; : >"$STATE/name-lost"
+run_restart --if-running
+check "--if-running restarts a bar that lost its command line" "$(started)" "1"
+check "after asking it to quit" "$(grep -c '^qs kill ' "$LOG")" "1"
+
+reset; : >"$STATE/bar"; : >"$STATE/name-lost"
+run_restart --toggle
+check "--toggle hides a bar that lost its command line" \
+  "$(grep -c "^qs -p $TMP/install/default/quickshell ipc call bar toggleVisible$" "$LOG")" "1"
+check "rather than starting a second one" "$(started)" "0"
+
+reset; : >"$STATE/bar"; : >"$STATE/name-lost"
+run_restart
+check "with no argument, a bar that lost its command line is asked to quit first" \
+  "$(grep -c '^qs kill ' "$LOG")" "1"
+
+check "the bar is not looked for by its command line" \
+  "$(sed 's/#.*//' "$RESTART" | grep -c 'pgrep\|pkill')" "0"
 
 # The bar is matched by its config path. Killing by the process name would
 # take down any other Quickshell config the user runs.
