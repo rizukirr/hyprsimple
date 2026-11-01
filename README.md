@@ -21,6 +21,7 @@ https://github.com/user-attachments/assets/f43671d7-4cd2-4cef-a13d-b3c28e432ccd
 - Every theme has its own wallpapers, with a picker and a cycle switch.
 - The installer detects your hardware: NVIDIA, hybrid GPU power saving, Vulkan, Intel iGPU, WiFi and battery.
 - The session is Wayland-native through uwsm, with no X11 dependencies.
+- An optional "Hyprsimple" entry on the login screen, so hyprsimple can sit beside another Hyprland setup on the same machine.
 - The Hyprland config is split into focused files.
 - GTK and Qt follow the theme, including light or dark mode.
 - On a laptop, a low battery dims the screen and switches to power saver, and the charger puts both back.
@@ -53,7 +54,7 @@ If you would rather read what pacman is about to do, `./install.sh --interactive
 `./install.sh --session-entry` also adds a "Hyprsimple" entry to the login screen. It starts the same config as the stock Hyprland entry, so it changes the name you pick and nothing else. `hyprsimple-session.sh` adds or removes it on an existing install, and the FAQ says what it does and does not separate.
 
 > [!WARNING]
-> These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected as the desktop during installation. Coming from another desktop environment or compositor (KDE, GNOME and the like) is untested and may need manual cleanup.
+> These dotfiles are tested on a fresh Arch Linux install where Hyprland was selected as the desktop during installation. The login entry has also been tested beside another Hyprland setup on the same machine, and the FAQ lists what the two still share. Coming from another desktop environment (KDE, GNOME and the like) is untested and may need manual cleanup.
 
 If you run into a problem installing hyprsimple, please [open an issue](https://github.com/rizukirr/hyprsimple/issues). Run `hyprsimple-debug` first and attach the link it gives you. It bundles your hardware, journal warnings, migration state and the install log (`~/.local/state/hyprsimple/install.log`) into a single paste that expires in 24 hours. Review it before uploading, because it includes your hostname and package list.
 
