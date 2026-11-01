@@ -1,6 +1,10 @@
 # hyprsimple
 
-Minimal Hyprland dotfiles for Arch Linux. Everything you need to work, and nothing you have to remove.
+Minimalist and aesthetically pleasing Hyprland dotfiles for Arch Linux. Just the essential utilities for everyday use, with a clean and beautiful look and feel. Nothing fancy.
+
+If you want more features, Hyprsimple supports a plugin system, so you can install any plugin you like or build your own. Read [PLUGINS.md](PLUGINS.md) to learn more.
+
+If you encounter any issues or have feedback, feel free to open an [issue](https://github.com/rizukirr/hyprsimple/issues).
 
 > [!Note]
 > Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). `hyprsimple-plugin remove muslimtify` removes its integration and daemon and keeps the package and your settings. `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` installs or enables it again.
