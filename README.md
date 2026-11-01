@@ -358,6 +358,10 @@ These are sourced by other files rather than run directly.
 
 Troubleshooting and known issues, such as the NVIDIA boot hang and the Plymouth blank-screen splash, are documented in [FAQ.md](FAQ.md).
 
+## Thanks
+
+[Achmad Khidir](https://github.com/khidir0mmku) asked for the "Hyprsimple" login entry in [#222](https://github.com/rizukirr/hyprsimple/issues/222) and tested it on a machine with SDDM and a second Hyprland setup before it shipped.
+
 ## License
 
 MIT
