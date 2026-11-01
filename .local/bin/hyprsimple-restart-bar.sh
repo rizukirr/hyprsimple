@@ -30,9 +30,12 @@ export QML_IMPORT_PATH="$BAR${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 # "qs -p <path>" found nothing until the next login. --if-running then did
 # nothing, and --toggle and a plain run started a second bar.
 #
+# --any-display, here and on the kill, since both otherwise see only the display
+# they run on, and an update run from SSH or a TTY has none.
+#
 # `qs list` exits 0 with nothing running, so the answer is whether a pid came back.
 bar_pids() {
-  qs list -p "$BAR" --json 2>/dev/null | grep -oE '"pid": *[0-9]+' | grep -oE '[0-9]+'
+  qs list -p "$BAR" --json --any-display 2>/dev/null | grep -oE '"pid": *[0-9]+' | grep -oE '[0-9]+'
 }
 
 bar_running() {
@@ -60,7 +63,7 @@ esac
 # It gets two seconds, since a signal sent while it is still quitting would
 # cut that short and orphan them after all.
 if bar_running; then
-  qs kill -p "$BAR" >/dev/null 2>&1
+  qs kill -p "$BAR" --any-display >/dev/null 2>&1
   for _ in {1..20}; do
     bar_running || break
     sleep 0.1

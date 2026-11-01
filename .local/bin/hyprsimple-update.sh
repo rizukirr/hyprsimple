@@ -482,7 +482,7 @@ if [[ -n $PREV_COMMIT ]] &&
   echo -e "\n${YELLOW}The bar changed, restarting it...${NC}"
   # Asked before the restart, which returns before the new bar is listed.
   bar_was_up=0
-  if [[ $(qs list -p "$HYPRSIMPLE_PATH/default/quickshell" --json 2>/dev/null) == *'"pid"'* ]]; then
+  if [[ $(qs list -p "$HYPRSIMPLE_PATH/default/quickshell" --json --any-display 2>/dev/null) == *'"pid"'* ]]; then
     bar_was_up=1
   fi
   "$HOME/.local/bin/hyprsimple-restart-bar.sh" --if-running || true

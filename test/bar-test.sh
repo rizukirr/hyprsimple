@@ -144,7 +144,7 @@ cat >"$STUB/qs" <<'STUBEOF'
 #!/bin/bash
 # Quickshell's own list. It exits 0 either way, and only a listed bar has a pid.
 if [[ $1 == list ]]; then
-  if [[ -e $STATE/bar ]]; then
+  if [[ -e $STATE/bar && ( ! -e $STATE/other-display || $* == *--any-display* ) ]]; then
     printf '[\n    {\n        "id": "stubbed",\n        "pid": %s\n    }\n]\n' "$(cat "$STATE/bar-pid" 2>/dev/null || echo 4194305)"
   else
     printf 'No running instances for "%s"\n' "$3"
@@ -153,7 +153,7 @@ if [[ $1 == list ]]; then
 fi
 printf 'qs %s\n' "$*" >>"$LOG"
 # kill asks the bar to quit. It does, unless the case says this one is stuck.
-if [[ $1 == kill && ! -e $STATE/quit-ignored ]]; then rm -f "$STATE/bar"; fi
+if [[ $1 == kill && ! -e $STATE/quit-ignored && ( ! -e $STATE/other-display || $* == *--any-display* ) ]]; then rm -f "$STATE/bar"; fi
 exit 0
 STUBEOF
 cat >"$STUB/pacman" <<'STUBEOF'
@@ -207,7 +207,7 @@ check "--if-running restarts a bar that is up" "$(started)" "1"
 #   SIGHUP                      the shell exits, the sleep survives
 #   qs kill -p <config>         the shell exits, the sleep is gone
 check "after asking the old one to quit" \
-  "$(grep -c "^qs kill -p $TMP/install/default/quickshell$" "$LOG")" "1"
+  "$(grep -c "^qs kill -p $TMP/install/default/quickshell --any-display$" "$LOG")" "1"
 check "and without signalling a bar that did quit" "$(grep -c '^pkill ' "$LOG")" "0"
 quit_line=$(grep -n '^qs kill ' "$LOG" | head -1 | cut -d: -f1)
 start_line=$(grep -n '^uwsm app -- qs -p ' "$LOG" | head -1 | cut -d: -f1)
@@ -267,6 +267,14 @@ check "with no argument, a bar that lost its command line is asked to quit first
 check "the bar is not looked for by its command line" \
   "$(sed 's/#.*//' "$RESTART" | grep -c 'pgrep\|pkill')" "0"
 
+# Run from SSH or a TTY there is no display, and Quickshell then lists only the
+# instances of that no-display. A bar on any display is still this bar.
+reset; : >"$STATE/bar"; : >"$STATE/other-display"
+run_restart --if-running
+check "--if-running restarts a bar on another display" "$(started)" "1"
+check "after asking it to quit, on any display" "$(grep -c -- '^qs kill .*--any-display' "$LOG")" "1"
+check "which it did, so nothing was signalled" "$([[ -e $STATE/bar ]] && echo up || echo gone)" "gone"
+
 # The bar is matched by its config path. Killing by the process name would
 # take down any other Quickshell config the user runs.
 check "the bar is never killed by process name" \
@@ -292,7 +300,7 @@ check "and after the migrations, so a bar a migration started is not restarted t
 
 # Decided before the restart. The restart returns before the new bar is listed,
 # so asking afterwards would skip the wait the update needs most.
-listed_line=$(grep -n 'qs list -p "\$HYPRSIMPLE_PATH/default/quickshell" --json' "$UPDATER" | cut -d: -f1)
+listed_line=$(grep -n 'qs list -p "\$HYPRSIMPLE_PATH/default/quickshell" --json --any-display' "$UPDATER" | cut -d: -f1)
 check "the update asks Quickshell whether a bar is up, before restarting it" \
   "$(( ${listed_line:-0} > 0 && ${listed_line:-0} < restart_line ))" "1"
 check "and does not look for the bar by its command line" \
