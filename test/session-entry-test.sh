@@ -110,6 +110,41 @@ check "that names the file" "$(grep -cF 'wayland-sessions/hyprsimple.desktop' <<
 check "after going through sudo" "$(grep -c '^sudo tee ' "$CALL_LOG")" "1"
 chmod 755 "$LOCKED"
 
+# ---- install.sh, lifted --------------------------------------------------
+# install.sh cannot be run here: it installs packages at the top level. The
+# block that calls this script is taken out of the shipped file rather than
+# restated, so a change to it is a change to what runs below. It runs under
+# the same set -eEo pipefail install.sh runs under, which is what makes the
+# failure case worth checking: a bare failing call would abort the install.
+sed -n '/^if \[\[ \$SESSION_ENTRY == 1 \]\]; then$/,/^fi$/p' "$REPO/install.sh" >"$TMP/block.sh"
+check "the session block was lifted out of install.sh" \
+  "$(grep -c 'hyprsimple-session.sh' "$TMP/block.sh" | awk '{print ($1 >= 1) ? "yes" : "no"}')" "yes"
+
+BLOCK_HOME="$TMP/blockhome"
+mkdir -p "$BLOCK_HOME/.local/bin"
+cp "$SCRIPT" "$BLOCK_HOME/.local/bin/hyprsimple-session.sh"
+BLOCK_SESSIONS="$TMP/block-sessions"
+
+run_block() {
+  HOME="$BLOCK_HOME" HYPRSIMPLE_SESSION_DIR="$BLOCK_SESSIONS" SESSION_ENTRY="$1" YELLOW='' NC='' \
+    bash -eEo pipefail "$TMP/block.sh" >"$TMP/block.out" 2>&1
+  printf '%s' "$?"
+}
+
+check "with the flag on, the block exits 0" "$(run_block 1)" "0"
+check "and the entry landed" \
+  "$([[ -f $BLOCK_SESSIONS/hyprsimple.desktop ]] && echo yes || echo no)" "yes"
+rm -rf "${BLOCK_SESSIONS:?}"
+check "with the flag off, the block exits 0" "$(run_block 0)" "0"
+check "and writes nothing" \
+  "$([[ -e $BLOCK_SESSIONS ]] && echo yes || echo no)" "no"
+
+printf '#!/bin/bash\nexit 1\n' >"$BLOCK_HOME/.local/bin/hyprsimple-session.sh"
+check "with a failing script, the block still exits 0 under set -e" "$(run_block 1)" "0"
+check "and says the entry was not added" "$(grep -c 'was not added' "$TMP/block.out")" "1"
+check "and the install carries on past it" \
+  "$(grep -cF '"$HOME/.local/bin/hyprsimple-session.sh" ||' "$TMP/block.sh")" "1"
+
 if (( failures > 0 )); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
