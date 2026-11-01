@@ -301,6 +301,23 @@ hyprsimple-session.sh remove   # takes it out again
 
 If you keep another setup in `~/.config/hypr`, Hyprland alone can still be pointed at hyprsimple with `Hyprland -c ~/.config/hypr/hyprland.lua` from a copy of that entrypoint kept elsewhere, since it only reads `HOME` and `HYPRSIMPLE_PATH`. The daemons above keep reading the other setup's files, so expect its lock screen, idle rules and wallpaper, not hyprsimple's.
 
+## What does hyprsimple-uninstall.sh leave behind?
+
+It leaves everything it cannot prove belongs to hyprsimple, and everything a wrong undo could break.
+
+Packages stay because nothing records which ones hyprsimple added. `packages.txt` and `aur-packages.txt` in this repository list what it asks for, and `pacman -Rns` removes what you no longer want. Check first that nothing else needs a package.
+
+System changes stay because the state before them was never recorded. These are the ones to undo by hand if you want to:
+
+- `sudo ufw disable`, or `sudo ufw delete allow 53317/tcp` and `sudo ufw delete allow 53317/udp` for the LocalSend rules alone. The installer turned ufw on with incoming traffic denied if it was off.
+- `/etc/resolv.conf` is a link to `/run/systemd/resolve/stub-resolv.conf`. Keep it while `systemd-resolved` runs, because removing it breaks DNS.
+- The installer may have moved your network from iwd to NetworkManager. Keep this unless you have another way online ready, because undoing it can drop your connection.
+- On NVIDIA machines, a `71-hyprsimple-nvidia-pm.rules` file sits in `/etc/udev/rules.d` or `/usr/lib/udev/rules.d`.
+
+The script also leaves `pipewire` and `hyprpolkitagent` enabled, older `*.backup.<number>` copies, scripts from older versions in `~/.local/bin`, `~/.cache` and theme settings in GTK and `gsettings`.
+
+If your display manager logs in to the Hyprsimple entry automatically, change that setting before you log out.
+
 ## My microphone still doesn't sound clear
 
 Hyprsimple already sets up an audio denoiser for you. However, if your microphone still doesn't sound clear, try the following:

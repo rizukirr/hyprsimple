@@ -117,6 +117,14 @@ To change one, copy it to `~/.config/hypr/themes/templates.user/` under the same
 
 Older installs have a copy of the templates at `~/.config/hypr/themes/templates`. That directory is not read, and an update removes it once every file in it is one hyprsimple shipped. If you had edited one, the whole directory is left alone and you are told which file it was, so you can move it to `templates.user/`.
 
+## Uninstall
+
+`hyprsimple-uninstall.sh` removes hyprsimple from your account. It lists what it will do and asks once before changing anything.
+
+It deletes the login entry, plugins, hyprsimple's services, the shell lines the installer added, unchanged scripts and the checkout. Your `~/.config` folders move to `<name>.hyprsimple-removed` so your edits survive, and any `.backup` from before hyprsimple goes back in place. A checkout with work that exists nowhere else is moved aside too.
+
+Packages and system changes stay. The FAQ says how to undo those by hand. Log out when it finishes, because the session has lost its bar and config.
+
 ## Audio
 
 `SUPER + S` opens the bar's volume panel, with a mute switch, a volume slider and every output device. Click a device to make it the default. The microphone has the same panel behind its bar icon. Noise suppression stays on the microphone you choose.
