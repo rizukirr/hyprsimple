@@ -52,7 +52,18 @@ for name in "${tpl[@]}"; do
 done
 printf 'theme = something-else\nfont-size = 12\n' >"$H/.config/ghostty/config"
 
-HOME="$H" bash -c 'source "$1"; deliver_theme_configs "$2"' _ "$DELIVER" "$THEME" >/dev/null 2>&1
+# Delivering ghostty.conf asks every running Ghostty to reload over the session
+# bus. The stand-in keeps that away from the real terminals of whoever runs this.
+STUB="$TMP/stub"; mkdir -p "$STUB"
+cat >"$STUB/busctl" <<STUBEOF
+#!/bin/bash
+printf '%s\n' "\$*" >>"$TMP/busctl.log"
+STUBEOF
+printf '#!/bin/bash\nexit 0\n' >"$STUB/qs"
+chmod +x "$STUB/busctl" "$STUB/qs"
+
+HOME="$H" PATH="$STUB:$PATH" bash -c 'source "$1"; deliver_theme_configs "$2"' _ "$DELIVER" "$THEME" >/dev/null 2>&1
+check "delivering asks Ghostty to reload through the stand-in" "$(grep -c 'com.mitchellh.ghostty' "$TMP/busctl.log")" "1"
 
 # Where each generated file is read from. This mapping is the contract, so it
 # is spelled out, and the check below fails if a template has no entry.

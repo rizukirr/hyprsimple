@@ -87,11 +87,17 @@ DEST="$TMP/dest"
 FAKE_HOME="$TMP/home"
 mkdir -p "$FAKE_HOME/.local/bin"
 
+# bootstrap.sh ends with hyprctl reload when Hyprland is running. pgrep here says
+# it is not, or the suite reloads the real compositor of whoever runs it.
+STUB="$TMP/stub"; mkdir -p "$STUB"
+printf '#!/bin/bash\nexit 1\n' >"$STUB/pgrep"
+chmod +x "$STUB/pgrep"
+
 run_bootstrap() {
   local answer="$1"
   must_be_fixture "$DEST"
   printf '%s\n' "$answer" |
-    script -qec "env HOME=$FAKE_HOME HYPRSIMPLE_PATH=$DEST bash $SRC/bootstrap.sh" /dev/null 2>&1
+    script -qec "env HOME=$FAKE_HOME HYPRSIMPLE_PATH=$DEST PATH=$STUB:$PATH bash $SRC/bootstrap.sh" /dev/null 2>&1
 }
 
 seed_existing_install() {

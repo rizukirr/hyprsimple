@@ -25,6 +25,16 @@ check() {
   else printf 'not ok - %s (want %s, got %s)\n' "$1" "$3" "$2" >&2; failures=$((failures + 1)); fi
 }
 
+# The migration restarts hyprpaper when it is active. Without this stand-in that
+# is the real service of whoever runs this suite, once per run below.
+STUB="$TMP/stub"; mkdir -p "$STUB"
+cat >"$STUB/systemctl" <<STUBEOF
+#!/bin/bash
+printf '%s\n' "\$*" >>"$TMP/systemctl.log"
+STUBEOF
+chmod +x "$STUB/systemctl"
+export PATH="$STUB:$PATH"
+
 # An install that ships one theme, and a user config holding the older shape of
 # it: a .png the install now ships as .jpg, a dead rofi tree, a lockscreen.png,
 # a generated/ directory, and one wallpaper the user added themselves.
@@ -46,6 +56,8 @@ printf 'stale\n'            >"$home/colors.toml"
 
 HOME="$TMP/home" HYPRSIMPLE_PATH="$TMP/install" bash "$MIGRATION" >"$TMP/out" 2>&1
 check "migration exits 0" "$?" "0"
+check "and restarts hyprpaper through the stand-in" \
+  "$(grep -c '^--user restart hyprpaper.service$' "$TMP/systemctl.log")" "1"
 
 check "the shipped file is copied in"        "$(cat "$home/backgrounds/0-sky.jpg" 2>/dev/null)" "new-small"
 check "a differing shipped file is updated"  "$(cat "$home/colors.toml" 2>/dev/null)"           "colors"
