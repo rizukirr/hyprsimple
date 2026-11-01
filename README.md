@@ -181,7 +181,7 @@ Press **`SUPER + /`** for an interactive viewer with fuzzy search.
 | Key | Action |
 |-----|--------|
 | `SUPER + SHIFT + T` | Switch theme, from a carousel of wallpapers and colour swatches |
-| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel. Its last tile adds one from a file, `Shift + Delete` or the bin on a picture deletes it after asking, and the switch under it cycles through them every 30s |
+| `SUPER + SHIFT + W` | Pick a wallpaper from the current theme, same carousel. Its last tile adds one or several from files, `Shift + Delete` or the bin on a picture deletes it after asking, and the switch under it cycles through them every 30s |
 
 ### Screenshot
 
