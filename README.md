@@ -323,6 +323,7 @@ Helper scripts live in [`.local/bin`](.local/bin) and are installed to `~/.local
 | `hyprsimple-restart-bar.sh` | Start or restart the bar. `--if-running` restarts a running bar and does nothing otherwise, `--toggle` hides or shows a running bar and starts a stopped one |
 | `hyprsimple-debug.sh` | Collect system diagnostics into one file to view, save, or upload |
 | `hyprsimple-session.sh` | Add a "Hyprsimple" entry to the login screen, or `remove` it. It starts the same config as the stock Hyprland entry |
+| `hyprsimple-uninstall.sh` | Remove hyprsimple from your account and restore your backups. Packages and system changes stay |
 | `hyprsimple-dev-add-migration.sh` | Create a new migration file (for contributors) |
 
 ### External plugins
