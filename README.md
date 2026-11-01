@@ -50,10 +50,7 @@ The install asks for your sudo password once, at the start, and then runs to the
 
 If you would rather read what pacman is about to do, `./install.sh --interactive` puts every confirmation back, including the full system upgrade. It also asks which AUR helper to install when you have neither paru nor yay, instead of taking paru. The helper comes from a repository when your distribution ships one, and is built from the AUR otherwise. Whichever helper you already have is the one used either way, and `HYPRSIMPLE_AUR_HELPER=yay ./install.sh` settles a machine that has both.
 
-`./install.sh --session-entry` also adds a "Hyprsimple" entry to the login
-screen. It starts the same config as the stock Hyprland entry, so it changes
-the name you pick, not what runs. `hyprsimple-session.sh` adds or removes it
-on an existing install, and the FAQ says what it does and does not separate.
+`./install.sh --session-entry` also adds a "Hyprsimple" entry to the login screen. It starts the same config as the stock Hyprland entry, so it changes the name you pick and nothing else. `hyprsimple-session.sh` adds or removes it on an existing install, and the FAQ says what it does and does not separate.
 
 > [!WARNING]
 > These dotfiles have only been tested on a fresh Arch Linux install where Hyprland was selected as the desktop during installation. Coming from another desktop environment or compositor (KDE, GNOME and the like) is untested and may need manual cleanup.
