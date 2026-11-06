@@ -193,12 +193,13 @@ check "the record panel stops through screen-record.sh stop" \
 #
 # screenshot.sh smart, run for real against stand-ins. hyprctl answers with two
 # monitors and five windows, slurp answers with whatever the case chose, grim
-# writes a file, and hyprpicker, which freezes the screen, records its pid so
-# the checks can see whether it was left running.
+# writes a file, magick writes the crop it was asked for, and hyprpicker,
+# which freezes the screen, records its pid so the checks can see whether it
+# was left running.
 
 PICK="$TMP/pick"; mkdir -p "$PICK"
 PBIN="$PICK/bin"; mkdir -p "$PBIN"
-for tool in jq date mkdir sleep cat; do ln -s "$(command -v "$tool")" "$PBIN/$tool"; done
+for tool in jq date mkdir sleep cat mktemp rm; do ln -s "$(command -v "$tool")" "$PBIN/$tool"; done
 cp "$STUB/notify-send" "$PBIN/"
 
 # The second monitor is rotated and scaled: 2160x3840 at scale 2 turned on its
@@ -235,6 +236,11 @@ printf '%s\n' "$*" >>"$GRIM_LOG"
 [[ -e $GRIM_FAILS ]] && exit 1
 printf 'picture of %s\n' "$2" >"${*: -1}"
 STUBEOF
+cat >"$PBIN/magick" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$MAGICK_LOG"
+{ cat "$1"; printf 'cropped to %s\n' "$3"; } >"${*: -1}"
+STUBEOF
 cat >"$PBIN/wl-copy" <<'STUBEOF'
 #!/bin/bash
 printf '%s\n' "$*" >"$COPY_ARGS"
@@ -254,8 +260,8 @@ check "and so is the real wl-copy" "$(PATH="$PBIN" command -v wl-copy)" "$PBIN/w
 PHOME="$PICK/home"
 pick() {
   rm -rf "$PHOME"; mkdir -p "$PHOME"
-  : >"$PICK/grim-log"; : >"$NLOG"; rm -f "$PICK/copied" "$PICK/copy-args" "$PICK/freeze-pid" "$PICK/slurp-input"
-  SLURP_PICK="${1-}" SLURP_INPUT="$PICK/slurp-input" GRIM_LOG="$PICK/grim-log" GRIM_FAILS="$PICK/grim-fails" \
+  : >"$PICK/grim-log"; : >"$PICK/magick-log"; : >"$NLOG"; rm -f "$PICK/copied" "$PICK/copy-args" "$PICK/freeze-pid" "$PICK/slurp-input"
+  SLURP_PICK="${1-}" SLURP_INPUT="$PICK/slurp-input" GRIM_LOG="$PICK/grim-log" MAGICK_LOG="$PICK/magick-log" GRIM_FAILS="$PICK/grim-fails" \
     COPIED="$PICK/copied" COPY_ARGS="$PICK/copy-args" FREEZE_PID="$PICK/freeze-pid" FREEZE_ARGS="$PICK/freeze-args" \
     NOTIFY_LOG="$NLOG" HOME="$PHOME" HYPRSIMPLE_SCREENSHOT_FREEZE_WAIT=0.05 PATH="$PBIN" \
     "$BASH_BIN" "$SHOOTER" smart >/dev/null 2>&1
@@ -269,7 +275,13 @@ freeze_left_running() {
 
 # Dragging a region.
 pick "100,100 400x300"
-check "a dragged region is captured as dragged" "$(cat "$PICK/grim-log")" "-g 100,100 400x300 $(shots)"
+check "the whole layout is captured before the pick, at the largest scale" \
+  "$(cut -d' ' -f1-2 "$PICK/grim-log")" "-s 2"
+check "once, so the pointer moved while picking is in no picture" "$(wc -l <"$PICK/grim-log" | tr -d ' ')" "1"
+check "a dragged region is cut out of it as dragged, in its pixels" \
+  "$(cat "$PICK/magick-log")" "$(cut -d' ' -f3 "$PICK/grim-log") -crop 800x600+200+200 +repage $(shots)"
+check "and the captured picture is not left behind" \
+  "$([[ -e $(cut -d' ' -f3 "$PICK/grim-log") ]] && echo left || echo removed)" "removed"
 check "into one file under Pictures/Screenshots" "$(shots | wc -l | tr -d ' ')" "1"
 check "which is a png named for when it was taken" \
   "$(shots | grep -cE '/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}_screenshot\.png$')" "1"
@@ -289,22 +301,22 @@ check "and the windows on the active workspace, each place once, hidden ones lef
 
 # A click. slurp answers with the box it snapped to, which is passed on as it is.
 pick "920,50 990x1000"
-check "a click on a window captures that window" "$(cut -d' ' -f1-3 "$PICK/grim-log")" "-g 920,50 990x1000"
+check "a click on a window captures that window" "$(cut -d' ' -f2-3 "$PICK/magick-log")" "-crop 1980x2000+1840+100"
 
 # A click slurp reports as a tiny area of its own is snapped here.
 pick "1000,500 1x1"
 check "a bare click inside a window snaps to it, not to the monitor behind" \
-  "$(cut -d' ' -f1-3 "$PICK/grim-log")" "-g 920,50 990x1000"
+  "$(cut -d' ' -f2-3 "$PICK/magick-log")" "-crop 1980x2000+1840+100"
 pick "5,5 2x2"
 check "a bare click outside every window snaps to its monitor" \
-  "$(cut -d' ' -f1-3 "$PICK/grim-log")" "-g 0,0 1920x1080"
+  "$(cut -d' ' -f2-3 "$PICK/magick-log")" "-crop 3840x2160+0+0"
 pick "2000,500 1x1"
 check "a bare click on the other monitor snaps to that one" \
-  "$(cut -d' ' -f1-3 "$PICK/grim-log")" "-g 1920,0 1920x1080"
+  "$(cut -d' ' -f2-3 "$PICK/magick-log")" "-crop 3840x2160+3840+0"
 
 # Escape.
 pick ""
-check "a cancelled pick captures nothing" "$(wc -c <"$PICK/grim-log" | tr -d ' ')" "0"
+check "a cancelled pick saves nothing" "$(shots | wc -l | tr -d ' ')" "0"
 check "and copies nothing, so the clipboard is left as it was" \
   "$([[ -e $PICK/copied ]] && echo copied || echo untouched)" "untouched"
 check "and says nothing" "$(wc -c <"$NLOG" | tr -d ' ')" "0"

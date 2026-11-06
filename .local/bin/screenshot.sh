@@ -22,7 +22,7 @@ SHOTS="$HOME/Pictures/Screenshots"
 # The approach is Omarchy's, from its omarchy-capture-region.
 smart() {
   local tool
-  for tool in slurp grim jq hyprpicker wl-copy; do
+  for tool in slurp grim jq hyprpicker wl-copy magick mktemp; do
     command -v "$tool" >/dev/null 2>&1 || {
       notify-send -u critical "Screenshot" "$tool is not installed"
       exit 1
@@ -47,12 +47,29 @@ smart() {
       '[.[] | select(.workspace.id == $ws and .hidden != true) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"] | unique[]'
   })
 
-  # Frozen, so what is captured is what was on screen when Print was pressed,
-  # whatever moves while the area is being picked.
+  # The whole layout is captured now, as Print is pressed, and the pick is cut
+  # out of it afterwards. Capturing after the pick instead put the live pointer
+  # in the picture, the crosshair the pick was made with, because Hyprland
+  # draws the pointer into what grim gets on some machines whatever grim asks.
+  # The picture is at the largest monitor scale, as grim takes a whole layout,
+  # and from the layout's top left corner, which the crop is measured from.
+  local frame layout min_x min_y scale
+  layout=$(hyprctl monitors -j | jq -r '"\([.[].x] | min) \([.[].y] | min) \([.[].scale] | max)"')
+  read -r min_x min_y scale <<<"$layout"
+  frame=$(mktemp --suffix=.png)
+  # shellcheck disable=SC2064  # expanded now on purpose: the path is known here
+  trap "rm -f '$frame'" EXIT
+  if ! grim -s "$scale" "$frame"; then
+    notify-send -u critical "Screenshot" "Could not capture the screen"
+    exit 1
+  fi
+
+  # Frozen, so the picker shows what was captured above, whatever moves while
+  # the area is being picked.
   hyprpicker -r -z >/dev/null 2>&1 &
   local freeze=$!
-  # shellcheck disable=SC2064  # expanded now on purpose: the pid is known here
-  trap "kill $freeze 2>/dev/null" EXIT
+  # shellcheck disable=SC2064  # expanded now on purpose: the pid and path are known here
+  trap "kill $freeze 2>/dev/null; rm -f '$frame'" EXIT
   sleep "${HYPRSIMPLE_SCREENSHOT_FREEZE_WAIT:-0.1}"
 
   local selection
@@ -81,9 +98,18 @@ smart() {
   mkdir -p "$SHOTS"
   local file
   file="$SHOTS/$(date +%Y-%m-%d-%H%M%S)_screenshot.png"
-  # Taken while the screen is still frozen. slurp's own overlay is gone by now:
-  # it has exited, and a layer rule stops Hyprland fading its layer out.
-  if ! grim -g "$selection" "$file"; then
+  # The pick in the captured picture's pixels: moved to its top left corner and
+  # multiplied by its scale.
+  local crop
+  [[ $selection =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]] || {
+    notify-send -u critical "Screenshot" "Could not read the picked area: $selection"
+    exit 1
+  }
+  crop=$(jq -nr --argjson x "${BASH_REMATCH[1]}" --argjson y "${BASH_REMATCH[2]}" \
+    --argjson w "${BASH_REMATCH[3]}" --argjson h "${BASH_REMATCH[4]}" \
+    --argjson mx "$min_x" --argjson my "$min_y" --argjson s "$scale" \
+    '"\($w * $s | round)x\($h * $s | round)+\(($x - $mx) * $s | round)+\(($y - $my) * $s | round)"')
+  if ! magick "$frame" -crop "$crop" +repage "$file"; then
     notify-send -u critical "Screenshot" "Could not capture the screen"
     exit 1
   fi
