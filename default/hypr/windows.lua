@@ -162,8 +162,13 @@ hl.window_rule({ match = { tag = "pop" }, rounding = 4 })
 hl.window_rule({ match = { tag = "noidle" }, idle_inhibit = "always" })
 
 -- =====================================================================
--- viewer (was windows/viewer.conf) — empty / TODO swayimg float
+-- viewer (was windows/viewer.conf)
 -- =====================================================================
+-- swayimg opens a picture to look at, a screenshot from its notification
+-- most often, so it floats in the middle over what is there.
+hl.window_rule({ match = { class = "swayimg" }, float = true })
+hl.window_rule({ match = { class = "swayimg" }, center = true })
+hl.window_rule({ match = { class = "swayimg" }, size = { 1100, 700 } })
 
 -- =====================================================================
 -- geforce (was windows/geforce.conf)
