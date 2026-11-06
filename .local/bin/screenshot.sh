@@ -114,7 +114,15 @@ smart() {
     exit 1
   fi
   wl-copy --type image/png <"$file"
-  notify-send "Screenshot" "Saved to ${file/#$HOME/\~} and copied to the clipboard" -i "$file"
+  # A click on the notification opens the picture in swayimg. notify-send waits
+  # for the click when it offers an action, so it waits in the background and
+  # this script is done.
+  {
+    action=$(notify-send -A default=Open "Screenshot" \
+      "Saved to ${file/#$HOME/\~} and copied to the clipboard" -i "$file")
+    [[ $action == default ]] && swayimg "$file"
+  } >/dev/null 2>&1 &
+  disown
 }
 
 case "$mode" in

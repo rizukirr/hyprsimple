@@ -200,7 +200,17 @@ check "the record panel stops through screen-record.sh stop" \
 PICK="$TMP/pick"; mkdir -p "$PICK"
 PBIN="$PICK/bin"; mkdir -p "$PBIN"
 for tool in jq date mkdir sleep cat mktemp rm; do ln -s "$(command -v "$tool")" "$PBIN/$tool"; done
-cp "$STUB/notify-send" "$PBIN/"
+# notify-send answers with the action the case chose, as if it had been clicked.
+cat >"$PBIN/notify-send" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$NOTIFY_LOG"
+[[ $* == *"-A "* ]] && printf '%s\n' "${NOTIFY_CLICK:-}"
+exit 0
+STUBEOF
+cat >"$PBIN/swayimg" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "$*" >"$VIEWED"
+STUBEOF
 
 # The second monitor is rotated and scaled: 2160x3840 at scale 2 turned on its
 # side is 1920x1080 in the layout. Workspace 1 is on the focused monitor.
@@ -260,12 +270,20 @@ check "and so is the real wl-copy" "$(PATH="$PBIN" command -v wl-copy)" "$PBIN/w
 PHOME="$PICK/home"
 pick() {
   rm -rf "$PHOME"; mkdir -p "$PHOME"
-  : >"$PICK/grim-log"; : >"$PICK/magick-log"; : >"$NLOG"; rm -f "$PICK/copied" "$PICK/copy-args" "$PICK/freeze-pid" "$PICK/slurp-input"
+  : >"$PICK/grim-log"; : >"$PICK/magick-log"; : >"$NLOG"; rm -f "$PICK/viewed" "$PICK/copied" "$PICK/copy-args" "$PICK/freeze-pid" "$PICK/slurp-input"
   SLURP_PICK="${1-}" SLURP_INPUT="$PICK/slurp-input" GRIM_LOG="$PICK/grim-log" MAGICK_LOG="$PICK/magick-log" GRIM_FAILS="$PICK/grim-fails" \
     COPIED="$PICK/copied" COPY_ARGS="$PICK/copy-args" FREEZE_PID="$PICK/freeze-pid" FREEZE_ARGS="$PICK/freeze-args" \
-    NOTIFY_LOG="$NLOG" HOME="$PHOME" HYPRSIMPLE_SCREENSHOT_FREEZE_WAIT=0.05 PATH="$PBIN" \
+    NOTIFY_LOG="$NLOG" NOTIFY_CLICK="${2-}" VIEWED="$PICK/viewed" \
+    HOME="$PHOME" HYPRSIMPLE_SCREENSHOT_FREEZE_WAIT=0.05 PATH="$PBIN" \
     "$BASH_BIN" "$SHOOTER" smart >/dev/null 2>&1
   printf '%s' "$?" >"$TMP/rc"
+  # The notification is sent in the background, waiting for a click. A second
+  # is far more than it takes, and a run that sends none waits it out.
+  local i
+  for ((i = 0; i < 20; i++)); do
+    [[ -s $NLOG && ( -z ${2-} || -e $PICK/viewed ) ]] && break
+    sleep 0.05
+  done
 }
 shots() { find "$PHOME/Pictures/Screenshots" -type f 2>/dev/null; }
 freeze_left_running() {
@@ -289,9 +307,15 @@ check "and it is copied to the clipboard as well, the same bytes" \
   "$(cmp -s "$(shots)" "$PICK/copied" && echo same || echo differs)" "same"
 check "as an image" "$(cat "$PICK/copy-args")" "--type image/png"
 check "and announced once" "$(grep -c 'Saved to ~/Pictures/Screenshots/.* and copied to the clipboard' "$NLOG")" "1"
+check "with a click on it offered" "$(grep -c -- '-A default=Open' "$NLOG")" "1"
+check "and nothing opened while it is not clicked" "$([[ -e $PICK/viewed ]] && echo opened || echo not)" "not"
 check "and succeeds" "$(cat "$TMP/rc")" "0"
 check "the screen was frozen while picking" "$(cat "$PICK/freeze-args")" "-r -z"
 check "and is not left frozen" "$(freeze_left_running)" "gone"
+
+# A click on the notification.
+pick "100,100 400x300" default
+check "a click on the notification opens the picture in swayimg" "$(cat "$PICK/viewed")" "$(shots)"
 
 # The boxes slurp can snap to.
 check "slurp is offered both monitors, the rotated and scaled one in layout size" \
