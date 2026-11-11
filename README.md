@@ -6,7 +6,7 @@ Minimalist and aesthetically pleasing Hyprland dotfiles for Arch Linux. Just the
 
 **Documentation: [rizukirr.github.io/hyprsimple-web](https://rizukirr.github.io/hyprsimple-web/)**
 
-The website has everything else: [installing](https://rizukirr.github.io/hyprsimple-web/docs/install), [updating](https://rizukirr.github.io/hyprsimple-web/docs/update), [every keybinding](https://rizukirr.github.io/hyprsimple-web/keys), [the scripts](https://rizukirr.github.io/hyprsimple-web/docs/scripts), [making a theme](https://rizukirr.github.io/hyprsimple-web/docs/theming), [plugins](https://rizukirr.github.io/hyprsimple-web/docs/plugins) and [the FAQ](https://rizukirr.github.io/hyprsimple-web/docs/faq). You can also try all forty themes there.
+The website has everything else: [installing](https://rizukirr.github.io/hyprsimple-web/docs/install), [updating](https://rizukirr.github.io/hyprsimple-web/docs/update), [every keybinding](https://rizukirr.github.io/hyprsimple-web/keys), [the scripts](https://rizukirr.github.io/hyprsimple-web/docs/scripts), [making a theme](https://rizukirr.github.io/hyprsimple-web/docs/theming), [plugins](https://rizukirr.github.io/hyprsimple-web/docs/plugins) and [the FAQ](https://rizukirr.github.io/hyprsimple-web/docs/faq). You can also try every theme there.
 
 ## Install
 
