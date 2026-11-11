@@ -8,6 +8,8 @@ Minimalist and aesthetically pleasing Hyprland dotfiles for Arch Linux. Just the
 
 The website has everything else: [installing](https://rizukirr.github.io/hyprsimple-web/docs/install), [updating](https://rizukirr.github.io/hyprsimple-web/docs/update), [every keybinding](https://rizukirr.github.io/hyprsimple-web/keys), [the scripts](https://rizukirr.github.io/hyprsimple-web/docs/scripts), [making a theme](https://rizukirr.github.io/hyprsimple-web/docs/theming), [plugins](https://rizukirr.github.io/hyprsimple-web/docs/plugins) and [the FAQ](https://rizukirr.github.io/hyprsimple-web/docs/faq). You can also try every theme there.
 
+https://github.com/user-attachments/assets/4ea8e00c-2346-4a55-a725-0c8e77bfcc81
+
 ## Install
 
 ```bash
