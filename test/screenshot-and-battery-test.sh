@@ -616,6 +616,14 @@ check "an edited unit is left as it is" \
 check "and named, so the user knows theirs still runs early" \
   "$(grep -c 'battery-monitor.timer' "$TMP/mig-out")" "1"
 
+# --- the whole-screen clipboard mode -------------------------------------------
+#
+# The docs once listed a key as copying a region to the clipboard while it ran
+# this mode, which grabs the whole monitor. The key is gone, but the mode is
+# pinned to the output so it cannot quietly start taking a region instead.
+check "the clipboard mode captures the whole output, not a region" \
+  "$(sed -n '/^clipboard)/,/;;/p' "$BIN/screenshot.sh" | grep -c -- '-m output')" "1"
+
 if (( failures > 0 )); then
   printf '\n%d check(s) failed\n' "$failures" >&2
   exit 1

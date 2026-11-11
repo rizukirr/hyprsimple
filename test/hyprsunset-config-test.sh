@@ -70,9 +70,7 @@ check "the install enables the service that starts it, so the profiles are read 
 
 # --- nothing still calls the file TOML ---------------------------------------
 
-check "the README no longer lists hyprsunset.conf among the TOML configs" \
-  "$(grep -c 'hyprsunset.conf. are TOML' "$REPO/README.md")" "0"
-check "nor does the update script" \
+check "the update script no longer lists hyprsunset.conf among the TOML configs" \
   "$(grep -c 'hyprsunset.conf are TOML' "$REPO/.local/bin/hyprsimple-update.sh")" "0"
 
 # --- hyprsunset's own verdict ------------------------------------------------

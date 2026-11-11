@@ -376,8 +376,9 @@ detect_and_install_nvidia() {
     else
       NVIDIA_DRIVER_PACKAGES=("$KERNEL_HEADERS" nvidia-open-dkms nvidia-utils)
     fi
-    # prime-run lives in nvidia-prime, and FAQ.md's remedy for the Optimus boot
+    # prime-run lives in nvidia-prime, and the FAQ's remedy for the Optimus boot
     # hang is written around having it. Nothing installed it.
+    # https://rizukirr.github.io/hyprsimple-web/docs/faq#boot-hangs-with-failed-failed-to-start-load-kernel-modules-then-freezes-after-login-nvidia-hybrid-laptops
     NVIDIA_EXTRA_PACKAGES=(libva-nvidia-driver nvidia-prime)
     NVIDIA_LIB32_PACKAGES=(lib32-nvidia-utils)
     NVIDIA_INSTALLER=(sudo pacman -S --noconfirm)
@@ -505,7 +506,7 @@ detect_and_install_nvidia() {
     else
       echo -e "${YELLOW}Could not write $pm_rule, so the NVIDIA card stays powered. Re-run ./install.sh, or write the rule by hand.${NC}"
     fi
-    echo -e "${GREEN}To force the card off entirely, supergfxctl from the AUR does that. FAQ.md says how.${NC}"
+    echo -e "${GREEN}To force the card off entirely, supergfxctl from the AUR does that. The FAQ says how: https://rizukirr.github.io/hyprsimple-web/docs/faq#does-the-nvidia-gpu-drain-my-battery-hybrid-laptops${NC}"
 
     echo -e "${GREEN}NVIDIA setup complete (arch: $GPU_ARCH, offload only)${NC}"
     return 0

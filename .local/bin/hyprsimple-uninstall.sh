@@ -247,7 +247,7 @@ report() {
 
 Left in place:
   - Packages. Nothing records which ones hyprsimple installed.
-  - System changes: NetworkManager and DNS setup, ufw rules, enabled system services and any NVIDIA udev rule. FAQ.md lists how to undo them.
+  - System changes: NetworkManager and DNS setup, ufw rules, enabled system services and any NVIDIA udev rule. The FAQ lists how to undo them: https://rizukirr.github.io/hyprsimple-web/docs/faq#what-does-hyprsimple-uninstallsh-leave-behind
   - pipewire and hyprpolkitagent, which any desktop may need.
   - Older backups named *.backup.<number>, under ~/.config and ~/.local/bin.
   - Scripts from older hyprsimple versions in ~/.local/bin, which the checkout no longer names.

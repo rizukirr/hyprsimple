@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - '.config/hypr/themes/**'
-      - 'assets/**'
       - 'bin/hyprsimple-dev-optimize-images'
   push:
     branches: [main]

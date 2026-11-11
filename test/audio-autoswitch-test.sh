@@ -342,18 +342,6 @@ check "a unit already there is left exactly as it was" \
 check "and it says so rather than silently skipping" \
   "$(grep -c 'left alone' "$TMP/mig")" "1"
 
-# ---- documented -------------------------------------------------------------
-
-for doc in README.md FAQ.md; do
-  if grep -q 'hyprsimple-audio-autoswitch.service' "$REPO/$doc"; then
-    pass "$doc says how to turn it off"
-  else
-    fail "$doc does not mention the service, so there is no way to find it"
-  fi
-done
-check "and the FAQ explains why it was stuck, not just how to fix it" \
-  "$(grep -c '30000 + priority' "$REPO/FAQ.md")" "1"
-
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1

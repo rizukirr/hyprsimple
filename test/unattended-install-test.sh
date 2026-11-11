@@ -241,23 +241,6 @@ check "the AUR choice, which an unattended run never reaches" \
 check "and the uncommitted-changes one, which only a checkout being worked on hits" \
   "$(printf '%s\n' "${prompts[@]}" | grep -c 'Continue and install HEAD')" "1"
 
-# ---- documented -------------------------------------------------------------
-
-# A floor on each. Pinning the exact count would fail whenever a paragraph is
-# rewrapped, which says nothing about whether the flag is documented.
-for doc in README.md FAQ.md; do
-  mentions="$(grep -c -- '--interactive' "$REPO/$doc")"
-  if ((mentions < 1)); then
-    fail "$doc does not mention --interactive, so the flag is undocumented"
-  else
-    pass "$doc documents --interactive"
-  fi
-done
-check "and the README says the password is asked for once" \
-  "$(grep -c 'sudo password once' "$REPO/README.md")" "1"
-check "and the FAQ says what an unattended upgrade gives up" \
-  "$(grep -c 'including which packages to replace' "$REPO/FAQ.md")" "1"
-
 if ((failures > 0)); then
   printf '\n%s check(s) failed\n' "$failures" >&2
   exit 1
