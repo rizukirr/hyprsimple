@@ -1,0 +1,25 @@
+// This file is yours. hyprsimple copies it once and never touches it again,
+// so anything you change here stays changed.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "source": "~/.config/fastfetch/ascii.txt",
+    "type": "file",
+    "padding": { "left": 2, "top": 1 }
+  },
+  "modules": [
+    "title",
+    "separator",
+    "os",
+    "host",
+    "kernel",
+    "shell",
+    "display",
+    "wm",
+    "font",
+    "terminal",
+    "poweradapter",
+    "break",
+    "colors"
+  ]
+}

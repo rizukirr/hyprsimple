@@ -262,6 +262,9 @@ jobs:
       - name: hyprsimple-theme-test
         run: bash test/hyprsimple-theme-test.sh
 
+      - name: fastfetch-logo-test
+        run: bash test/fastfetch-logo-test.sh
+
       - name: keybinding-viewer-test
         run: bash test/keybinding-viewer-test.sh
 

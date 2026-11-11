@@ -3,8 +3,8 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
   "logo": {
-    "source": "~/.config/fastfetch/ascii.txt",
-    "type": "file",
+    "source": "~/.config/fastfetch/Hypri.png",
+    "type": "auto",
     "padding": { "left": 2, "top": 1 }
   },
   "modules": [
