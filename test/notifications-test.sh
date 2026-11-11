@@ -32,7 +32,7 @@ check "and shows what arrives" "$(grep -c '^    NotificationPopups {}' "$BAR/she
 check "its bell opens the history" \
   "$(grep -c 'onClicked: bar.toggle("notifications")' "$BAR/bar/Bar.qml")" "1"
 check "which is a panel of that name" \
-  "$(grep -c 'readonly property string name: "notifications"' "$BAR/notifications/NotificationSidebar.qml")" "1"
+  "$(grep -c '^    name: "notifications"$' "$BAR/notifications/NotificationSidebar.qml")" "1"
 for call in dismissNotifications toggleVisible; do
   check "the bar answers $call over ipc" "$(grep -c "function $call(): void" "$BAR/shell.qml")" "1"
 done

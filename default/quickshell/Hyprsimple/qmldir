@@ -21,3 +21,4 @@ Toggle 1.0 ../components/Toggle.qml
 Capsule 1.0 ../bar/Capsule.qml
 StatusButton 1.0 ../bar/StatusButton.qml
 PopupPanel 1.0 ../panels/PopupPanel.qml
+SidePanel 1.0 ../panels/SidePanel.qml

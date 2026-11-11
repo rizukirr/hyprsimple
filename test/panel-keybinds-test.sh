@@ -35,14 +35,14 @@ check() {
 # name: values in that file are labels, not panels.
 #
 # The two sidebars are the exception. The launcher and the notifications name
-# themselves, in a string property of their own file, and Bar.qml only
+# themselves, in a name set at the root of their own file, and Bar.qml only
 # instantiates them.
 panels=$({
   sed 's|^[[:space:]]*//.*||' "$BAR" |
     grep -oE 'openPanel === "[a-z]+"|name: "[a-z]+"'
   sed 's|^[[:space:]]*//.*||' "$REPO/default/quickshell/panels"/*.qml \
     "$REPO/default/quickshell/notifications"/*.qml |
-    grep -oE 'property string name: "[a-z]+"'
+    grep -oE 'property string name: "[a-z]+"|^    name: "[a-z]+"'
 } | sed 's/.*"\(.*\)"/\1/' | LC_ALL=C sort -u)
 panel_count=$(printf '%s\n' "$panels" | grep -c .)
 

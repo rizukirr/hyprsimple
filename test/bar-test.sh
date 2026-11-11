@@ -45,12 +45,12 @@ check "and the bar creates it" "$(grep -c 'LauncherPanel {' "$BAR_DIR/bar/Bar.qm
 check "it starts apps through uwsm, by desktop id" \
   "$(grep -c 'execDetached(\["uwsm", "app", "--", app.id + ".desktop"\])' "$LAUNCHER")" "1"
 check "and the name the keybinding opens is the one the panel answers to" \
-  "$(grep -c 'readonly property string name: "launcher"' "$LAUNCHER")" "1"
+  "$(grep -c '^    name: "launcher"$' "$LAUNCHER")" "1"
 
 # The panels and the launcher animate themselves. Hyprland's own layer
 # animation on top of that played a second fade on open and close.
-PANEL_NAMESPACE="$(grep -ho 'WlrLayershell.namespace: "[^"]*"' "$BAR_DIR/panels/PopupPanel.qml" "$LAUNCHER" | sort -u | sed 's/.*"\(.*\)"/\1/')"
-check "the panels and the launcher share one layer namespace" "$PANEL_NAMESPACE" "quickshell-panel"
+PANEL_NAMESPACE="$(grep -ho 'WlrLayershell.namespace: "[^"]*"' "$BAR_DIR/panels/PopupPanel.qml" "$BAR_DIR/panels/SidePanel.qml" | sort -u | sed 's/.*"\(.*\)"/\1/')"
+check "the panels and the sidebars share one layer namespace" "$PANEL_NAMESPACE" "quickshell-panel"
 check "and Hyprland is told not to animate it" \
   "$(sed 's/^[[:space:]]*--.*//' "$REPO/default/hypr/windows.lua" | grep -c "namespace = \"$PANEL_NAMESPACE\" }, no_anim = true")" "1"
 
