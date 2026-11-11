@@ -258,7 +258,9 @@ A service is created once, when the bar starts, and lives as long as the bar doe
 
 A widget is created once per monitor, in that monitor's bar. Wrap it in `Capsule` to match the built-in bar items. A widget that sets `visible: false` takes no space, which suits something that has nothing to show yet.
 
-A panel is created once per monitor, next to the widget. Build it on `PopupPanel` so it opens under the widget, closes on an outside click or Escape, and takes part in the rule that one panel is open at a time across all monitors.
+A panel is created once per monitor, next to the widget. It can be any QML type that declares the `context` property, including a window of its own. The bar provides two. `PopupPanel` opens a card under the widget. `SidePanel` slides a drawer the full height of the screen in from the left or right edge. Both close on an outside click or Escape and take part in the rule that one panel is open at a time across all monitors.
+
+A plugin can declare a `panel` and no `widget`. Its panel then has no button in the bar and opens only by its alias, from a key or from `qs ... ipc call bar toggle <alias>`.
 
 When a service is declared and fails to load, the plugin's widget and panel are not loaded either, since they would have nothing to read.
 
@@ -288,7 +290,7 @@ Each monitor gets its own context, and all of them point at the same service.
 |---|---|
 | Theme | `Theme` |
 | Bar | `Capsule`, `StatusButton` |
-| Panel | `PopupPanel` |
+| Panel | `PopupPanel`, `SidePanel` |
 | Text and icons | `StyledText`, `SectionLabel`, `Icon` |
 | Controls | `TextButton`, `IconButton`, `Toggle`, `Slider`, `Segmented`, `Dropdown`, `TextField` |
 | Lists | `ListRow`, `PickerList` |
@@ -298,6 +300,25 @@ Each monitor gets its own context, and all of them point at the same service.
 `StatusButton` has `icon`, `label`, `tooltip`, `active`, `highlighted`, `alert`, `dim` and a `clicked` signal.
 
 `PopupPanel` needs `bar`, `anchorItem` and `name`, set from the context as in the example. It also has `panelWidth`, a read-only `open`, `focusTarget` for the item that takes the keyboard when the panel opens, and `dismiss()`.
+
+`SidePanel` needs `bar` and `name`, set from the context. It has no `anchorItem`, since it is placed by the screen edge and not by the widget. `edge` is `"left"` or `"right"` and defaults to `"left"`. `panelWidth` defaults to `Theme.sidebarWidth`. Like `PopupPanel` it has a read-only `open`, `focusTarget` and `dismiss()`, plus a read-only `progress` from 0 to 1 for content that fades as the drawer slides. Its content fills the drawer at full height, so a `ColumnLayout` with `anchors.fill: parent` and a `ListView` set to `Layout.fillHeight: true` lays out as expected.
+
+```qml
+import QtQuick
+import QtQuick.Layouts
+import Hyprsimple
+
+SidePanel {
+    required property var context
+    bar: context.bar
+    name: context.panelId
+    edge: "right"
+    ColumnLayout {
+        anchors.fill: parent
+        StyledText { text: "Notes" }
+    }
+}
+```
 
 `Theme` holds every color and size. Use its tokens instead of literal values so the plugin follows theme changes while the bar runs.
 
