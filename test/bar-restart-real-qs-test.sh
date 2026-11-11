@@ -122,6 +122,14 @@ for _ in {1..40}; do
   sleep 0.25
 done
 check "a crashed bar is recovered under the same pid" "$recovered" "yes"
+# On a crash Quickshell forks a copy to hold the coredump. It keeps the old
+# command line for a moment after the restarted bar has lost it, and a check
+# made in that moment sees the copy and not the bar. pgrep never matches the
+# copy once it has exited, so wait for it to go.
+for _ in {1..50}; do
+  pgrep -f -- "qs -p $BAR" >/dev/null || break
+  sleep 0.1
+done
 pgrep -f -- "qs -p $BAR" >/dev/null
 check "with a command line that no longer names its config" "$?" "1"
 while read -r child; do
