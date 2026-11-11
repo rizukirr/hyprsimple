@@ -478,11 +478,6 @@ run_migration "$TMP/bare"
 check "a home with no themes directory is left alone" \
   "$([[ -e $TMP/bare/.config/hypr/themes ]] && echo created || echo absent)" "absent"
 
-# ---- documented ---------------------------------------------------------------
-
-check "the README counts the themes it ships" \
-  "$(grep -c "\*\*${#names[@]} themes\*\*" "$REPO/README.md")" "1"
-
 # ---- every theme has a wallpaper of its own -----------------------------------
 #
 # The catalogue arrived with one picture shared between the themes, a symlink to

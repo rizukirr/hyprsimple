@@ -219,7 +219,7 @@ fi
 # number rather than a sign that nothing was read.
 #
 # The keybinds run each after a set that succeeded, so this is reached by
-# running the script directly, which the README documents, and by the default
+# running the script directly, which the docs document, and by the default
 # sink going between the two calls, which is what a bluetooth headset
 # disconnecting looks like.
 

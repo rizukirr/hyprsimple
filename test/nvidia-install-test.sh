@@ -226,7 +226,7 @@ check "and still installs the legacy driver itself" \
 
 for gen in "AD107M [GeForce RTX 4050 Max-Q]:nvidia-utils" "GP106 [GeForce GTX 1060 6GB]:nvidia-580xx-utils"; do
   run_nvidia "${gen%%:*}" "${gen##*:}"
-  check "nvidia-prime is installed for ${gen%% *}, since FAQ.md's fix needs prime-run" \
+  check "nvidia-prime is installed for ${gen%% *}, since the FAQ's fix needs prime-run" \
     "$(grep -c 'nvidia-prime' "$LOG")" "1"
 done
 

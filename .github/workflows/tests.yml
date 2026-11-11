@@ -259,9 +259,6 @@ jobs:
       - name: migration-naming-test
         run: bash test/migration-naming-test.sh
 
-      - name: readme-keybindings-test
-        run: bash test/readme-keybindings-test.sh
-
       - name: keybinding-viewer-test
         run: bash test/keybinding-viewer-test.sh
 

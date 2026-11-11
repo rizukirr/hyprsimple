@@ -6,8 +6,9 @@
 #
 # The entry starts the same ~/.config/hypr/hyprland.lua the stock Hyprland
 # entry starts. It changes the name on the login screen and puts Hyprsimple
-# into XDG_CURRENT_DESKTOP, nothing else. FAQ.md says what stays shared with
-# another Hyprland setup on the same user.
+# into XDG_CURRENT_DESKTOP, nothing else. The FAQ says what stays shared with
+# another Hyprland setup on the same user:
+# https://rizukirr.github.io/hyprsimple-web/docs/faq#can-i-run-hyprsimple-beside-another-hyprland-setup
 #
 # HYPRSIMPLE_SESSION_DIR overrides the directory, for the test suite.
 set -euo pipefail
