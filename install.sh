@@ -1078,8 +1078,8 @@ if [ -f /usr/lib/systemd/user/hyprsunset.service ]; then
   echo -e "${GREEN}hyprsunset enabled${NC}"
 fi
 
-# Initialize Theme Manager (Default: Deep Sea)
-DEFAULT_THEME="deep-sea"
+# Initialize Theme Manager (Default: hyprsimple, the theme made from Hypri's colours)
+DEFAULT_THEME="hyprsimple"
 echo ""
 echo -e "${YELLOW}Initializing Theme Manager (Default: ${DEFAULT_THEME})...${NC}"
 CACHE_DIR="$HOME/.cache"
