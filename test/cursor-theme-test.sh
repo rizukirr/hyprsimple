@@ -58,8 +58,12 @@ if (( themes < 5 )); then
 else
   pass "checked $themes shipped themes"
 fi
+# Read from install.sh, so the check follows the default when it changes.
+default_theme=$(sed -n 's/^DEFAULT_THEME="\(.*\)"$/\1/p' "$REPO/install.sh")
+check "install.sh names a default theme that ships" \
+  "$([[ -n $default_theme && -f $REPO/.config/hypr/themes/$default_theme/colors.toml ]] && echo yes || echo no)" "yes"
 check "the install-time default theme declares no cursor, so install.sh alone never set one" \
-  "$([[ -f $REPO/.config/hypr/themes/deep-sea/cursor-theme ]] && echo yes || echo no)" "no"
+  "$([[ -f $REPO/.config/hypr/themes/$default_theme/cursor-theme ]] && echo yes || echo no)" "no"
 if (( with_cursor > 0 )); then
   pass "$with_cursor themes do declare a cursor, so there is something to persist"
 else

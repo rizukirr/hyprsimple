@@ -259,6 +259,9 @@ jobs:
       - name: migration-naming-test
         run: bash test/migration-naming-test.sh
 
+      - name: hyprsimple-theme-test
+        run: bash test/hyprsimple-theme-test.sh
+
       - name: keybinding-viewer-test
         run: bash test/keybinding-viewer-test.sh
 
