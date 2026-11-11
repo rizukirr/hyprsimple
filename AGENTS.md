@@ -34,7 +34,7 @@ size, quality, and format limits in this repo. Do not restate those numbers
 here or anywhere else, so the policy and the script cannot drift apart.
 
 CI enforces the policy via `.github/workflows/images.yml`, which runs the
-optimizer in check mode on every pull request touching themes or assets. Run
+optimizer in check mode on every pull request touching themes. Run
 `bin/hyprsimple-dev-optimize-images` yourself before committing new or changed
 images, or CI will catch it for you.
 
