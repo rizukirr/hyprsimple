@@ -1,3 +1,5 @@
+<img width="2243" height="701" alt="a_detailed_anime_style_banner_wide_cinematic_digi" src="https://github.com/user-attachments/assets/d2a57c38-53f4-43b6-a78d-5fb63b629ca8" />
+
 # hyprsimple
 
 Minimalist and aesthetically pleasing Hyprland dotfiles for Arch Linux. Just the essential utilities for everyday use, with a clean and beautiful look and feel. Nothing fancy.
@@ -8,8 +10,6 @@ If you encounter any issues or have feedback, feel free to open an [issue](https
 
 > [!Note]
 > Muslimtify is installed by default as an [external plugin](https://github.com/muslimtify-org/muslimtify-hyprsimple). `hyprsimple-plugin remove muslimtify` removes its integration and daemon and keeps the package and your settings. `hyprsimple-plugin install https://github.com/muslimtify-org/muslimtify-hyprsimple.git` installs or enables it again.
-
-<img width="1920" height="1080" alt="2026-10-04-230902_screenshot" src="https://github.com/user-attachments/assets/d7956807-db97-4db4-8b38-58d3a6fc0630" />
 
 ## Demo
 
